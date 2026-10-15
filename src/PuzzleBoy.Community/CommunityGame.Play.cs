@@ -30,81 +30,52 @@ internal sealed partial class CommunityGame
         }
 
         var session = _session!;
-        var events = session.Tick();
-        foreach (var number in _classic is null ? [] : _classicStage!.Tick(session, _camera.Mode, _camera.Overhead))
+        List<Sfx> sounds = [];
+        List<int> effects = [];
+        var next = PlayTick.Run(session, _camera, _classic is null ? null : _classicStage, controls, _playtest, _playtest ? null : _save.Data, sounds, effects, out var newBest);
+        foreach (var number in effects)
         {
             _classic!.Play(number);
         }
 
-        if (events.HasFlag(PlayEvents.FallStarted))
+        if (newBest is { } best)
         {
-            Sound(Sfx.Fall);
+            _newBest = best;
+            _save.Save();
         }
 
-        if (events.HasFlag(PlayEvents.Cleared))
-        {
-            Sound(Sfx.Clear);
-
-            // A playtest is the editor's, not the player's progress.
-            if (!_playtest)
-            {
-                _newBest = _save.Data.Record(session.Stage.Id, session.Moves, session.ElapsedTicks / 30.0);
-                _save.Save();
-            }
-        }
-        else if (events.HasFlag(PlayEvents.ReachedGoal))
-        {
-            Sound(Sfx.Goal);
-        }
-
-        if (session.ReadyToContinue && _playtest)
-        {
-            EndPlaytest($"Playtest cleared in {session.Moves} {(session.Moves == 1 ? "move" : "moves")}.");
-            return;
-        }
-
-        if (session.ReadyToContinue)
-        {
-            if (!session.Next())
-            {
-                // The pack is done: back to the stage list, where My Stages or an imported pack stays open on its last stage.
-                _session = null;
-                LoadSelectPacks();
-                var tab = _selectPacks.FindIndex(p => p.PackId == _playPack?.PackId);
-                if (tab >= 0 && !_manifest.Packs.Contains(_playPack!))
-                {
-                    ShowTab(tab, session.Index);
-                }
-                else
-                {
-                    FocusNextStage();
-                }
-
-                _nav.ReturnTo(Screen.StageSelect);
-            }
-
-            return;
-        }
-
-        // Esc goes straight back to the editor from a playtest; P still pauses. Backspace and B also mean Undo, so not them.
-        if (_playtest && controls.Pressed(Command.Back) && !controls.Pressed(Command.Undo))
-        {
-            EndPlaytest("Playtest stopped.");
-            return;
-        }
-
-        if (controls.Pressed(Command.Pause))
+        if (next == PlayNext.Pause)
         {
             _pauseMenu.Set(0);
             _helpOpen = false;
             _nav.Open(Screen.Paused);
-            Sound(Sfx.Confirm);
-            return;
         }
 
-        foreach (var sfx in PlayInput.Apply(session, _camera, controls))
+        foreach (var sfx in sounds)
         {
             Sound(sfx);
+        }
+
+        if (next == PlayNext.LeavePlaytest || (next == PlayNext.Continue && _playtest))
+        {
+            EndPlaytest(next == PlayNext.Continue ? $"Playtest cleared in {session.Moves} {(session.Moves == 1 ? "move" : "moves")}." : "Playtest stopped.");
+        }
+        else if (next == PlayNext.Continue && !session.Next())
+        {
+            // The pack is done: back to the stage list, where My Stages or an imported pack stays open on its last stage.
+            _session = null;
+            LoadSelectPacks();
+            var tab = _selectPacks.FindIndex(p => p.PackId == _playPack?.PackId);
+            if (tab >= 0 && !_manifest.Packs.Contains(_playPack!))
+            {
+                ShowTab(tab, session.Index);
+            }
+            else
+            {
+                FocusNextStage();
+            }
+
+            _nav.ReturnTo(Screen.StageSelect);
         }
     }
 

@@ -40,9 +40,9 @@ public class ThemeSwitchTests
     }
 
     /// <summary>
-    /// Plays <paramref name="stage"/> by <paramref name="plan"/> through <see cref="PlayInput"/>, in the order the game's
-    /// Update runs (the play camera, the session, the Classic view when there is one, then input), recording the clear as
-    /// the game does.
+    /// Plays <paramref name="stage"/> by <paramref name="plan"/> through <see cref="PlayTick"/>, the tick the game's
+    /// UpdatePlaying runs, after the play camera's tick as the game's Update does, and with the Classic view drawn after
+    /// each tick when there is one. The clear is recorded by that tick, as in the game.
     /// </summary>
     private static Outcome Replay(PackStage stage, List<char> plan, bool classic, out ClassicStageView? view, out CameraRig rig)
     {
@@ -53,22 +53,8 @@ public class ThemeSwitchTests
         var sounds = new List<Sfx>();
         var next = 0;
         Keys[] previous = [];
-        for (var tick = 0; tick < 30000 && !session.ReadyToContinue; tick++)
+        for (var tick = 0; tick < 30000; tick++)
         {
-            camera.Tick();
-            var events = session.Tick();
-            if (view is not null)
-            {
-                view.Tick(session, camera.Mode, camera.Overhead);
-                view.Pose(session);
-                view.View(session);
-            }
-
-            if (events.HasFlag(PlayEvents.Cleared))
-            {
-                save.Record(stage.Id, session.Moves, session.ElapsedTicks / 30.0);
-            }
-
             Keys[] held = [];
             var step = next < plan.Count ? plan[next] : ' ';
             var key = step switch
@@ -96,8 +82,21 @@ public class ThemeSwitchTests
             }
 
             var moves = session.Moves;
-            var heard = PlayInput.Apply(session, camera, Controls.FromKeys(held, previous));
+            camera.Tick();
+            var heard = new List<Sfx>();
+            var after = PlayTick.Run(session, camera, view, Controls.FromKeys(held, previous), playtest: false, save, heard, [], out _);
             sounds.AddRange(heard);
+            if (after == PlayNext.Continue)
+            {
+                break;
+            }
+
+            if (view is not null)
+            {
+                view.Pose(session);
+                view.View(session);
+            }
+
             if (session.Moves > moves || (step is 'E' or 'Q' or 'V' or 'S' && heard.Contains(Sfx.View)) || (step is 'z' or 'r' && heard.Count > 0))
             {
                 next++;
