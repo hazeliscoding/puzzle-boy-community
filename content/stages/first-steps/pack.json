@@ -7,7 +7,7 @@
   "license": "Apache-2.0",
   "stages": [
     { "id": "walk-to-the-goal", "title": "Walk to the Goal", "file": "walk-to-the-goal.json" },
-    { "id": "first-push", "title": "First Push", "file": "first-push.json" },
-    { "id": "first-hole", "title": "First Hole", "file": "first-hole.json" }
+    { "id": "first-push", "title": "First Push", "file": "first-push.json", "hint": "Walk into the block to push it. Push it past the corridor that leads to the goal." },
+    { "id": "first-hole", "title": "First Hole", "file": "first-hole.json", "hint": "A block pushed over a hole drops in and fills it, and you can walk across." }
   ]
 }

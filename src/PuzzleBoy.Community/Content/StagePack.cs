@@ -9,7 +9,8 @@ namespace PuzzleBoy.Community.Content;
 /// <param name="Id">The pack-scoped id, <c>pack-id/stage-id</c>.</param>
 /// <param name="Title">The name the pack gives it.</param>
 /// <param name="Stage">The stage, validated by the engine.</param>
-internal sealed record PackStage(string Id, string Title, Stage Stage);
+/// <param name="Hint">A nudge the help screen shows, or null.</param>
+internal sealed record PackStage(string Id, string Title, Stage Stage, string? Hint = null);
 
 /// <summary>
 /// A folder of stages described by its <c>pack.json</c>: format <c>puzzle-boy-pack</c>, schema version 1. Each stage is
@@ -27,6 +28,9 @@ internal sealed partial record StagePack(string PackId, string Title, string Cre
 
     /// <summary>The most stages one pack may list.</summary>
     public const int MaxStages = 200;
+
+    /// <summary>The longest hint a stage may have, in characters.</summary>
+    public const int MaxHint = 200;
 
     // The engine refuses a larger stage file too; checking first avoids reading a huge one.
     private const int MaxStageBytes = 64 * 1024;
@@ -99,6 +103,13 @@ internal sealed partial record StagePack(string PackId, string Title, string Cre
                 continue;
             }
 
+            var hint = ContentFile.String(entry, "hint");
+            if (hint is { Length: > MaxHint })
+            {
+                problems.Add($"{stageWhere}: \"hint\" is longer than {MaxHint} characters.");
+                continue;
+            }
+
             if (ContentFile.Resolve(folder, ContentFile.String(entry, "file"), stageWhere, problems) is not { } stageFile
                 || ContentFile.Read(stageFile, MaxStageBytes, stageWhere, problems) is not { } bytes)
             {
@@ -108,7 +119,7 @@ internal sealed partial record StagePack(string PackId, string Title, string Cre
             try
             {
                 var document = StageDocument.Parse(Encoding.UTF8.GetString(bytes));
-                stages.Add(new PackStage($"{packId}/{id}", stageTitle, document.Stage));
+                stages.Add(new PackStage($"{packId}/{id}", stageTitle, document.Stage, hint));
             }
             catch (StageFormatException e)
             {

@@ -29,6 +29,19 @@ public class StagePackTests
         Assert.Equal(["test/second", "test/first"], pack!.Stages.Select(s => s.Id));
     }
 
+    [Fact]
+    public void A_stage_hint_loads_and_an_overlong_one_leaves_the_stage_out()
+    {
+        using var temp = new TempFolder();
+        temp.Write("pack/a.json", FirstPush);
+        var hinted = $$"""{ "id": "hinted", "title": "A stage", "file": "a.json", "hint": "Push it." }""";
+        var overlong = $$"""{ "id": "overlong", "title": "A stage", "file": "a.json", "hint": "{{new string('x', StagePack.MaxHint + 1)}}" }""";
+        temp.Write("pack/pack.json", Pack($"{hinted}, {overlong}"));
+        var (pack, problems) = Load(temp);
+        Assert.Equal(["Push it."], pack!.Stages.Select(s => s.Hint));
+        Assert.Equal(["pack, stage \"overlong\": \"hint\" is longer than 200 characters."], problems);
+    }
+
     [Theory]
     [InlineData("../outside.json", "must stay inside its folder")]
     [InlineData("more/../../outside.json", "must stay inside its folder")]
