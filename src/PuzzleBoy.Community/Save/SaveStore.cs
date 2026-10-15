@@ -259,8 +259,9 @@ internal sealed class SaveStore
     }
 
     /// <summary>
-    /// The legacy shape, schema 0, which had no <c>schemaVersion</c>: <c>{ "cleared": [ids], "volume": 0..1 }</c>. Its
-    /// cleared stages become completed with no best, and its one volume sets both music and effects.
+    /// Schema 0, with no <c>schemaVersion</c>: <c>{ "cleared": [ids], "volume": 0..1 }</c>. No release wrote it; it keeps
+    /// the migration path tested until a real schema 2 exists. Its cleared stages become completed with no best, and its
+    /// one volume sets both music and effects.
     /// </summary>
     private static SaveData MigrateV0(JsonObject legacy)
     {

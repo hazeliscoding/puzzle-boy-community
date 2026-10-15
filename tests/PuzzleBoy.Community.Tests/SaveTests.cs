@@ -181,6 +181,9 @@ public class SaveTests
         store.Save();
         Assert.Contains("\"schemaVersion\": 1", File.ReadAllText(store.MainPath));
         Assert.True(SaveStore.Load(temp.Path).Data.IsCompleted(Id(1)));
+
+        // The first real clear of a migrated stage sets its first best.
+        Assert.True(store.Data.Record(Id(0), 30, 20));
     }
 
     [Fact]

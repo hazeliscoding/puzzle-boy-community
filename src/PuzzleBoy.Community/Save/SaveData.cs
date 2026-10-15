@@ -120,7 +120,8 @@ internal sealed class SaveData
             Stages[id] = progress = new StageProgress();
         }
 
-        var better = !progress.Completed || moves < progress.BestMoves || seconds < progress.BestTime;
+        // A clear with no best recorded, as a migrated save holds, sets the first best.
+        var better = !progress.Completed || progress.BestMoves is null || progress.BestTime is null || moves < progress.BestMoves || seconds < progress.BestTime;
         progress.Completed = true;
         progress.BestMoves = Math.Min(moves, progress.BestMoves ?? int.MaxValue);
         progress.BestTime = Math.Min(Math.Round(seconds, 2), progress.BestTime ?? double.MaxValue);
