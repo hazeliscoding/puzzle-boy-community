@@ -337,6 +337,13 @@ internal static partial class PackArchive
                 return $"the archive holds {zip.Entries.Count} entries; a pack may hold {MaxEntries}.";
             }
 
+            // Zipping the pack's folder, rather than the files in it, is the easy mistake to make.
+            var names = zip.Entries.Select(e => e.FullName).Where(n => !IsFinderData(n)).ToList();
+            if (!names.Contains("pack.json") && names.Where(n => n.EndsWith("/pack.json", StringComparison.Ordinal) && n.Count(c => c == '/') == 1).ToList() is [var inner])
+            {
+                return $"the pack is inside the folder \"{inner[..^"pack.json".Length]}\". Zip the files inside that folder (pack.json and stages/), not the folder itself.";
+            }
+
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             long total = 0;
             foreach (var entry in zip.Entries)
@@ -345,6 +352,18 @@ internal static partial class PackArchive
                 if (CheckName(name) is { } bad)
                 {
                     return $"\"{name}\" {bad}";
+                }
+
+                if (IsFinderData(name))
+                {
+                    // One warning for the whole __MACOSX/ folder, which mirrors every file.
+                    var warning = $"\"{(name.StartsWith("__MACOSX/", StringComparison.Ordinal) ? "__MACOSX/" : name)}\" was left out: it holds the Mac's Finder data, not part of the pack.";
+                    if (!warnings.Contains(warning))
+                    {
+                        warnings.Add(warning);
+                    }
+
+                    continue;
                 }
 
                 // The Unix file type sits in the top 16 bits; 0xA000 is a symbolic link. 0x400 is a Windows reparse point.
@@ -431,6 +450,10 @@ internal static partial class PackArchive
             return length > MaxEntryBytes ? null : buffer[..length];
         }
     }
+
+    /// <summary>True for what macOS's Compress adds to a zip: a <c>__MACOSX/</c> folder and <c>.DS_Store</c> files.</summary>
+    private static bool IsFinderData(string name) =>
+        name.StartsWith("__MACOSX/", StringComparison.Ordinal) || name == ".DS_Store" || name.EndsWith("/.DS_Store", StringComparison.Ordinal);
 
     /// <summary>Why an entry name can't be in a pack, or null when it's a plain relative path.</summary>
     private static string? CheckName(string name) =>

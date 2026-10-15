@@ -234,6 +234,37 @@ public class PackArchiveTests
         Assert.Equal("shared/small", Assert.Single(pack.Stages).Id);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void A_zip_of_the_pack_folder_itself_says_to_zip_the_files_inside_it(bool folderEntries)
+    {
+        using var temp = new TempFolder();
+        var data = Path.Combine(temp.Path, "data");
+        (string, string)[] folders = folderEntries ? [("My Pack/", ""), ("My Pack/stages/", "")] : [];
+        var zip = Zip(temp.Path, [.. folders, ("My Pack/pack.json", PackJson()), ("My Pack/stages/small.json", StageJson())]);
+
+        var result = PackArchive.Import(zip, data, NoneKnown, Reserved);
+
+        Assert.Null(result.PackId);
+        Assert.EndsWith(": the pack is inside the folder \"My Pack/\". Zip the files inside that folder (pack.json and stages/), not the folder itself.", result.Message);
+        Assert.False(Directory.Exists(data));
+    }
+
+    [Fact]
+    public void A_zip_made_on_a_mac_imports_and_leaves_out_its_finder_files_with_a_warning()
+    {
+        using var temp = new TempFolder();
+        var data = Path.Combine(temp.Path, "data");
+        var zip = GoodZip(temp.Path, ("__MACOSX/", ""), ("__MACOSX/._pack.json", "x"), ("__MACOSX/stages/._small.json", "x"), (".DS_Store", "x"), ("stages/.DS_Store", "x"));
+
+        var result = PackArchive.Import(zip, data, NoneKnown, Reserved);
+
+        Assert.Equal("shared", result.PackId);
+        Assert.Equal(["\"__MACOSX/\" was left out: it holds the Mac's Finder data, not part of the pack.", "\".DS_Store\" was left out: it holds the Mac's Finder data, not part of the pack.", "\"stages/.DS_Store\" was left out: it holds the Mac's Finder data, not part of the pack."], result.Warnings);
+        Assert.Equal(["packs/shared/pack.json", "packs/shared/stages/small.json"], Directory.EnumerateFiles(data, "*", SearchOption.AllDirectories).Select(f => Path.GetRelativePath(data, f).Replace('\\', '/')).Order(StringComparer.Ordinal));
+    }
+
     [Fact]
     public void A_pack_json_saved_with_a_byte_order_mark_imports_and_keeps_both()
     {
