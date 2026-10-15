@@ -19,7 +19,7 @@ internal static class SmokeTest
     /// </summary>
     public static int Run(string contentFolder, TextWriter output, string? dataDir = null)
     {
-        output.WriteLine($"Puzzle Boy Community Edition smoke test: {contentFolder}");
+        output.WriteLine($"Puzzle Boy Community Edition {CommunityGame.Version} smoke test: {contentFolder}");
         var problems = Provenance.Check(contentFolder);
         if (problems.Count == 0)
         {

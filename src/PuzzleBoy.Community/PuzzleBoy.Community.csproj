@@ -4,6 +4,8 @@
     <OutputType>WinExe</OutputType>
     <AssemblyName>PuzzleBoyCommunity</AssemblyName>
     <RootNamespace>PuzzleBoy.Community</RootNamespace>
+    <!-- The informational version adds the commit (+sha), which the credits and the smoke test show. -->
+    <Version>0.1.0</Version>
   </PropertyGroup>
 
   <!-- No MonoGame content pipeline: fonts and data are read from content/ at runtime, and graphics are drawn in code. -->

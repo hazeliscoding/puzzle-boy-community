@@ -158,6 +158,17 @@ public class AppTests
         Assert.Equal(["Play", "Stage Select", "Level Editor", "Settings", "Credits", "Quit"], CommunityGame.TitleItems);
 
     [Fact]
+    public void The_version_is_a_release_number_with_the_short_commit() =>
+        Assert.Matches(@"^\d+\.\d+\.\d+(\+[0-9a-f]{7})?$", CommunityGame.Version);
+
+    [Theory]
+    [InlineData("0.1.0+f7dab358e05aea7a25be7672539d7e9e20bb104b", "0.1.0+f7dab35")]
+    [InlineData("0.1.0+f7dab35", "0.1.0+f7dab35")]
+    [InlineData("0.1.0", "0.1.0")]
+    public void A_full_commit_hash_in_the_version_is_shortened_to_seven_characters(string informational, string shown) =>
+        Assert.Equal(shown, CommunityGame.ShortVersion(informational));
+
+    [Fact]
     public void The_credits_carry_the_trademark_and_affiliation_notice()
     {
         Assert.Contains("Puzzle Boy, Shin Megami Tensei and Nocturne are trademarks of ATLUS and SEGA.", CommunityGame.Notice);

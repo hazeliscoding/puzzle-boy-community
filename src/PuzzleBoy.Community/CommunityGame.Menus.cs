@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.Xna.Framework;
 using PuzzleBoy.Community.App;
 using PuzzleBoy.Community.Audio;
@@ -42,6 +43,12 @@ internal sealed partial class CommunityGame
     /// </summary>
     internal const string Notice = "Inspired by Puzzle Boy (Atlus) and its 3D version in Shin Megami Tensei III: Nocturne. Puzzle Boy, Shin Megami Tensei and Nocturne are trademarks of ATLUS and SEGA. This is an independent fan project, not affiliated with or endorsed by either company. It contains no ATLUS or SEGA assets.";
 
+    /// <summary>
+    /// The game's version and the commit it was built from, such as <c>0.1.0+f7dab35</c>; just the version when the build
+    /// had no git checkout.
+    /// </summary>
+    internal static readonly string Version = ShortVersion(typeof(CommunityGame).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "unknown");
+
     // Stage select shows this many rows and scrolls the rest.
     private const int SelectRows = 9;
 
@@ -54,6 +61,10 @@ internal sealed partial class CommunityGame
 
     // Credits run nearly to the bottom, so their Back sits lower.
     private static readonly MenuLayout CreditsBack = new(540, 652, 200, 54);
+
+    /// <summary>Shortens the full commit hash after the <c>+</c> of an informational version to seven characters.</summary>
+    internal static string ShortVersion(string informational) =>
+        informational.IndexOf('+') is var plus and >= 0 && informational.Length > plus + 8 ? informational[..(plus + 8)] : informational;
 
     /// <summary>Where stage <paramref name="index"/> of <paramref name="stages"/> stands in the player's progress.</summary>
     internal static StageStatus StatusOf(SaveData data, IReadOnlyList<Content.PackStage> stages, int index) =>
@@ -819,7 +830,7 @@ internal sealed partial class CommunityGame
             y += _ui.Wrapped(Font.Body, 19, text, new Vector2(x, y), width, _ui["cream"], 1.3f) + 10;
         }
 
-        Section("PUZZLE BOY COMMUNITY EDITION", "Game, stages, Pixel Jack, music and sound by the Puzzle Boy Community authors. Code and original content under the Apache License 2.0.");
+        Section($"PUZZLE BOY COMMUNITY EDITION {Version}", "Game, stages, Pixel Jack, music and sound by the Puzzle Boy Community authors. Code and original content under the Apache License 2.0.");
         Section("FONTS", "Atkinson Hyperlegible by the Braille Institute of America (Elliott Scott, Megan Eiswerth, Linus Boman, Theodore Petrosky).\nSilkscreen by Jason Kottke. Both under the SIL Open Font License 1.1.");
         Section("COLORS", "Block colors from the Okabe-Ito colorblind-safe palette.");
         Section("LIBRARIES", "MonoGame (Ms-PL), SDL2 and FontStashSharp (zlib), OpenAL Soft (LGPL 2), StbTrueTypeSharp and StbImageSharp (public domain), NVorbis, Cyotek.Drawing.BitmapFont and AssetsTools.NET (MIT). Their notices are in THIRD_PARTY_NOTICES.txt beside the game.");

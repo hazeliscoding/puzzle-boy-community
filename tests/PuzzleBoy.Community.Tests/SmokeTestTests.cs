@@ -8,6 +8,7 @@ public class SmokeTestTests
         var output = new StringWriter();
         Assert.Equal(0, SmokeTest.Run(Repo.Content, output));
         var report = output.ToString();
+        Assert.StartsWith($"Puzzle Boy Community Edition {CommunityGame.Version} smoke test: ", report);
         Assert.Contains("content: 1 pack(s), 20 stage(s), 4 fonts", report);
         Assert.Contains("stage first-steps/garden-path: PlusX walked from (6, 7) to (7, 7)", report);
         Assert.EndsWith("smoke test passed" + Environment.NewLine, report);
