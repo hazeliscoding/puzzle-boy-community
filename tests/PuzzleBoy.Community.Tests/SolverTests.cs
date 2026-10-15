@@ -12,7 +12,7 @@ public class SolverTests
     /// <c>G</c> goal, <c>1</c>–<c>4</c> characters, <c>b</c>/<c>B</c> block group 1 (B over a hole), <c>k</c> block group 2,
     /// <c>c</c> swivel center and <c>a</c>/<c>A</c> its arms, group 3 (A over a hole).
     /// </summary>
-    private static Stage Draw(params string[] rows)
+    internal static Stage Draw(params string[] rows)
     {
         var builder = new StageBuilder();
         var characters = new SortedDictionary<char, (int, int)>();

@@ -105,10 +105,11 @@ internal sealed class SaveData
 
     /// <summary>
     /// True when stage <paramref name="index"/> of <paramref name="stages"/> can be played: the first stage of a pack,
-    /// a stage cleared before, and the two stages after a cleared one, so one hard stage never blocks the rest.
+    /// a stage cleared before, and the two stages after a cleared one, so one hard stage never blocks the rest. The
+    /// player's own stages (<c>custom/…</c>) are always open.
     /// </summary>
     public bool IsUnlocked(IReadOnlyList<PackStage> stages, int index) =>
-        index == 0 || IsCompleted(stages[index].Id) || IsCompleted(stages[index - 1].Id) || (index >= 2 && IsCompleted(stages[index - 2].Id));
+        index == 0 || stages[index].Id.StartsWith($"{CustomStages.PackId}/", StringComparison.Ordinal) || IsCompleted(stages[index].Id) || IsCompleted(stages[index - 1].Id) || (index >= 2 && IsCompleted(stages[index - 2].Id));
 
     /// <summary>
     /// Records a clear of stage <paramref name="id"/> in <paramref name="moves"/> steps and <paramref name="seconds"/>.
