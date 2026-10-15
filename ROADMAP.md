@@ -22,6 +22,9 @@ Puzzle Boy Community Edition is a standalone puzzle game on the Puzzle Boy rules
 - **A stage tool for designers.** `tools/PuzzleBoy.StageCheck` validates, solves and fingerprints a stage or a pack. The solver is breadth-first over every input (four steps and, with two characters or more, a switch), so a solution has the fewest inputs; it reports the pushes and turns in it too. The engine's `Board` makes every move: a state is the cells and the visible characters from the active one, turned back into a stage to resume from, and a test checks that round trip against a live board on random walks. States are deduplicated by 128 bits of SHA-256. The default cap is 2,000,000 states, about 13 seconds on the owner's machine, and reaching it is reported as "search limit reached", never as unsolvable.
 - **`--smoke-test` needs no window.** It runs the same checks as the content tests on the `content/` beside the executable, measures text with each font through FontStashSharp (which needs no graphics device for that), and takes one step on the first stage. CI runs it on the built game. A WinExe has no console on Windows, so there the report shows only when output is redirected; the exit code always works.
 - **A stage may carry a hint.** A pack's stage entry can add a `hint` of up to 200 characters, which the help screen in play shows. A longer one leaves the stage out with a problem, like any other bad entry.
+- **Screens are a stack.** Title is always at the bottom, so Back never quits; Quit to Title clears the stack, and finishing a pack returns to stage select. Screen logic, menu focus and input mapping are plain classes with tests; drawing isn't tested.
+- **Input follows the view,** as in the original: direction = (screen direction - view turns) mod 4, the preservation port's formula. A step waits for the last one's animation (4 ticks a walk, 5 a push or turn, 9 with a fall) and for a turn of the view to land.
+- **`--smoke-gui` runs by hand for now.** It needs a display, so CI doesn't run it until C5 adds one. Run it after a visual change and look at both pictures.
 - **The starter pack is a placeholder.** `first-steps` has three tiny stages (walk, first push, first hole) so the loader and the tests have real content. C2 replaces it with the campaign.
 
 ## C1: Instant play
@@ -32,7 +35,7 @@ The handoff's M3.
 - [x] A default content pack with provenance and credits, a safe loader for it, and tests that reject unlisted files, denied formats and copies of known Nocturne layouts.
 - [x] A stage tool that validates, solves (within a cap) and fingerprints a stage or a pack.
 - [x] Starter stages, each with a solution the tests replay, and a headless `--smoke-test`.
-- [ ] A title screen and play of a bundled stage, with Pixel Jack, drawn graphics and synthesized sound; a `--smoke-gui` check that renders both.
+- [x] A title screen and play of a bundled stage, with Pixel Jack, drawn graphics and synthesized sound; a `--smoke-gui` check that renders both. A self-contained win-x64 Release publish, run from a folder outside the repo, passed `--smoke-test` and `--smoke-gui` (2026.10.15).
 
 **Done when** a local release build, unpacked on a machine with no Nocturne, no Steam and no network, reaches the title and plays an included stage.
 
