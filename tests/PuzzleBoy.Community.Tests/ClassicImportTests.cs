@@ -20,7 +20,7 @@ public class ClassicImportTests
     {
         using var temp = new TempFolder();
         var data = Path.Combine(temp.Path, "data");
-        var result = ClassicImport.Import(ClassicInstall.Find([temp.Path, Path.Combine(temp.Path, "steamapps", "common", "smt3hd")]), data, folder: null);
+        var result = ClassicImport.Import(ClassicSource.Find([temp.Path, Path.Combine(temp.Path, "steamapps", "common", "smt3hd")]), data, folder: null);
         Assert.Equal("Couldn't find Shin Megami Tensei III Nocturne HD Remaster beside this game or in your Steam libraries. Choose Enter Folder Path and type the folder that holds smt3hd.exe.", result.Message);
         NothingImported(result, data);
     }
@@ -71,7 +71,7 @@ public class ClassicImportTests
         using var temp = new TempFolder();
         var data = Path.Combine(temp.Path, "data");
         temp.Write(file, "This is not a Unity bundle, just text with the bundle's name.");
-        var install = ClassicInstall.At(Path.Combine(temp.Path, folder));
+        var install = ClassicSource.At(Path.Combine(temp.Path, folder));
         Assert.NotNull(install);
         Assert.Equal(Path.GetFullPath(Path.Combine(temp.Path, file)), install.BundlePath);
 
@@ -159,6 +159,6 @@ public class ClassicImportTests
                 "1" { "path"		"D:\\Games\\SteamLibrary" }
             }
             """;
-        Assert.Equal([@"C:\Program Files (x86)\Steam", @"D:\Games\SteamLibrary"], ClassicInstall.LibraryPaths(Vdf));
+        Assert.Equal([@"C:\Program Files (x86)\Steam", @"D:\Games\SteamLibrary"], PuzzleBoy.Nocturne.GameInstall.LibraryPaths(Vdf));
     }
 }

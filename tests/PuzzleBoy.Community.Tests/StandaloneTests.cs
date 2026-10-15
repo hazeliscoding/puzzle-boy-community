@@ -12,6 +12,9 @@ namespace PuzzleBoy.Community.Tests;
 public class StandaloneTests
 {
     private const string ClassicNamespace = "PuzzleBoy.Community.Classic";
+    private const string NocturneLibrary = "PuzzleBoy.Nocturne";
+
+    private static readonly string[] BundleLibraries = [NocturneLibrary, "PuzzleBoy.Rendering", "AssetsTools.NET"];
     private const BindingFlags Declared = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
 
     private static readonly Assembly Game = typeof(CommunityGame).Assembly;
@@ -111,6 +114,9 @@ public class StandaloneTests
         return seen;
     }
 
+    private static bool TouchesBundleLibraries(MethodBase method) =>
+        References(method).Any(m => BundleLibraries.Contains(Owner(m)?.Assembly.GetName().Name));
+
     private static bool TouchesClassic(MethodBase method) =>
         method.DeclaringType?.Namespace == ClassicNamespace || References(method).Any(m => Owner(m)?.Namespace == ClassicNamespace);
 
@@ -121,16 +127,20 @@ public class StandaloneTests
             || MethodsOf(type).SelectMany(References).Any(m => Owner(m)?.Assembly.GetName().Name == assembly))];
 
     [Fact]
-    public void The_game_references_no_audio_reader_for_a_Nocturne_install() =>
-        Assert.Empty(ReferencesAmong(Game, ["Fmod5Sharp"]));
+    public void The_game_reads_bundles_only_through_the_engines_Nocturne_library() =>
+        Assert.Empty(ReferencesAmong(Game, ["AssetsTools.NET", "Fmod5Sharp", "NVorbis"]));
+
+    [Theory]
+    [InlineData("PuzzleBoy.Nocturne")]
+    [InlineData("PuzzleBoy.Rendering")]
+    public void Only_the_classic_module_uses_the_engines_Nocturne_libraries(string library)
+    {
+        Assert.All(TypesUsing(library), t => Assert.Equal(ClassicNamespace, t.Namespace));
+    }
 
     [Fact]
-    public void Only_the_classic_module_reads_Unity_bundles()
-    {
-        var users = TypesUsing("AssetsTools.NET");
-        Assert.Contains(typeof(ClassicInstall), users);
-        Assert.All(users, t => Assert.Equal(ClassicNamespace, t.Namespace));
-    }
+    public void The_library_check_finds_the_classic_import_reading_bundles() =>
+        Assert.Contains(typeof(ClassicSource), TypesUsing(NocturneLibrary));
 
     [Fact]
     public void The_title_and_content_loading_never_reach_the_classic_module()
@@ -144,6 +154,7 @@ public class StandaloneTests
             Method(typeof(Theme), "Load"));
         Assert.True(startup.Count > 50, $"the walk found only {startup.Count} methods");
         Assert.DoesNotContain(startup, TouchesClassic);
+        Assert.DoesNotContain(startup, TouchesBundleLibraries);
     }
 
     [Fact]
@@ -151,12 +162,12 @@ public class StandaloneTests
     {
         // Positive controls: stage select reads the imported stages, and an import reads the install.
         Assert.Contains(Reachable(Method(typeof(CommunityGame), "OpenImportClassic")), TouchesClassic);
-        Assert.Contains(Reachable(Method(typeof(ClassicImport), "FromSteam")), m => m.DeclaringType == typeof(ClassicInstall));
+        Assert.Contains(Reachable(Method(typeof(ClassicImport), "FromSteam")), TouchesBundleLibraries);
     }
 
     [Fact]
     public void Showing_imported_classic_stages_never_looks_at_the_install() =>
-        Assert.DoesNotContain(Reachable(Method(typeof(ClassicStages), "Load")), m => m.DeclaringType == typeof(ClassicInstall) || m.DeclaringType == typeof(ClassicImport));
+        Assert.DoesNotContain(Reachable(Method(typeof(ClassicStages), "Load")), m => m.DeclaringType == typeof(ClassicSource) || m.DeclaringType == typeof(ClassicImport));
 
     [Fact]
     public void Only_the_import_screen_and_its_command_start_an_import()

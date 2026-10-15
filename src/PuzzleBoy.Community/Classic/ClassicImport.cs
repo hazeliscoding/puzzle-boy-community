@@ -24,10 +24,10 @@ internal static class ClassicImport
     /// <summary>Looks for the game beside this one and in the Steam libraries, and imports from it.</summary>
     public static ClassicImportResult FromSteam(string dataDir)
     {
-        ClassicInstall? install;
+        ClassicSource? install;
         try
         {
-            install = ClassicInstall.Find(ClassicInstall.UsualPlaces());
+            install = ClassicSource.Find(ClassicSource.UsualPlaces());
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {
@@ -47,7 +47,7 @@ internal static class ClassicImport
         }
 
         return Directory.Exists(folder)
-            ? Import(ClassicInstall.At(folder), dataDir, folder)
+            ? Import(ClassicSource.At(folder), dataDir, folder)
             : Fail($"There's no folder at {folder}. Type the folder that holds smt3hd.exe, such as Steam's steamapps{Path.DirectorySeparatorChar}common{Path.DirectorySeparatorChar}smt3hd.");
     }
 
@@ -55,11 +55,11 @@ internal static class ClassicImport
     /// Reads every stage both classic lists use from <paramref name="install"/>, checks each with the engine and stores
     /// the ones that parse. <paramref name="folder"/> is what the player typed, or null for a search.
     /// </summary>
-    internal static ClassicImportResult Import(ClassicInstall? install, string dataDir, string? folder)
+    internal static ClassicImportResult Import(ClassicSource? install, string dataDir, string? folder)
     {
         if (install is null)
         {
-            var bundle = Path.Combine("smt3hd_Data", "StreamingAssets", "PC", ClassicInstall.Bundle);
+            var bundle = Path.Combine("smt3hd_Data", "StreamingAssets", "PC", ClassicSource.Bundle);
             return Fail(folder is null
                 ? "Couldn't find Shin Megami Tensei III Nocturne HD Remaster beside this game or in your Steam libraries. Choose Enter Folder Path and type the folder that holds smt3hd.exe."
                 : $"{folder} has no Puzzle Boy stages: there's no {bundle} in it. Type the folder that holds smt3hd.exe, or a copy of its smt3hd_Data folder.");
