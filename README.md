@@ -1,11 +1,46 @@
-<h1>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/lockup-dark.svg">
-    <img alt="Puzzle Boy Community Edition" src="docs/brand/lockup.svg" height="72">
-  </picture>
+<h1 align="center">
+  <img src="https://github.com/user-attachments/assets/979b3c30-580f-40b7-81d8-351a43551bde" alt="Puzzle Boy Community Edition" width="640">
 </h1>
 
-**The Nocturne Puzzle Boy minigame, expanded. Best with your own copy (the Classic theme); plays out of the box with the bundled Default theme.**
+<p align="center"><b>The Nocturne Puzzle Boy minigame, expanded. Best with your own copy (the Classic theme); plays out of the box with the bundled Default theme.</b></p>
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/80216284-e488-4946-8d2a-5b92d7830c04" alt="A tour of the Classic theme: the title with the Jack-o'-Lantern, stage select, Stepping Stone played to COMPLETE!, then the menu and help pages" width="800">
+  <br><em>The Classic Nocturne theme, rendered from a local copy of the game.</em>
+</p>
+
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <a href="https://github.com/user-attachments/assets/4343a8af-2b77-43c9-88f1-1be45513193b"><img src="https://github.com/user-attachments/assets/4343a8af-2b77-43c9-88f1-1be45513193b" alt="The title screen in the Classic theme, with the original Jack-o'-Lantern" width="100%"></a>
+      <br><sub>Title, with the original Jack-o'-Lantern</sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="https://github.com/user-attachments/assets/3f850e8f-1328-499a-a493-1d830054e3bf"><img src="https://github.com/user-attachments/assets/3f850e8f-1328-499a-a493-1d830054e3bf" alt="Stage select in the Classic theme, with the Classic campaigns" width="100%"></a>
+      <br><sub>Stage select and the Classic campaigns</sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="https://github.com/user-attachments/assets/991154ba-a4f6-4a5c-a804-709d6bd8b9bc"><img src="https://github.com/user-attachments/assets/991154ba-a4f6-4a5c-a804-709d6bd8b9bc" alt="Garden Path in play, with the original HUD and key prompts" width="100%"></a>
+      <br><sub>In play: the original HUD and prompts</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="33%">
+      <a href="https://github.com/user-attachments/assets/93568a3c-5296-406b-972c-e2490f2d7f78"><img src="https://github.com/user-attachments/assets/93568a3c-5296-406b-972c-e2490f2d7f78" alt="The original menu panel over the board, with the stage's moves and time" width="100%"></a>
+      <br><sub>The original menu, with your moves and time</sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="https://github.com/user-attachments/assets/cb650f7e-e43a-48df-ae7e-7c68f0cddadb"><img src="https://github.com/user-attachments/assets/cb650f7e-e43a-48df-ae7e-7c68f0cddadb" alt="A bonus stage, one of the 23 the original ships but never plays" width="100%"></a>
+      <br><sub>A bonus stage the original never plays</sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="https://github.com/user-attachments/assets/ddc1028f-efc6-48a4-ae55-c82e9455ac4c"><img src="https://github.com/user-attachments/assets/ddc1028f-efc6-48a4-ae55-c82e9455ac4c" alt="The controls page in the original's style" width="100%"></a>
+      <br><sub>Every control, in the original's style</sub>
+    </td>
+  </tr>
+</table>
+
+<p align="center"><sub>Classic theme images are rendered from a local copy of the game and hosted as uploads; none of it is in this repository or its downloads.</sub></p>
 
 Push blocks, turn swivels and fill holes to reach the goal, with the minigame's rules, a campaign of new stages, a level editor and level packs. If you own *Shin Megami Tensei III Nocturne HD Remaster*, import it once and every stage plays in the original's look and sound: its board, its Jack-o'-Lantern, its camera, its music. Without it, the Default theme plays the same stages with Pixel Jack, a pumpkin in a witch's hat, and art and sound made for this game. It needs no Steam and no network either way.
 
@@ -15,7 +50,7 @@ Push blocks, turn swivels and fill holes to reach the goal, with the minigame's 
   <img src="docs/screenshots/title.png" alt="The title screen, with Pixel Jack in his witch's hat" width="32%">
   <img src="docs/screenshots/playing.png" alt="Garden Path, the first stage, after one step" width="32%">
   <img src="docs/screenshots/editor.png" alt="The level editor pointing at a split block group" width="32%">
-  <br><em>Captured from the app, Default theme.</em>
+  <br><em>The Default theme, which plays out of the box: captured from the app.</em>
 </p>
 
 ## Features
@@ -39,11 +74,11 @@ Import once: Settings → Classic Nocturne → Import from My Steam Install (or 
 
 Export My Classic Pack writes one zip you can import on your other computers. It's made from your own copy, for your own computers: don't share it. Nothing from Nocturne ships with this game or is downloaded, and the game never looks for Nocturne unless you ask. Remove Classic Pack deletes the pack again, keeping your progress. From a command line, `--import-classic <game folder or pack zip>` and `--export-classic` do the same.
 
-Screenshots committed to this repo use the Default theme only.
+Screenshots committed to this repo use the Default theme only; the Classic images at the top are hosted uploads.
 
 ## Download and play
 
-Once there's a release, download the archive for your system from [Releases](https://github.com/hazeliscoding/puzzle-boy-community/releases), unpack it anywhere and run `PuzzleBoyCommunity` (`PuzzleBoyCommunity.exe` on Windows). [Install and troubleshooting](docs/install-and-troubleshooting.md) covers each system, the security prompts for unsigned builds, where your saves live, the Classic theme and how to report a bug. Coming from puzzle-boy v0.2.0's bonus stages? See [docs/migration.md](docs/migration.md).
+Download the archive for your system from [Releases](https://github.com/hazeliscoding/puzzle-boy-community/releases), unpack it anywhere and run `PuzzleBoyCommunity` (`PuzzleBoyCommunity.exe` on Windows). [Install and troubleshooting](docs/install-and-troubleshooting.md) covers each system, the security prompts for unsigned builds, where your saves live, the Classic theme and how to report a bug. Coming from puzzle-boy v0.2.0's bonus stages? See [docs/migration.md](docs/migration.md).
 
 ## Build
 
