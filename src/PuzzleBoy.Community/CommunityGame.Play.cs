@@ -3,7 +3,6 @@ using PuzzleBoy.Community.App;
 using PuzzleBoy.Community.Audio;
 using PuzzleBoy.Community.Graphics;
 using PuzzleBoy.Community.Play;
-using PuzzleBoy.Rules;
 
 namespace PuzzleBoy.Community;
 
@@ -11,23 +10,40 @@ namespace PuzzleBoy.Community;
 internal sealed partial class CommunityGame
 {
     /// <summary>Ticks after a stage starts before a step is read, so a key still held from the menu doesn't walk.</summary>
-    internal const int StartLock = 6;
+    internal const int StartLock = PlayInput.StartLock;
 
     /// <summary>Ticks the stage's name shows big as it starts, before it has faded.</summary>
     internal const int IntroTicks = 50;
 
     private void UpdatePlaying(Controls controls)
     {
+        if (_themePending)
+        {
+            // The loading frame has shown; the classic pack's check and decoding take a moment the first time.
+            if (_themeShown)
+            {
+                _themePending = false;
+                ChooseTheme();
+            }
+
+            return;
+        }
+
         var session = _session!;
         var events = session.Tick();
+        foreach (var number in _classic is null ? [] : _classicStage!.Tick(session, _camera.Mode, _camera.Overhead))
+        {
+            _classic!.Play(number);
+        }
+
         if (events.HasFlag(PlayEvents.FallStarted))
         {
-            _sounds.Play(Sfx.Fall);
+            Sound(Sfx.Fall);
         }
 
         if (events.HasFlag(PlayEvents.Cleared))
         {
-            _sounds.Play(Sfx.Clear);
+            Sound(Sfx.Clear);
 
             // A playtest is the editor's, not the player's progress.
             if (!_playtest)
@@ -38,7 +54,7 @@ internal sealed partial class CommunityGame
         }
         else if (events.HasFlag(PlayEvents.ReachedGoal))
         {
-            _sounds.Play(Sfx.Goal);
+            Sound(Sfx.Goal);
         }
 
         if (session.ReadyToContinue && _playtest)
@@ -82,57 +98,38 @@ internal sealed partial class CommunityGame
             _pauseMenu.Set(0);
             _helpOpen = false;
             _nav.Open(Screen.Paused);
-            _sounds.Play(Sfx.Confirm);
+            Sound(Sfx.Confirm);
             return;
         }
 
-        if (session.Board.IsCleared || session.Ticks <= StartLock)
+        foreach (var sfx in PlayInput.Apply(session, _camera, controls))
         {
-            return;
-        }
-
-        if ((controls.Pressed(Command.TurnLeft) && _camera.TurnLeft())
-            || (controls.Pressed(Command.TurnRight) && _camera.TurnRight())
-            || (controls.Pressed(Command.Overhead) && _camera.ToggleOverhead()))
-        {
-            _sounds.Play(Sfx.View);
-        }
-
-        if (controls.Pressed(Command.Undo))
-        {
-            _sounds.Play(session.Undo() ? Sfx.Cancel : Sfx.Buzz);
-        }
-
-        if (controls.Pressed(Command.Restart))
-        {
-            session.Restart();
-            _sounds.Play(Sfx.Confirm);
-        }
-
-        if (controls.Pressed(Command.Switch))
-        {
-            _sounds.Play(session.Switch() ? Sfx.View : Sfx.Buzz);
-        }
-
-        // Input follows the view; a held direction keeps walking. Steps wait for a turn of the view to finish.
-        if (!session.Busy && !_camera.IsBusy && controls.HeldDirection() is { } screen)
-        {
-            var result = session.Step(_camera.DirectionFor(screen));
-            if (result != StepResult.Refused)
-            {
-                _sounds.Play(result switch { StepResult.Walked => Sfx.Step, StepResult.Pushed => Sfx.Push, _ => Sfx.Turn });
-            }
+            Sound(sfx);
         }
     }
 
     private void DrawPlaying()
     {
         var session = _session!;
-        // The whole play area stays in view, framed afresh each frame as the view turns or the window changes size.
-        var (minX, minY, maxX, maxY) = BoardRenderer.PlayBounds(session.Board);
-        var viewport = GraphicsDevice.Viewport;
-        var (pivot, distance) = _camera.Frame(minX, minY, maxX, maxY, viewport.Width, viewport.Height);
-        _board.Draw(session, _camera.View(pivot, distance), CameraRig.Projection(viewport.AspectRatio), _ticks);
+        if (_themePending)
+        {
+            _ui.Begin();
+            _ui.Panel(390, 320, 500, 80, _ui["ink"] * 0.85f);
+            _ui.Text(Font.Title, 18, "LOADING THE CLASSIC THEME", new Vector2(640, 348), _ui["ember"], 0.5f, 2);
+            _ui.End();
+            _themeShown = true;
+            return;
+        }
+
+        if (_classic is { } classic)
+        {
+            classic.Draw(session, _classicStage!, GraphicsDevice.Viewport.AspectRatio, _ticks);
+        }
+        else
+        {
+            DrawDefaultBoard(session);
+        }
+
         _ui.Begin();
         DrawHud(session);
         if (session.Board.IsCleared && session.ClearTicks > 0)
@@ -150,6 +147,15 @@ internal sealed partial class CommunityGame
         }
 
         _ui.End();
+    }
+
+    /// <summary>The Default theme's board: drawn in code, the whole play area framed afresh each frame.</summary>
+    private void DrawDefaultBoard(PlaySession session)
+    {
+        var (minX, minY, maxX, maxY) = BoardRenderer.PlayBounds(session.Board);
+        var viewport = GraphicsDevice.Viewport;
+        var (pivot, distance) = _camera.Frame(minX, minY, maxX, maxY, viewport.Width, viewport.Height);
+        _board.Draw(session, _camera.View(pivot, distance), CameraRig.Projection(viewport.AspectRatio), _ticks);
     }
 
     private void DrawHud(PlaySession session)

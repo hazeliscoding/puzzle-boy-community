@@ -65,6 +65,16 @@ internal sealed class Sounds : IDisposable
         });
     }
 
+    /// <summary>Stops the music loop, if it's playing; <see cref="StartMusic"/> starts it again from the top.</summary>
+    public void StopMusic()
+    {
+        if (_loop is { } loop)
+        {
+            _loop = null;
+            Guard(loop.Dispose);
+        }
+    }
+
     /// <summary>Sets the music and effects volumes, each 0 to 1; <paramref name="mute"/> silences both.</summary>
     public void SetVolumes(float music, float effects, bool mute)
     {

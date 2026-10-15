@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using PuzzleBoy.Community.App;
 using PuzzleBoy.Community.Audio;
+using PuzzleBoy.Community.Classic;
 using PuzzleBoy.Community.Content;
 using PuzzleBoy.Community.Editor;
 using PuzzleBoy.Community.Graphics;
@@ -68,7 +69,17 @@ internal sealed partial class CommunityGame : Game
     private bool _helpOpen;
     private int _ticks;
     private int _noticeTicks;
+    private string? _notice;
     private bool _newBest;
+
+    // The Classic theme: the presenter of the classic pack last loaded, and the one the stage in play uses (null for the
+    // Default theme). Which one is chosen when a stage starts, after a frame that says it's loading.
+    private ClassicPresenter? _classicPresenter;
+    private ClassicPresenter? _classic;
+    private ClassicStageView? _classicStage;
+    private bool _themePending;
+    private bool _themeShown;
+    private bool _classicPlaying;
 
     /// <summary>Opens a 1280×720 window on the title screen.</summary>
     /// <param name="manifest">The loaded content; it must hold at least one stage.</param>
@@ -153,6 +164,9 @@ internal sealed partial class CommunityGame : Game
     /// <summary>The play camera, which maps screen directions to grid directions.</summary>
     internal CameraRig Camera => _camera;
 
+    /// <summary>True while the stage in play is drawn in the Classic theme.</summary>
+    internal bool PlaysClassic => _classic is not null && !_themePending;
+
     /// <inheritdoc />
     protected override void LoadContent()
     {
@@ -170,6 +184,7 @@ internal sealed partial class CommunityGame : Game
         _ui.Dispose();
         _board.Dispose();
         _sounds.Dispose();
+        _classicPresenter?.Dispose();
     }
 
     /// <inheritdoc />
@@ -234,6 +249,24 @@ internal sealed partial class CommunityGame : Game
                 break;
         }
 
+        // The Classic theme's music plays while its stage or pause shows; Community's loop everywhere else.
+        var classicPlaying = PlaysClassic && _nav.Current is Screen.Playing or Screen.Paused;
+        if (classicPlaying != _classicPlaying)
+        {
+            _classicPlaying = classicPlaying;
+            if (classicPlaying)
+            {
+                _sounds.StopMusic();
+                var settings = _save.Data.Settings;
+                _classic!.Enter(settings.SfxVolume, settings.MusicVolume, settings.Mute);
+            }
+            else
+            {
+                _classicPresenter?.Leave();
+                _sounds.StartMusic();
+            }
+        }
+
         _previousKeys = keys;
         _previousPad = pad;
         _previousMouse = mouse;
@@ -282,7 +315,7 @@ internal sealed partial class CommunityGame : Game
     /// </summary>
     private void DrawNotice()
     {
-        if (_save.Notice is not { } notice)
+        if ((_notice ?? _save.Notice) is not { } notice)
         {
             return;
         }
@@ -290,7 +323,15 @@ internal sealed partial class CommunityGame : Game
         const int Shown = 30 * 8;
         if (++_noticeTicks > Shown)
         {
-            _save.ClearNotice();
+            if (_notice is not null)
+            {
+                _notice = null;
+            }
+            else
+            {
+                _save.ClearNotice();
+            }
+
             _noticeTicks = 0;
             return;
         }
@@ -331,19 +372,97 @@ internal sealed partial class CommunityGame : Game
         _graphics.ApplyChanges();
     }
 
-    /// <summary>Starts stage <paramref name="index"/> of <paramref name="pack"/> and opens the play screen.</summary>
+    /// <summary>
+    /// Starts stage <paramref name="index"/> of <paramref name="pack"/> and opens the play screen. Every stage source starts
+    /// here, so the theme is chosen here: at once for Default, or after a loading frame when a classic pack may be used.
+    /// </summary>
     private void StartStage(StagePack pack, int index)
     {
         (_playPack, _playtest, _newBest) = (pack, false, false);
         _session = new PlaySession(pack.Stages, index);
+        (_classic, _themePending, _themeShown) = (null, false, false);
+        if (_save.Data.Settings.Theme != Themes.Default && ClassicPack.IsIn(ClassicStages.Folder(_save.Folder)))
+        {
+            _themePending = true;
+        }
+        else
+        {
+            ChooseTheme();
+        }
+
         _nav.Open(Screen.Playing);
+    }
+
+    /// <summary>
+    /// Picks the theme for the stage starting: the Classic theme when the setting allows it and the classic pack passes its
+    /// check and decodes, else the Default theme, with a notice saying why when the player should know.
+    /// </summary>
+    private void ChooseTheme()
+    {
+        _classic = null;
+        var setting = _save.Data.Settings.Theme;
+        var folder = ClassicStages.Folder(_save.Folder);
+        var present = ClassicPack.IsIn(folder);
+        string? problem = null;
+        var pack = setting != Themes.Default && present ? ClassicPack.Open(folder, checkHashes: true, out problem) : null;
+        if (!ClassicTheme.Choose(setting, present, problem, out var notice))
+        {
+            ShowNotice(notice);
+            return;
+        }
+
+        try
+        {
+            var assets = ClassicAssetCache.Load(pack!);
+            if (!ReferenceEquals(_classicPresenter?.Assets, assets))
+            {
+                _classicPresenter?.Dispose();
+                _classicPresenter = new ClassicPresenter(GraphicsDevice, assets);
+                _classicStage = new ClassicStageView(assets.Character);
+            }
+
+            _classic = _classicPresenter;
+        }
+        catch (Exception e)
+        {
+            // The bundle reader throws all sorts for a damaged bundle; any of them means the same to the player.
+            ShowNotice($"The Classic theme couldn't be loaded ({e.GetType().Name}), so this plays with the Default theme. Import your classic pack again.");
+        }
+    }
+
+    /// <summary>Shows <paramref name="notice"/> over the game for a few seconds, if there is one.</summary>
+    private void ShowNotice(string? notice)
+    {
+        if (notice is not null)
+        {
+            (_notice, _noticeTicks) = (notice, 0);
+        }
+    }
+
+    /// <summary>
+    /// Plays <paramref name="sfx"/>: in the Classic theme's play and pause, the original's effect for it, if it has one;
+    /// everywhere else, Community's.
+    /// </summary>
+    private void Sound(Sfx sfx)
+    {
+        if (PlaysClassic && _nav.Current is Screen.Playing or Screen.Paused)
+        {
+            if (ClassicPresenter.Effect(sfx) is { } number)
+            {
+                _classic!.Play(number);
+            }
+        }
+        else
+        {
+            _sounds.Play(sfx);
+        }
     }
 
     private void GoBack()
     {
         if (_nav.Back())
         {
-            _sounds.Play(Sfx.Cancel);
+            Sound(Sfx.Cancel);
         }
     }
 
@@ -359,7 +478,7 @@ internal sealed partial class CommunityGame : Game
         if (_menuUp || _menuDown || _wheel != 0)
         {
             menu.Move(_menuUp || _wheel > 0 ? -1 : 1);
-            _sounds.Play(Sfx.MenuMove);
+            Sound(Sfx.MenuMove);
         }
 
         var hit = menu.HitTest(_pointer, layout.Left, layout.Top - (first * layout.Spacing), layout.Width, layout.Spacing);
@@ -370,12 +489,12 @@ internal sealed partial class CommunityGame : Game
 
         if (_pointerMoved && hit >= 0 && menu.Set(hit))
         {
-            _sounds.Play(Sfx.MenuMove);
+            Sound(Sfx.MenuMove);
         }
 
         if (controls.Pressed(Command.Confirm) || (_clicked && hit >= 0 && hit == menu.Focus))
         {
-            _sounds.Play(Sfx.Confirm);
+            Sound(Sfx.Confirm);
             return menu.Focus;
         }
 

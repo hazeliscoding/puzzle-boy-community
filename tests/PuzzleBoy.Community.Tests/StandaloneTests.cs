@@ -76,6 +76,45 @@ public class StandaloneTests
 
     private static Type? Owner(MemberInfo member) => member as Type ?? member.DeclaringType;
 
+    /// <summary>The string literals <paramref name="method"/>'s IL loads.</summary>
+    private static List<string> Strings(MethodBase method)
+    {
+        var found = new List<string>();
+        if (method.GetMethodBody()?.GetILAsByteArray() is not { } il)
+        {
+            return found;
+        }
+
+        for (var i = 0; i < il.Length;)
+        {
+            var op = il[i] == 0xFE ? OpCodesByValue[(short)(0xFE00 | il[i + 1])] : OpCodesByValue[il[i]];
+            i += op.Size;
+            if (op.OperandType == OperandType.InlineString)
+            {
+                found.Add(method.Module.ResolveString(BitConverter.ToInt32(il, i)));
+            }
+
+            i += op.OperandType switch
+            {
+                OperandType.InlineNone => 0,
+                OperandType.ShortInlineBrTarget or OperandType.ShortInlineI or OperandType.ShortInlineVar => 1,
+                OperandType.InlineVar => 2,
+                OperandType.InlineI8 or OperandType.InlineR => 8,
+                OperandType.InlineSwitch => 4 + (4 * BitConverter.ToInt32(il, i)),
+                _ => 4,
+            };
+        }
+
+        return found;
+    }
+
+    /// <summary>Every method of the classic module, compiler-generated ones (lambdas, iterators) included.</summary>
+    private static List<MethodBase> ClassicMethods() =>
+        [.. Game.GetTypes().Where(t => (t.Namespace ?? t.DeclaringType?.Namespace) == ClassicNamespace).SelectMany(MethodsOf)];
+
+    // What only the Manikin Kid's dialogue uses: the message tables and their bundle, the talk window, and the text reader.
+    private static readonly string[] DialogueMarks = ["PBMESSAGE", "pbmsg", "talkUI", "pazzleboy_en", "Dialogue", "font-en", "common_en"];
+
     /// <summary>
     /// Every method of the game that <paramref name="roots"/> can reach through direct calls, lambdas and the state
     /// machines of iterators and async methods. Virtual calls into the game aren't followed.
@@ -139,8 +178,45 @@ public class StandaloneTests
     }
 
     [Fact]
-    public void The_library_check_finds_the_classic_import_reading_bundles() =>
+    public void The_library_check_finds_the_classic_import_reading_bundles_and_the_classic_theme_drawing_them()
+    {
         Assert.Contains(typeof(ClassicSource), TypesUsing(NocturneLibrary));
+        Assert.Contains(typeof(ClassicPresenter), TypesUsing("PuzzleBoy.Rendering"));
+        Assert.Contains(typeof(ClassicStageView), TypesUsing("PuzzleBoy.Rendering"));
+    }
+
+    [Fact]
+    public void The_classic_theme_never_reads_dialogue_or_the_Manikin_Kids_text()
+    {
+        var methods = ClassicMethods();
+        Assert.True(methods.Count > 50, $"the scan found only {methods.Count} classic methods");
+        Assert.DoesNotContain(methods.SelectMany(Strings), s => DialogueMarks.Any(mark => s.Contains(mark, StringComparison.OrdinalIgnoreCase)));
+        Assert.DoesNotContain(methods.SelectMany(References), m => m.Name is "ReadText" or "TextData" || Owner(m)?.Name is "TextData" or "FontData");
+    }
+
+    [Fact]
+    public void The_dialogue_scan_finds_the_bundle_names_the_classic_theme_does_read()
+    {
+        // Positive controls: the same scan sees the textures and readers the theme uses, and a planted dialogue id.
+        var methods = ClassicMethods();
+        Assert.Contains("BG_pzl", methods.SelectMany(Strings));
+        Assert.Contains(methods.SelectMany(References), m => m.Name == "ReadTextures");
+        Assert.Contains("PBMESSAGE_L0007", Strings(typeof(StandaloneTests).GetMethod(nameof(Planted), Declared)!));
+    }
+
+    [Fact]
+    public void The_default_theme_and_the_play_input_never_reach_the_bundle_libraries()
+    {
+        var play = Reachable(Method(typeof(CommunityGame), "DrawDefaultBoard"), Method(typeof(PuzzleBoy.Community.Play.PlayInput), "Apply"));
+        Assert.True(play.Count > 10, $"the walk found only {play.Count} methods");
+        Assert.DoesNotContain(play, TouchesBundleLibraries);
+        Assert.DoesNotContain(play, TouchesClassic);
+
+        // Positive control: the Classic theme's drawing does reach them.
+        Assert.Contains(Reachable(Method(typeof(ClassicPresenter), "Draw")), TouchesBundleLibraries);
+    }
+
+    private static string Planted() => "PBMESSAGE_L0007";
 
     [Fact]
     public void The_title_and_content_loading_never_reach_the_classic_module()

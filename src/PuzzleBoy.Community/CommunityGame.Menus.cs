@@ -77,7 +77,7 @@ internal sealed partial class CommunityGame
             // Back on the title only points at Quit; it never quits by itself.
             if (_titleMenu.Set(TitleItems.Length - 1))
             {
-                _sounds.Play(Sfx.MenuMove);
+                Sound(Sfx.MenuMove);
             }
 
             return;
@@ -172,7 +172,7 @@ internal sealed partial class CommunityGame
         LoadSelectPacks();
         var tab = _selectPacks.FindIndex(p => p.PackId == result.PackId);
         ShowTab(tab >= 0 ? tab : ImportTab, 0);
-        _sounds.Play(result.PackId is null ? Sfx.Buzz : Sfx.Goal);
+        Sound(result.PackId is null ? Sfx.Buzz : Sfx.Goal);
     }
 
     private void KeepFocusVisible()
@@ -195,7 +195,7 @@ internal sealed partial class CommunityGame
             {
                 _importPending = null;
                 _importStatus = "Nothing was imported.";
-                _sounds.Play(Sfx.Cancel);
+                Sound(Sfx.Cancel);
             }
 
             return;
@@ -216,7 +216,7 @@ internal sealed partial class CommunityGame
             {
                 _importStatus = null;
                 ShowTab(tab, 0);
-                _sounds.Play(Sfx.MenuMove);
+                Sound(Sfx.MenuMove);
             }
 
             return;
@@ -243,7 +243,7 @@ internal sealed partial class CommunityGame
             }
             else
             {
-                _sounds.Play(Sfx.Buzz);
+                Sound(Sfx.Buzz);
             }
         }
     }
@@ -255,7 +255,7 @@ internal sealed partial class CommunityGame
             if (Cancelled(controls) || controls.Pressed(Command.Confirm) || _clicked)
             {
                 _helpOpen = false;
-                _sounds.Play(Sfx.Cancel);
+                Sound(Sfx.Cancel);
             }
 
             return;
@@ -276,7 +276,7 @@ internal sealed partial class CommunityGame
                 // The menu stays open so several undos can follow.
                 if (!_session!.Undo())
                 {
-                    _sounds.Play(Sfx.Buzz);
+                    Sound(Sfx.Buzz);
                 }
 
                 break;
@@ -361,7 +361,7 @@ internal sealed partial class CommunityGame
         if (Cancelled(controls))
         {
             _confirmReset = false;
-            _sounds.Play(Sfx.Cancel);
+            Sound(Sfx.Cancel);
             return;
         }
 
@@ -384,13 +384,13 @@ internal sealed partial class CommunityGame
     {
         if (!SettingsMenu.Adjust(_save.Data.Settings, row, by, wrap))
         {
-            _sounds.Play(Sfx.Buzz);
+            Sound(Sfx.Buzz);
             return;
         }
 
         ApplySettings(display: row is 0 or 1);
         _save.Save();
-        _sounds.Play(Sfx.MenuMove);
+        Sound(Sfx.MenuMove);
     }
 
     private void DrawTitle()

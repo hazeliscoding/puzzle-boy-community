@@ -105,13 +105,17 @@ internal static class ClassicFixture
         File.WriteAllText(Path.Combine(ClassicStages.Folder(dataDir), "index.json"), index.ToJsonString());
     }
 
+    /// <summary>A one-texel texture.</summary>
+    public static TextureData Pixel { get; } = new(1, 1, [new byte[4]]);
+
+    /// <summary>A character with no nodes or meshes, which poses and draws nothing.</summary>
+    public static CharacterData Character { get; } = new([], 0, 0, [], new Dictionary<string, TextureData>(), AnimationCurves.Parse([], 0, 0, []), [], 1, Pixel);
+
     /// <summary>Reads a pack of stand-in bundles, as the engine reads real ones.</summary>
     public static IClassicAssetSource Open(string folder) => new Source(folder);
 
     private sealed class Source(string folder) : IClassicAssetSource
     {
-        private static readonly TextureData Pixel = new(1, 1, [new byte[4]]);
-
         public IReadOnlyDictionary<string, byte[]> ReadTextAssets()
         {
             var bytes = File.ReadAllBytes(Path.Combine(folder, ClassicSource.GameBundleFolder, "pazzleboy"));
@@ -130,8 +134,7 @@ internal static class ClassicFixture
                 }
             }
 
-            var character = new CharacterData([], 0, 0, [], new Dictionary<string, TextureData>(), AnimationCurves.Parse([], 0, 0, []), [], 1, Pixel);
-            return new ClassicAssets(Pixel, Pixel, new Dictionary<string, SoundData>(), character);
+            return new ClassicAssets(Pixel, Pixel, new Dictionary<string, SoundData>(), Character);
         }
     }
 }

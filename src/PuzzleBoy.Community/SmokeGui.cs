@@ -235,8 +235,77 @@ internal sealed class SmokeGui(string titlePng, string? screensDir = null)
             }
         }
 
+        var theme = game.PlaysClassic ? "Classic" : "Default";
+        if (ScreensDir is not null)
+        {
+            foreach (var tick in ClassicBonus(game))
+            {
+                yield return tick;
+            }
+        }
+
         _done = true;
-        _passed = $"{TitlePng}, {StagePng}{(ScreensDir is null ? "" : $", screens in {ScreensDir}")}; {session.Stage.Id} from {before} to {after}";
+        _passed = $"{TitlePng}, {StagePng}{(ScreensDir is null ? "" : $", screens in {ScreensDir}")}; {session.Stage.Id} from {before} to {after} in the {theme} theme";
+    }
+
+    /// <summary>
+    /// From help over the pause menu: quits to the title, opens stage select's Classic: Bonus tab, starts the stage it
+    /// focuses, takes a step and saves <c>classic-bonus-play.png</c>. Only on a data folder that has the classic campaigns.
+    /// </summary>
+    private IEnumerable<Keys[]> ClassicBonus(CommunityGame game)
+    {
+        // Esc closes help; Quit to Title is two below Help. The title's focus stays on Play; one down is Stage Select.
+        foreach (var tick in Press(Keys.Escape, Keys.Down, Keys.Down, Keys.Enter, Keys.Down, Keys.Enter))
+        {
+            yield return tick;
+        }
+
+        for (var tab = 0; tab < 16 && game.CurrentScreen == Screen.StageSelect && !game.ImportTabOpen && game.SelectPack?.PackId != ClassicStages.BonusPackId; tab++)
+        {
+            foreach (var tick in Press(Keys.Right))
+            {
+                yield return tick;
+            }
+        }
+
+        if (game.SelectPack?.PackId != ClassicStages.BonusPackId)
+        {
+            yield break;
+        }
+
+        foreach (var tick in Press(Keys.Enter))
+        {
+            yield return tick;
+        }
+
+        while (game.Session is { } waiting && waiting.Ticks <= CommunityGame.StartLock)
+        {
+            yield return [];
+        }
+
+        if (game.CurrentScreen != Screen.Playing || game.Session is not { } session || !session.Stage.Id.StartsWith(ClassicStages.BonusPackId, StringComparison.Ordinal))
+        {
+            Fail(game, "the Classic: Bonus tab didn't start a bonus stage");
+            yield break;
+        }
+
+        var screen = Enumerable.Range(0, 4).FirstOrDefault(s => new Board(session.Stage.Stage).Step(game.Camera.DirectionFor(s)) != StepResult.Refused, -1);
+        while (screen >= 0 && session.Moves == 0)
+        {
+            yield return [new[] { Keys.Up, Keys.Right, Keys.Down, Keys.Left }[screen]];
+        }
+
+        while (session.Animation is not null || session.Ticks < CommunityGame.IntroTicks)
+        {
+            yield return [];
+        }
+
+        foreach (var tick in Shot(null, "classic-bonus-play.png"))
+        {
+            yield return tick;
+        }
+
+        Console.WriteLine($"smoke gui: {session.Stage.Id} took {session.Moves} step(s) in the {(game.PlaysClassic ? "Classic" : "Default")} theme");
     }
 
     /// <summary>
