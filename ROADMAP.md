@@ -20,6 +20,7 @@ Puzzle Boy Community Edition is a standalone puzzle game on the Puzzle Boy rules
 - **Pack format, schema version 1.** `pack.json` has `format` `puzzle-boy-pack`, `schemaVersion`, `packId`, `title`, `creator`, `license` and up to 200 `stages`, each with an `id`, a `title` and a `file` relative to the pack folder. Ids are 1 to 48 of `a-z`, `0-9` and `-`, unique in their pack; a stage's full id is `packId/id`. A higher `schemaVersion` fails with "made by a newer version". Paths are relative, use `/`, never contain `.`, `..` or a colon, and never pass through a link. `pack.json` and each stage are at most 64 KiB. A bad stage is reported and left out; the rest of the pack still loads.
 - **Known layouts are caught by fingerprint.** `LayoutFingerprint` (version 1) hashes a stage's cropped tile grid in its smallest rotation or mirror, with and without the goal and starts. The 100 fingerprints of the 50 Nocturne stage files are in `scripts/known-atlus-layouts.txt`, generated outside the repo from a local install.
 - **A stage tool for designers.** `tools/PuzzleBoy.StageCheck` validates, solves and fingerprints a stage or a pack. The solver is breadth-first over every input (four steps and, with two characters or more, a switch), so a solution has the fewest inputs; it reports the pushes and turns in it too. The engine's `Board` makes every move: a state is the cells and the visible characters from the active one, turned back into a stage to resume from, and a test checks that round trip against a live board on random walks. States are deduplicated by 128 bits of SHA-256. The default cap is 2,000,000 states, about 13 seconds on the owner's machine, and reaching it is reported as "search limit reached", never as unsolvable.
+- **`--smoke-test` needs no window.** It runs the same checks as the content tests on the `content/` beside the executable, measures text with each font through FontStashSharp (which needs no graphics device for that), and takes one step on the first stage. CI runs it on the built game. A WinExe has no console on Windows, so there the report shows only when output is redirected; the exit code always works.
 - **The starter pack is a placeholder.** `first-steps` has three tiny stages (walk, first push, first hole) so the loader and the tests have real content. C2 replaces it with the campaign.
 
 ## C1: Instant play
@@ -29,7 +30,7 @@ The handoff's M3.
 - [x] Repo, engine pin, CI and the content guard with its positive control.
 - [x] A default content pack with provenance and credits, a safe loader for it, and tests that reject unlisted files, denied formats and copies of known Nocturne layouts.
 - [x] A stage tool that validates, solves (within a cap) and fingerprints a stage or a pack.
-- [ ] Starter stages, each with a solution the tests replay, and a headless `--smoke-test`.
+- [x] Starter stages, each with a solution the tests replay, and a headless `--smoke-test`.
 - [ ] A title screen and play of a bundled stage, with Pixel Jack, drawn graphics and synthesized sound; a `--smoke-gui` check that renders both.
 
 **Done when** a local release build, unpacked on a machine with no Nocturne, no Steam and no network, reaches the title and plays an included stage.

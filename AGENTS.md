@@ -24,6 +24,7 @@ These are the working rules for agents in this repo. Puzzle Boy Community Editio
 - `dotnet test --solution PuzzleBoy.Community.slnx` runs the tests. They never need Nocturne.
 - `dotnet format PuzzleBoy.Community.slnx --verify-no-changes` checks the style CI will enforce.
 - `dotnet run --project src/PuzzleBoy.Community` starts the game.
+- `dotnet run --project src/PuzzleBoy.Community -- --smoke-test` checks, with no window, the `content/` beside the built game: provenance, manifest, packs, fonts, and a step on the first stage. It exits 0 or 1 with a short report (on Windows the report shows only when output is redirected).
 - `dotnet run --project tools/PuzzleBoy.StageCheck -- <stage.json | pack folder> [--cap N] [--known <list>]` validates each stage, finds a shortest solution (at most N states, default 2,000,000; "search limit reached" never means unsolvable) and checks its fingerprints against `scripts/known-atlus-layouts.txt`, a copy of which sits beside the tool. It exits 1 for an invalid, unsolvable or known stage. Run it on every new stage.
 - `scripts/check-content.sh` fails if a tracked file holds Atlus data or decompiler output. `scripts/check-content.test.sh` is its positive control: it plants each kind in a scratch repo and expects a failure. When you add a new kind, add both a check and a planted case.
 - To move to a newer engine, commit in puzzle-boy-engine first, then `git -C external/puzzle-boy-engine fetch && git -C external/puzzle-boy-engine checkout <sha>` and commit `build: bump engine to <short-sha>` with the engine commit subjects in the body.
@@ -35,6 +36,7 @@ These are the working rules for agents in this repo. Puzzle Boy Community Editio
 - `content/`: the built-in content, copied beside the executable on build and publish. `manifest.json` lists the theme, the fonts and the packs; each pack is a folder with a `pack.json` and engine stage JSON files.
 - `tools/PuzzleBoy.StageCheck`: the stage tool. It compiles the game's `Content/` sources in, so it carries no MonoGame. `Solver` searches breadth-first with the engine's `Board` making every move.
 - `tests/PuzzleBoy.Community.Tests`: xunit.v3 on Microsoft Testing Platform. Test names read as sentences. `ContentTests` check the real `content/` and plant each kind of violation in a scratch copy.
+  - `Solutions/<pack>/<stage>.txt`: one line of moves per bundled stage (`R` +x, `L` −x, `D` +y, `U` −y, `S` switch). `SolutionTests` replay each on a fresh board and fail for a stage without one. Take a new stage's line from StageCheck.
 - `external/puzzle-boy-engine`: the rules, as a submodule. Change them there, never here.
 
 ## Working style

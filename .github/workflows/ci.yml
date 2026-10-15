@@ -51,5 +51,9 @@ jobs:
       - name: Test
         run: dotnet test --solution PuzzleBoy.Community.slnx --configuration Release --no-build
 
+      # The built game checks the content copied beside it and takes a step on the first stage, with no window.
+      - name: Smoke test
+        run: dotnet run --project src/PuzzleBoy.Community --configuration Release --no-build -- --smoke-test
+
       - name: Format
         run: dotnet format PuzzleBoy.Community.slnx --verify-no-changes --no-restore
