@@ -224,4 +224,11 @@ public class AppTests
         Assert.True(camera.ToggleOverhead());
         Assert.Equal(1, camera.OverheadAmount);
     }
+
+    [Fact]
+    public void The_screens_tour_is_off_unless_a_folder_is_given()
+    {
+        Assert.Null(new SmokeGui("run.png").ScreensDir);
+        Assert.Equal(Path.GetFullPath("shots"), new SmokeGui("run.png", "shots").ScreensDir);
+    }
 }

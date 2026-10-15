@@ -11,6 +11,18 @@ if (args.Contains("--smoke-test"))
 }
 
 SmokeGui? smoke = null;
+string? screens = null;
+if (Array.IndexOf(args, "--smoke-gui-screens") is var screensAt and >= 0)
+{
+    if (screensAt + 1 >= args.Length)
+    {
+        Console.Error.WriteLine("--smoke-gui-screens needs the folder to save the screenshots in.");
+        return 2;
+    }
+
+    screens = args[screensAt + 1];
+}
+
 if (Array.IndexOf(args, "--smoke-gui") is var at and >= 0)
 {
     if (at + 1 >= args.Length)
@@ -19,7 +31,11 @@ if (Array.IndexOf(args, "--smoke-gui") is var at and >= 0)
         return 2;
     }
 
-    smoke = new SmokeGui(args[at + 1]);
+    smoke = new SmokeGui(args[at + 1], screens);
+}
+else if (screens is not null)
+{
+    smoke = new SmokeGui(Path.Combine(screens, "smoke.png"), screens);
 }
 
 string dataDir;

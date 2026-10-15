@@ -7,38 +7,38 @@ namespace PuzzleBoy.Community;
 
 /// <summary>
 /// <c>--smoke-gui &lt;png&gt;</c>: drives the real window from the title into stage 1 through the same menu and play code a
-/// player uses, and saves what it drew. It proves a build opens a window, renders and plays.
+/// player uses, and saves what it drew. It proves a build opens a window, renders and plays. With a screens folder
+/// (<c>--smoke-gui-screens</c>) it also visits stage select, settings, the pause menu and help on the way and saves each.
 /// </summary>
 /// <param name="titlePng">Where to write the title screenshot; the stage one goes beside it with a <c>-stage</c> suffix.</param>
-internal sealed class SmokeGui(string titlePng)
+/// <param name="screensDir">
+/// A folder for <c>title.png</c>, <c>stage-select.png</c>, <c>settings.png</c>, <c>playing.png</c>, <c>pause.png</c> and <c>help.png</c>, or
+/// null to save only the two screenshots.
+/// </param>
+internal sealed class SmokeGui(string titlePng, string? screensDir = null)
 {
     // A slow first frame or a window still settling must not end the run; a stuck one must.
-    private const int TimeoutTicks = 600;
+    private const int TimeoutTicks = 900;
 
     // Frames drawn on the title before it's saved, so the backdrop and fonts have settled.
     private const int TitleFrames = 5;
 
-    private Phase _phase;
+    private readonly List<string> _pending = [];
+    private IEnumerator<Keys[]>? _script;
     private int _frames;
     private int _ticks;
     private Keys[] _held = [];
-    private (int X, int Y) _before;
-    private int _screen = -1;
-
-    private enum Phase
-    {
-        Title,
-        Start,
-        Step,
-        Settle,
-        Done,
-    }
+    private bool _done;
+    private string? _passed;
 
     /// <summary>The title screenshot's path.</summary>
     public string TitlePng { get; } = Path.GetFullPath(titlePng);
 
     /// <summary>The stage screenshot's path: the title's with <c>-stage</c> before the extension.</summary>
     public string StagePng => Path.Combine(Path.GetDirectoryName(TitlePng)!, $"{Path.GetFileNameWithoutExtension(TitlePng)}-stage{Path.GetExtension(TitlePng)}");
+
+    /// <summary>The folder for every screen's screenshot, or null.</summary>
+    public string? ScreensDir { get; } = screensDir is null ? null : Path.GetFullPath(screensDir);
 
     /// <summary>0 once both screenshots are saved and the step changed the board; 1 until then.</summary>
     public int ExitCode { get; private set; } = 1;
@@ -51,80 +51,218 @@ internal sealed class SmokeGui(string titlePng)
     {
         var previous = _held;
         _held = [];
-        if (++_ticks > TimeoutTicks)
+        if (++_ticks > TimeoutTicks && !_done)
         {
-            Fail(game, $"timed out in phase {_phase}");
-            return Controls.FromKeys([], previous);
+            Fail(game, "timed out");
         }
 
-        switch (_phase)
+        _script ??= Script(game);
+        if (!_done && _script.MoveNext())
         {
-            case Phase.Start when game.CurrentScreen == Screen.Title:
-                // Play is the title's first item and focused on arrival.
-                _held = [Keys.Enter];
-                break;
-            case Phase.Start when game.CurrentScreen == Screen.Playing && game.Session is { } session:
-                _before = (session.Board.Active.X, session.Board.Active.Y);
-                _phase = Phase.Step;
-                break;
-            case Phase.Start:
-                Fail(game, $"Play opened {game.CurrentScreen}, not a stage");
-                break;
-            case Phase.Step when game.Session is { } session:
-                // Hold a screen direction the camera maps to a step the first stage allows, until the board takes it.
-                if (_screen < 0)
-                {
-                    _screen = Enumerable.Range(0, 4).FirstOrDefault(s => new Board(session.Stage.Stage).Step(game.Camera.DirectionFor(s)) != StepResult.Refused, -1);
-                    if (_screen < 0)
-                    {
-                        Fail(game, "no step is open on the first stage");
-                        break;
-                    }
-                }
-
-                if (session.Moves > 0)
-                {
-                    _phase = Phase.Settle;
-                    break;
-                }
-
-                _held = [new[] { Keys.Up, Keys.Right, Keys.Down, Keys.Left }[_screen]];
-                break;
+            _held = _script.Current;
         }
 
         return Controls.FromKeys(_held, previous);
     }
 
-    /// <summary>Called after each frame is drawn, before it's shown: saves the screenshots when their moment comes.</summary>
+    /// <summary>Called after each frame is drawn, before it's shown: saves any screenshot asked for, and ends a finished run.</summary>
     public void AfterDraw(CommunityGame game)
     {
         _frames++;
-        if (_phase == Phase.Title && game.CurrentScreen == Screen.Title && _frames >= TitleFrames)
+        foreach (var path in _pending)
         {
-            Save(game.GraphicsDevice, TitlePng);
-            _phase = Phase.Start;
+            Save(game.GraphicsDevice, path);
         }
-        else if (_phase == Phase.Settle && game.Session is { Animation: null } session && session.Ticks >= CommunityGame.IntroTicks)
+
+        _pending.Clear();
+        if (_passed is not null && ExitCode != 0)
         {
-            var after = (session.Board.Active.X, session.Board.Active.Y);
-            if (after == _before)
+            ExitCode = 0;
+            Console.WriteLine($"smoke gui passed: {_passed}");
+            game.Exit();
+        }
+    }
+
+    /// <summary>The run, one tick's held keys at a time.</summary>
+    private IEnumerator<Keys[]> Script(CommunityGame game)
+    {
+        while (_frames < TitleFrames)
+        {
+            yield return [];
+        }
+
+        foreach (var tick in Shot(TitlePng, "title.png"))
+        {
+            yield return tick;
+        }
+
+        if (ScreensDir is not null)
+        {
+            // Title focus starts on Play. Down once is Stage Select; Back keeps the focus; two more is Settings.
+            foreach (var tick in Visit(game, [Keys.Down], Screen.StageSelect, "stage-select.png"))
             {
-                Fail(game, "the step didn't move the character");
-                return;
+                yield return tick;
             }
 
-            Save(game.GraphicsDevice, StagePng);
-            _phase = Phase.Done;
-            ExitCode = 0;
-            Console.WriteLine($"smoke gui passed: {TitlePng}, {StagePng}; {session.Stage.Id} from {_before} to {after}");
-            game.Exit();
+            foreach (var tick in Visit(game, [Keys.Down, Keys.Down], Screen.Settings, "settings.png"))
+            {
+                yield return tick;
+            }
+
+            foreach (var tick in Press(Keys.Up, Keys.Up, Keys.Up))
+            {
+                yield return tick;
+            }
+        }
+
+        foreach (var tick in Press(Keys.Enter))
+        {
+            yield return tick;
+        }
+
+        if (game.CurrentScreen != Screen.Playing || game.Session is not { } session)
+        {
+            Fail(game, $"Play opened {game.CurrentScreen}, not a stage");
+            yield break;
+        }
+
+        // Hold a screen direction the camera maps to a step the first stage allows, until the board takes it.
+        var before = (session.Board.Active.X, session.Board.Active.Y);
+        var screen = Enumerable.Range(0, 4).FirstOrDefault(s => new Board(session.Stage.Stage).Step(game.Camera.DirectionFor(s)) != StepResult.Refused, -1);
+        if (screen < 0)
+        {
+            Fail(game, "no step is open on the first stage");
+            yield break;
+        }
+
+        while (session.Moves == 0)
+        {
+            yield return [new[] { Keys.Up, Keys.Right, Keys.Down, Keys.Left }[screen]];
+        }
+
+        while (session.Animation is not null || session.Ticks < CommunityGame.IntroTicks)
+        {
+            yield return [];
+        }
+
+        var after = (session.Board.Active.X, session.Board.Active.Y);
+        if (after == before)
+        {
+            Fail(game, "the step didn't move the character");
+            yield break;
+        }
+
+        _pending.Add(StagePng);
+        foreach (var tick in Shot(null, "playing.png"))
+        {
+            yield return tick;
+        }
+
+        if (ScreensDir is not null)
+        {
+            foreach (var tick in Press(Keys.Escape))
+            {
+                yield return tick;
+            }
+
+            if (game.CurrentScreen != Screen.Paused)
+            {
+                Fail(game, $"Esc in play opened {game.CurrentScreen}, not the pause menu");
+                yield break;
+            }
+
+            foreach (var tick in Shot(null, "pause.png"))
+            {
+                yield return tick;
+            }
+
+            // Help is the pause menu's fourth item.
+            foreach (var tick in Press(Keys.Down, Keys.Down, Keys.Down, Keys.Enter))
+            {
+                yield return tick;
+            }
+
+            foreach (var tick in Shot(null, "help.png"))
+            {
+                yield return tick;
+            }
+        }
+
+        _done = true;
+        _passed = $"{TitlePng}, {StagePng}{(ScreensDir is null ? "" : $", screens in {ScreensDir}")}; {session.Stage.Id} from {before} to {after}";
+    }
+
+    /// <summary>From the title, presses <paramref name="moves"/> and Enter, saves the screen it opens, and goes back.</summary>
+    private IEnumerable<Keys[]> Visit(CommunityGame game, Keys[] moves, Screen expected, string file)
+    {
+        foreach (var tick in Press([.. moves, Keys.Enter]))
+        {
+            yield return tick;
+        }
+
+        if (game.CurrentScreen != expected)
+        {
+            Fail(game, $"the title opened {game.CurrentScreen}, not {expected}");
+            yield break;
+        }
+
+        foreach (var tick in Shot(null, file))
+        {
+            yield return tick;
+        }
+
+        foreach (var tick in Press(Keys.Escape))
+        {
+            yield return tick;
+        }
+    }
+
+    /// <summary>Presses each key for one tick, with a tick released after it so the next press counts.</summary>
+    private static IEnumerable<Keys[]> Press(params Keys[] keys)
+    {
+        foreach (var key in keys)
+        {
+            yield return [key];
+            yield return [];
+        }
+    }
+
+    /// <summary>Waits a few frames for the screen to settle, then saves it to <paramref name="path"/> and the screens folder.</summary>
+    private IEnumerable<Keys[]> Shot(string? path, string file)
+    {
+        var settle = _frames + 3;
+        while (_frames < settle)
+        {
+            yield return [];
+        }
+
+        if (path is not null)
+        {
+            _pending.Add(path);
+        }
+
+        if (ScreensDir is not null)
+        {
+            _pending.Add(Path.Combine(ScreensDir, file));
+        }
+
+        // The next frame drawn saves them.
+        var drawn = _frames;
+        while (_frames == drawn)
+        {
+            yield return [];
         }
     }
 
     private void Fail(CommunityGame game, string reason)
     {
+        if (_done)
+        {
+            return;
+        }
+
         Failure = reason;
-        _phase = Phase.Done;
+        _done = true;
         Console.Error.WriteLine($"smoke gui failed: {reason}");
         game.Exit();
     }
