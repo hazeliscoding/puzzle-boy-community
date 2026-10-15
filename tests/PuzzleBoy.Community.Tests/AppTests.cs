@@ -303,4 +303,11 @@ public class AppTests
         // With fewer tabs than last time, earlier tabs come back to fill the strip.
         Assert.Equal(1, TabStrip.First([100, 100, 100, 100], 10, 320, 3, 3));
     }
+
+    [Fact]
+    public void Packs_that_share_a_title_are_numbered_from_the_second_in_list_order()
+    {
+        Assert.Equal(["", "", " (2)", " (3)", "", " (2)"], TabStrip.Suffixes(["First Steps", "Shared Stages", "Shared Stages", "SHARED STAGES", "My Stages", "First Steps"]));
+        Assert.Empty(TabStrip.Suffixes([]));
+    }
 }

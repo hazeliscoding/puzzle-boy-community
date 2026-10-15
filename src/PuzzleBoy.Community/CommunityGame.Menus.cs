@@ -171,6 +171,7 @@ internal sealed partial class CommunityGame
         _classicProblems.Clear();
         var classic = ClassicStages.Load(_save.Folder, _classicProblems);
         _selectPacks = [.. _manifest.Packs.Where(p => p.Stages.Count > 0), .. _importedPacks.Where(p => p.Stages.Count > 0), .. classic, CustomStages.AsPack(CustomStages.List(_save.Folder))];
+        _packSuffixes = TabStrip.Suffixes([.. _selectPacks.Select(p => p.Title)]);
     }
 
     /// <summary>Shows tab <paramref name="tab"/> of stage select with stage <paramref name="focus"/> focused.</summary>
@@ -568,7 +569,7 @@ internal sealed partial class CommunityGame
     {
         const float Left = 78, Right = 1240, Gap = 40, Top = 114;
         _tabBoxes.Clear();
-        var labels = _selectPacks.Select(p => p.PackId == CustomStages.PackId ? $"{p.Title.ToUpperInvariant()} ({p.Stages.Count})" : Shorten(p.Title.ToUpperInvariant(), 20)).Append("+ IMPORT").ToList();
+        var labels = _selectPacks.Select((p, i) => p.PackId == CustomStages.PackId ? $"{p.Title.ToUpperInvariant()} ({p.Stages.Count})" : Shorten(p.Title.ToUpperInvariant(), 20) + _packSuffixes[i]).Append("+ IMPORT").ToList();
         var widths = labels.Select(l => _ui.Measure(Font.Title, 17, l, 2).X).ToList();
         _tabFirst = TabStrip.First(widths, Gap, Right - Left, _selectTab, _tabFirst);
         var count = TabStrip.Count(widths, Gap, Right - Left, _tabFirst);
@@ -618,7 +619,7 @@ internal sealed partial class CommunityGame
         var status = StatusOf(_save.Data, pack.Stages, index);
         var (x, y, width, height) = (690f, 150f, 520f, 460f);
         _ui.Panel(x, y, width, height, _ui["ink"] * 0.78f);
-        _ui.Text(Font.Title, 16, $"{pack.Title.ToUpperInvariant()}  ·  STAGE {index + 1} OF {pack.Stages.Count}", new Vector2(x + 24, y + 18), _ui["bandOnDark"], spacing: 1);
+        _ui.Text(Font.Title, 16, $"{pack.Title.ToUpperInvariant()}{_packSuffixes[_selectTab]}  ·  STAGE {index + 1} OF {pack.Stages.Count}", new Vector2(x + 24, y + 18), _ui["bandOnDark"], spacing: 1);
         _ui.Text(Font.BodyBold, 30, stage.Title, new Vector2(x + 24, y + 40), _ui["cream"]);
         StatusIcon(status, x + 24, y + 88, 22, _ui["cream"]);
         _ui.Text(Font.BodyBold, 19, status switch

@@ -43,6 +43,16 @@ internal static class TabStrip
         return last - first + 1;
     }
 
+    /// <summary>
+    /// What tells apart packs that share a title, such as copies imported with Keep Both: "" for a title's first pack,
+    /// then " (2)", " (3)" and so on in list order. Titles match ignoring case, as the tabs show them in capitals.
+    /// </summary>
+    public static string[] Suffixes(IReadOnlyList<string> titles)
+    {
+        var seen = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        return [.. titles.Select(t => (seen[t] = seen.GetValueOrDefault(t) + 1) is var n and > 1 ? $" ({n})" : "")];
+    }
+
     // The width tabs from..to take side by side.
     private static float Span(IReadOnlyList<float> widths, float gap, int from, int to)
     {

@@ -57,6 +57,7 @@ internal sealed partial class CommunityGame : Game
     private int _wheel;
     private int _selectScroll;
     private List<StagePack> _selectPacks = [];
+    private string[] _packSuffixes = [];
     private List<(StagePack Pack, int Index)> _selectable = [];
     private MenuList _selectMenu = new(1);
     private int _selectTab;
