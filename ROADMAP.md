@@ -176,6 +176,11 @@ The archives carry only the bundled Default theme. The Classic Nocturne theme is
 ## Later
 
 - Key and controller remapping.
+- A Nocturne-styled interface for the Classic theme (owner's request, 2026.10.15): the original's in-play HUD (stage counter, COMPLETE!, UNDO, controls bar with its key and button prompts), its □ menu and help page, and Community's own screens (title, stage select, settings, pause, editor panels) drawn with the original's UI sheets and font. Plan:
+  - Move puzzle-boy's `Hud`, `TextRenderer` and the UI sheet records into the engine's `PuzzleBoy.Rendering`, verbatim, as was done for the board. Both games then draw the original UI with the same code.
+  - Add the UI and text bundles to the classic pack (`ui_tex_en`, `ui_tex_keyboard_en`, `font-en`, `pazzleboy_en`, `common_en`), with a manifest schema bump. Older packs keep working with Community's UI until re-imported.
+  - Screens the original never had keep their layout but take the original's frames, font, colours and prompts. Text comes from Community's own strings, not Nocturne's. The no-dialogue test still holds: no `PBMESSAGE` string or Manikin Kid art is drawn.
+  - The Default theme keeps today's UI, and the in-play layout stays one choice per theme, so the theme still changes no progress or gameplay.
 - Hints built on the stage tool's solver.
 - More built-in packs.
 - Draft saves of a stage with problems: kept, clearly marked, but not playable or exportable. Saves are engine stage JSON, which only a valid stage can be written as, so a draft needs its own format.
