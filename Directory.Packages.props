@@ -6,8 +6,12 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="AssetsTools.NET" Version="3.0.5" />
+    <PackageVersion Include="Fmod5Sharp" Version="3.1.0" />
     <PackageVersion Include="FontStashSharp.MonoGame" Version="1.6.1" />
+    <!-- Fmod5Sharp pulls this in through IndexRange; 9.0.0 has advisory GHSA-73j8-2gch-69rq. -->
+    <PackageVersion Include="Microsoft.Bcl.Memory" Version="9.0.20" />
     <PackageVersion Include="MonoGame.Framework.DesktopGL" Version="3.8.6" />
+    <PackageVersion Include="NVorbis" Version="0.10.5" />
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
   </ItemGroup>
 </Project>
