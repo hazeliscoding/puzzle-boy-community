@@ -73,6 +73,9 @@ internal sealed class PlaySession
     /// <summary>Ticks since the stage started or restarted.</summary>
     public int Ticks { get; private set; }
 
+    /// <summary>Ticks of play since the stage started or restarted, stopped at the clear: the stage's time, at 30 a second.</summary>
+    public int ElapsedTicks { get; private set; }
+
     /// <summary>Ticks since the stage was cleared, or 0 before.</summary>
     public int ClearTicks { get; private set; }
 
@@ -173,6 +176,11 @@ internal sealed class PlaySession
     {
         var events = PlayEvents.None;
         Ticks++;
+        if (ClearTicks == 0)
+        {
+            ElapsedTicks++;
+        }
+
         if (Animation is { } animation)
         {
             animation.Tick();
@@ -222,6 +230,7 @@ internal sealed class PlaySession
         Animation = null;
         Moves = 0;
         Ticks = 0;
+        ElapsedTicks = 0;
         ClearTicks = 0;
         Facings = new Direction?[Board.Characters.Count];
     }

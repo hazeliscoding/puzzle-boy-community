@@ -6,6 +6,7 @@ using PuzzleBoy.Community.Audio;
 using PuzzleBoy.Community.Content;
 using PuzzleBoy.Community.Graphics;
 using PuzzleBoy.Community.Play;
+using PuzzleBoy.Community.Save;
 
 namespace PuzzleBoy.Community;
 
@@ -29,6 +30,7 @@ internal sealed partial class CommunityGame : Game
     private readonly KeyRepeat _down = new();
     private readonly CameraRig _camera = new();
     private readonly SmokeGui? _smoke;
+    private readonly SaveStore _save;
     private Theme _theme = null!;
     private Ui _ui = null!;
     private BoardRenderer _board = null!;
@@ -47,13 +49,17 @@ internal sealed partial class CommunityGame : Game
     private Vector3 _pivot;
     private float _distance;
     private int _ticks;
+    private int _noticeTicks;
+    private bool _newBest;
 
     /// <summary>Opens a 1280×720 window on the title screen.</summary>
     /// <param name="manifest">The loaded content; it must hold at least one stage.</param>
+    /// <param name="save">The player's settings and progress; clears are recorded and written to it.</param>
     /// <param name="smoke">The <c>--smoke-gui</c> run to drive, or null to play normally.</param>
-    public CommunityGame(ContentManifest manifest, SmokeGui? smoke = null)
+    public CommunityGame(ContentManifest manifest, SaveStore save, SmokeGui? smoke = null)
     {
         _manifest = manifest;
+        _save = save;
         _smoke = smoke;
         _selectable = [.. manifest.Packs.SelectMany(p => p.Stages.Select((_, i) => (p, i)))];
         _selectMenu = new MenuList(Math.Max(1, _selectable.Count));
@@ -89,6 +95,9 @@ internal sealed partial class CommunityGame : Game
 
     /// <summary>The stage in play, or null when none is.</summary>
     internal PlaySession? Session => _session;
+
+    /// <summary>The player's settings and progress.</summary>
+    internal SaveStore Save => _save;
 
     /// <summary>The play camera, which maps screen directions to grid directions.</summary>
     internal CameraRig Camera => _camera;
@@ -200,8 +209,36 @@ internal sealed partial class CommunityGame : Game
                 break;
         }
 
+        DrawNotice();
         base.Draw(gameTime);
         _smoke?.AfterDraw(this);
+    }
+
+    /// <summary>
+    /// Shows the save's notice, such as a damaged file recovered, over any screen for a few seconds. It never takes
+    /// input, so play goes on under it.
+    /// </summary>
+    private void DrawNotice()
+    {
+        if (_save.Notice is not { } notice)
+        {
+            return;
+        }
+
+        const int Shown = 30 * 8;
+        if (++_noticeTicks > Shown)
+        {
+            _save.ClearNotice();
+            _noticeTicks = 0;
+            return;
+        }
+
+        _ui.Begin();
+        var fade = Math.Clamp((Shown - _noticeTicks) / 15f, 0, 1);
+        _ui.Panel(240, 128, 800, 96, _ui["ink"] * (0.95f * fade));
+        _ui.Rect(240, 128, 8, 96, _ui["ember"] * fade);
+        _ui.Wrapped(Font.Body, 19, notice, new Vector2(266, 140), 754, _ui["cream"] * fade, 1.3f);
+        _ui.End();
     }
 
     /// <summary>Starts stage <paramref name="index"/> of <paramref name="pack"/> and opens the play screen.</summary>

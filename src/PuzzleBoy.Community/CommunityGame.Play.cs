@@ -28,6 +28,8 @@ internal sealed partial class CommunityGame
         if (events.HasFlag(PlayEvents.Cleared))
         {
             _sounds.Play(Sfx.Clear);
+            _newBest = _save.Data.Record(session.Stage.Id, session.Moves, session.ElapsedTicks / 30.0);
+            _save.Save();
         }
         else if (events.HasFlag(PlayEvents.ReachedGoal))
         {
@@ -163,6 +165,13 @@ internal sealed partial class CommunityGame
         }
     }
 
+    /// <summary>A time in seconds as <c>m:ss.s</c>.</summary>
+    internal static string FormatTime(double seconds)
+    {
+        var tenths = (int)Math.Floor(seconds * 10);
+        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{tenths / 600}:{tenths / 10 % 60:00}.{tenths % 10}");
+    }
+
     private void DrawIntro(PlaySession session)
     {
         var fade = Math.Clamp((IntroTicks - session.Ticks) / 15f, 0, 1);
@@ -191,7 +200,8 @@ internal sealed partial class CommunityGame
         _ui.Panel(290, 230 + ((1 - rise) * 30), 700, 210, _ui["ink"] * (0.85f * rise));
         _ui.ShadowText(Font.TitleBold, 72, "STAGE CLEAR!", new Vector2(640, 252 + ((1 - rise) * 30)), _ui["ember"] * rise, _ui["pumpkinShade"] * rise, 0.5f, 2, 6);
         var moves = session.Moves == 1 ? "1 move" : $"{session.Moves} moves";
-        _ui.Text(Font.BodyBold, 30, moves, new Vector2(640, 346), _ui["cream"] * rise, 0.5f);
+        var line = $"{moves}  ·  {FormatTime(session.ElapsedTicks / 30.0)}{(_newBest ? "  ·  New best!" : "")}";
+        _ui.Text(Font.BodyBold, 30, line, new Vector2(640, 346), _ui["cream"] * rise, 0.5f);
         var next = session.HasNext ? $"Next: {session.StageAt(session.Index + 1).Title}" : "Pack complete!";
         _ui.Text(Font.Body, 24, next, new Vector2(640, 390), _ui["bandOnDark"] * rise, 0.5f);
     }

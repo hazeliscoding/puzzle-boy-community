@@ -44,8 +44,8 @@ internal sealed partial class CommunityGame
         switch (RunMenu(_titleMenu, controls, TitleMenu))
         {
             case 0:
-                var first = _manifest.Packs.First(p => p.Stages.Count > 0);
-                StartStage(first, 0);
+                var (pack, index) = _save.Data.NextToPlay(_manifest.Packs);
+                StartStage(pack, index);
                 break;
             case 1:
                 _nav.Open(Screen.StageSelect);

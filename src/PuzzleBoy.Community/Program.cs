@@ -1,5 +1,6 @@
 using PuzzleBoy.Community;
 using PuzzleBoy.Community.Content;
+using PuzzleBoy.Community.Save;
 
 var content = Path.Combine(AppContext.BaseDirectory, "content");
 if (args.Contains("--smoke-test"))
@@ -21,6 +22,23 @@ if (Array.IndexOf(args, "--smoke-gui") is var at and >= 0)
     smoke = new SmokeGui(args[at + 1]);
 }
 
+string dataDir;
+if (Array.IndexOf(args, "--data-dir") is var dataAt and >= 0)
+{
+    if (dataAt + 1 >= args.Length)
+    {
+        Console.Error.WriteLine("--data-dir needs the folder to keep the save in.");
+        return 2;
+    }
+
+    dataDir = args[dataAt + 1];
+}
+else
+{
+    // A smoke run never reads or writes the player's own save.
+    dataDir = smoke is null ? SaveStore.DefaultFolder() : Directory.CreateTempSubdirectory("puzzle-boy-community-smoke-").FullName;
+}
+
 var problems = new List<string>();
 var manifest = ContentManifest.Load(content, problems);
 if (manifest is null || !manifest.Packs.Any(p => p.Stages.Count > 0))
@@ -35,6 +53,6 @@ if (manifest is null || !manifest.Packs.Any(p => p.Stages.Count > 0))
     return 1;
 }
 
-using var game = new CommunityGame(manifest, smoke);
+using var game = new CommunityGame(manifest, SaveStore.Load(dataDir), smoke);
 game.Run();
 return game.ExitCode;
