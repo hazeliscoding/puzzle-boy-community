@@ -250,6 +250,20 @@ public class PackArchiveTests
         Assert.Equal(2, problems.Count);
     }
 
+    [Theory]
+    [InlineData("First Steps", "first-steps")]
+    [InlineData("Custom", "custom")]
+    [InlineData(" PLAYTEST ", "playtest")]
+    public void Export_refuses_a_title_whose_id_belongs_to_the_games_own_stages(string title, string id)
+    {
+        using var temp = new TempFolder();
+        CustomStages.Write(temp.Path, "small", new StageDocument(Small, "Small"));
+
+        Assert.Null(PackArchive.Export(temp.Path, CustomStages.List(temp.Path), title, "Me", "CC0-1.0", NoneKnown, Reserved, out var message));
+        Assert.Equal($"“{title.Trim()}” would get the id \"{id}\", which the game's own stages use. Choose another title.", message);
+        Assert.False(Directory.Exists(PackArchive.ExportsFolder(temp.Path)));
+    }
+
     [Fact]
     public void Export_writes_the_built_in_pack_format_and_refuses_a_known_layout()
     {
@@ -257,14 +271,14 @@ public class PackArchiveTests
         CustomStages.Write(temp.Path, "small", new StageDocument(Small, "Small"));
         var stages = CustomStages.List(temp.Path);
 
-        Assert.Null(PackArchive.Export(temp.Path, stages, "Nope", "Me", "CC0-1.0", new HashSet<string> { $"full {LayoutFingerprint.Full(Small)}" }, out var refused));
+        Assert.Null(PackArchive.Export(temp.Path, stages, "Nope", "Me", "CC0-1.0", new HashSet<string> { $"full {LayoutFingerprint.Full(Small)}" }, Reserved, out var refused));
         Assert.Contains("matches a stage from the original game", refused);
-        Assert.Null(PackArchive.Export(temp.Path, stages, "Nope", " ", "CC0-1.0", NoneKnown, out var noCreator));
+        Assert.Null(PackArchive.Export(temp.Path, stages, "Nope", " ", "CC0-1.0", NoneKnown, Reserved, out var noCreator));
         Assert.Equal("The pack needs a creator.", noCreator);
-        Assert.Null(PackArchive.Export(temp.Path, stages, "Nope", "Me", "GPL-3.0-only", NoneKnown, out _));
+        Assert.Null(PackArchive.Export(temp.Path, stages, "Nope", "Me", "GPL-3.0-only", NoneKnown, Reserved, out _));
         Assert.False(Directory.Exists(PackArchive.ExportsFolder(temp.Path)));
 
-        var path = PackArchive.Export(temp.Path, stages, "Café Puzzles", "Me", "CC-BY-4.0", NoneKnown, out var message);
+        var path = PackArchive.Export(temp.Path, stages, "Café Puzzles", "Me", "CC-BY-4.0", NoneKnown, Reserved, out var message);
 
         Assert.Equal(Path.Combine(Path.GetFullPath(PackArchive.ExportsFolder(temp.Path)), "cafe-puzzles.zip"), path);
         Assert.Contains(path!, message);
@@ -319,7 +333,7 @@ public class PackArchiveTests
         var mine = Assert.Single(CustomStages.List(restarted.Folder));
         Assert.Equal(("gate-crossing", "Gate Crossing"), (mine.Name, mine.Title));
 
-        var zip = PackArchive.Export(restarted.Folder, [mine], "Gate Pack", "Tester", PackArchive.Licenses[0], known, out _);
+        var zip = PackArchive.Export(restarted.Folder, [mine], "Gate Pack", "Tester", PackArchive.Licenses[0], known, Reserved, out _);
         Assert.NotNull(zip);
 
         var imported = PackArchive.Import(zip!, second, known, Reserved);

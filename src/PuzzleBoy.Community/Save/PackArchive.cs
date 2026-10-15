@@ -95,12 +95,15 @@ internal static partial class PackArchive
     /// <param name="creator">Who made it.</param>
     /// <param name="license">One of <see cref="Licenses"/>.</param>
     /// <param name="known">The known-layout fingerprints, or null when they couldn't be read, which refuses the export.</param>
+    /// <param name="reserved">Pack ids an import can't take (see <see cref="Reserved"/>); a title that would get one is refused.</param>
     /// <param name="message">What happened, for the player.</param>
-    public static string? Export(string dataDir, IReadOnlyList<CustomStage> stages, string title, string creator, string license, IReadOnlySet<string>? known, out string message)
+    public static string? Export(string dataDir, IReadOnlyList<CustomStage> stages, string title, string creator, string license, IReadOnlySet<string>? known, IReadOnlyCollection<string> reserved, out string message)
     {
         (title, creator) = (title.Trim(), creator.Trim());
+        var packId = CustomStages.SafeName(title);
         message = stages.Count is 0 or > StagePack.MaxStages ? $"Choose 1 to {StagePack.MaxStages} stages to export."
             : title.Length == 0 ? "The pack needs a title."
+            : reserved.Contains(packId) ? $"“{title}” would get the id \"{packId}\", which the game's own stages use. Choose another title."
             : creator.Length == 0 ? "The pack needs a creator."
             : !Licenses.Contains(license) ? $"The license should be one of {string.Join(", ", Licenses)}."
             : known is null ? "The list of the original game's layouts is missing beside the game, so stages can't be checked for sharing."
@@ -112,7 +115,6 @@ internal static partial class PackArchive
             return null;
         }
 
-        var packId = CustomStages.SafeName(title);
         var pack = new JsonObject
         {
             ["format"] = "puzzle-boy-pack",

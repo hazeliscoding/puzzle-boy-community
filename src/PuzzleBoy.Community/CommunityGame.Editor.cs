@@ -299,7 +299,7 @@ internal sealed partial class CommunityGame
                 break;
             case 3:
                 var stages = _custom.Where(s => _exportMarked.Contains(s.Name)).ToList();
-                _exportPath = PackArchive.Export(_save.Folder, stages, _exportTitle, _exportCreator, PackArchive.Licenses[_exportLicense], PackArchive.ReadKnown(), out var message);
+                _exportPath = PackArchive.Export(_save.Folder, stages, _exportTitle, _exportCreator, PackArchive.Licenses[_exportLicense], PackArchive.ReadKnown(), PackArchive.Reserved(_manifest.Packs), out var message);
                 _exportStatus = message;
                 _sounds.Play(_exportPath is null ? Sfx.Buzz : Sfx.Goal);
                 break;

@@ -8,7 +8,7 @@ A level pack is a `.zip` of stages that one player exports and another imports. 
 2. Tick the stages to include, and set the pack's title, creator and license (CC0-1.0 by default; CC-BY-4.0, CC-BY-SA-4.0 or Apache-2.0).
 3. Choose **Export**. The screen shows the full path of the `.zip`, in the `exports` folder of the game's data folder. An export with the same title replaces the last one.
 
-A stage that matches a layout from the original game can't be exported.
+A stage that matches a layout from the original game can't be exported, and neither can a pack whose title gives the id of the game's own stages (`first-steps`, `custom`, `playtest`).
 
 ## Import a pack
 

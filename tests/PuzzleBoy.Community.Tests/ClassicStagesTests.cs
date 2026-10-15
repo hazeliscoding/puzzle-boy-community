@@ -116,7 +116,7 @@ public class ClassicStagesTests
         // The real known-layout list holds every Nocturne stage file's fingerprints; a scratch one holds this stage's.
         Assert.Null(CustomStages.Write(temp.Path, "copy", new StageDocument(classic, "Copy")));
         HashSet<string> known = [$"full {LayoutFingerprint.Full(classic)}", $"terrain {LayoutFingerprint.Terrain(classic)}"];
-        Assert.Null(PackArchive.Export(temp.Path, CustomStages.List(temp.Path), "Copies", "Me", "CC0-1.0", known, out var message));
+        Assert.Null(PackArchive.Export(temp.Path, CustomStages.List(temp.Path), "Copies", "Me", "CC0-1.0", known, [], out var message));
         Assert.Contains("matches a stage from the original game", message);
         Assert.False(Directory.Exists(PackArchive.ExportsFolder(temp.Path)));
     }
