@@ -207,6 +207,8 @@ The archives carry only the bundled Default theme. The Classic Nocturne theme is
 - Key and controller remapping.
 - Hints built on the stage tool's solver.
 - More built-in packs.
+- Discord Rich Presence (moved from puzzle-boy, owner's decision 2026.10.15): the pack and stage you're on ("First Steps, stage 7 of 20") and time played, with a setting to turn it off. Needs a Discord application whose name and images come from this project's own art, never Atlus's, even with the Classic theme on, and an MIT client library such as DiscordRichPresence. It does nothing when Discord isn't running, and it's the only part of the game that would talk to anything outside your computer, so it's off by default.
+- An Android build (moved from puzzle-boy, owner's decision 2026.10.15). MonoGame targets Android, and the engine carries over as is. The Default theme plays out of the box; the Classic theme comes from importing the classic pack zip exported on your PC, since a phone has no Steam install. Needs touch controls (swipe to move, buttons to turn the view and open the menu) and a touch-friendly editor, or the editor left out on phones.
 - Draft saves of a stage with problems: kept, clearly marked, but not playable or exportable. Saves are engine stage JSON, which only a valid stage can be written as, so a draft needs its own format.
 
 ## Not planned
