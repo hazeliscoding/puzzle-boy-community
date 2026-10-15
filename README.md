@@ -18,6 +18,6 @@ dotnet run --project src/PuzzleBoy.Community
 
 ## License
 
-The code is licensed under [Apache-2.0](LICENSE).
+The code is licensed under [Apache-2.0](LICENSE). The fonts are under the SIL Open Font License 1.1; [content/ASSET_CREDITS.md](content/ASSET_CREDITS.md) credits every file the game ships.
 
 *Shin Megami Tensei*, *Nocturne* and *Puzzle Boy* are trademarks of ATLUS and SEGA. This is an independent fan project. It is not affiliated with or endorsed by either company, and it contains no ATLUS or SEGA assets.

@@ -1,0 +1,13 @@
+{
+  "format": "puzzle-boy-pack",
+  "schemaVersion": 1,
+  "packId": "first-steps",
+  "title": "First Steps",
+  "creator": "Puzzle Boy Community authors",
+  "license": "Apache-2.0",
+  "stages": [
+    { "id": "walk-to-the-goal", "title": "Walk to the Goal", "file": "walk-to-the-goal.json" },
+    { "id": "first-push", "title": "First Push", "file": "first-push.json" },
+    { "id": "first-hole", "title": "First Hole", "file": "first-hole.json" }
+  ]
+}

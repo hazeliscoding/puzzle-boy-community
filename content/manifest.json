@@ -1,0 +1,14 @@
+{
+  "format": "puzzle-boy-content",
+  "schemaVersion": 1,
+  "theme": "themes/default/theme.json",
+  "fonts": {
+    "body": "fonts/AtkinsonHyperlegible-Regular.ttf",
+    "bodyBold": "fonts/AtkinsonHyperlegible-Bold.ttf",
+    "title": "fonts/Silkscreen-Regular.ttf",
+    "titleBold": "fonts/Silkscreen-Bold.ttf"
+  },
+  "packs": [
+    "stages/first-steps"
+  ]
+}

@@ -12,6 +12,11 @@
     <PackageReference Include="MonoGame.Framework.DesktopGL" />
   </ItemGroup>
 
+  <!-- The game reads content/ beside its executable, so a build or an unpacked release runs from anywhere. -->
+  <ItemGroup>
+    <None Include="..\..\content\**\*" LinkBase="content" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\external\puzzle-boy-engine\src\PuzzleBoy.Rules\PuzzleBoy.Rules.csproj" />
   </ItemGroup>

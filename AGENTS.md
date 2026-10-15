@@ -12,6 +12,8 @@ These are the working rules for agents in this repo. Puzzle Boy Community Editio
 
 - **No Atlus content.** No stage files or layouts (not even redrawn as JSON), text, dialogue, audio, textures, models, UI, asset bundles or decompiler output. No Manikin Kid.
 - **Every file under `content/` has a provenance entry** in `content/provenance.json`: path, creator, source, category, SPDX license, whether it was modified and whether it may be redistributed. Third-party work keeps its own license; never mark it Apache-2.0 because the code is. Credit it in `content/ASSET_CREDITS.md` too.
+- **Content holds only `.json`, `.md`, `.txt`, `.ttf`, `.png`, `.wav` and `.ogg` files,** and no links. The tests and `scripts/check-content.sh` both enforce it.
+- `scripts/known-atlus-layouts.txt` holds irreversible SHA-256 fingerprints of the 50 Nocturne stage layouts (`LayoutFingerprint`, a full and a terrain-only one each), used only to reject copies: the tests fail if a bundled stage matches one, even rotated, mirrored, moved or regrouped. It can't be turned back into a layout. Never change the fingerprint algorithm without regenerating it, which needs the game's files and so happens outside this repo.
 - **The default game must start with nothing but this repo's build.** No Nocturne, Steam, network or dev checkout on the startup path.
 - **No secrets or private paths** in committed files.
 
@@ -28,7 +30,9 @@ These are the working rules for agents in this repo. Puzzle Boy Community Editio
 ## Code layout
 
 - `src/PuzzleBoy.Community`: the MonoGame (DesktopGL) game, assembly `PuzzleBoyCommunity`. No content pipeline.
-- `tests/PuzzleBoy.Community.Tests`: xunit.v3 on Microsoft Testing Platform. Test names read as sentences.
+  - `Content/`: reading `content/` safely. `ContentManifest` reads `manifest.json` and its packs, `StagePack` a pack's `pack.json` and stages (through the engine's `StageDocument`), `Provenance` checks `provenance.json`, `LayoutFingerprint` and `KnownLayouts` catch copies of Nocturne layouts. Every path stays inside its folder, nothing follows a link, every file has a size cap, and bad input becomes a list of problems, never an exception.
+- `content/`: the built-in content, copied beside the executable on build and publish. `manifest.json` lists the theme, the fonts and the packs; each pack is a folder with a `pack.json` and engine stage JSON files.
+- `tests/PuzzleBoy.Community.Tests`: xunit.v3 on Microsoft Testing Platform. Test names read as sentences. `ContentTests` check the real `content/` and plant each kind of violation in a scratch copy.
 - `external/puzzle-boy-engine`: the rules, as a submodule. Change them there, never here.
 
 ## Working style

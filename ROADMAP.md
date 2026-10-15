@@ -13,12 +13,20 @@ Puzzle Boy Community Edition is a standalone puzzle game on the Puzzle Boy rules
 - **Stage ids belong to a pack** (`first-steps/first-push`), never to a Nocturne file number.
 - **Every bundled stage has a recorded solution** in the tests, replayed against the engine's `Board`.
 
+## Decisions (2026.10.15)
+
+- **Original content is Apache-2.0, like the code,** credited to the Puzzle Boy Community authors. That covers the stages, the theme and Pixel Jack, which puzzle-boy's `docs/brand/` already ships under Apache-2.0. Apache-2.0 grants no trademark rights (section 6), which suits a brand mark.
+- **Provenance.** `content/provenance.json` has one entry per file or glob (`*` within a folder, `**` across): `path`, `creator`, `source`, `category`, `license` (SPDX), `modified` and `redistribution`, which must be `allowed` to ship. A file from elsewhere needs its own entry with a `sha256`, so a changed font fails the tests. Every file must be covered and every entry must match a file.
+- **Pack format, schema version 1.** `pack.json` has `format` `puzzle-boy-pack`, `schemaVersion`, `packId`, `title`, `creator`, `license` and up to 200 `stages`, each with an `id`, a `title` and a `file` relative to the pack folder. Ids are 1 to 48 of `a-z`, `0-9` and `-`, unique in their pack; a stage's full id is `packId/id`. A higher `schemaVersion` fails with "made by a newer version". Paths are relative, use `/`, never contain `.`, `..` or a colon, and never pass through a link. `pack.json` and each stage are at most 64 KiB. A bad stage is reported and left out; the rest of the pack still loads.
+- **Known layouts are caught by fingerprint.** `LayoutFingerprint` (version 1) hashes a stage's cropped tile grid in its smallest rotation or mirror, with and without the goal and starts. The 100 fingerprints of the 50 Nocturne stage files are in `scripts/known-atlus-layouts.txt`, generated outside the repo from a local install.
+- **The starter pack is a placeholder.** `first-steps` has three tiny stages (walk, first push, first hole) so the loader and the tests have real content. C2 replaces it with the campaign.
+
 ## C1: Instant play
 
 The handoff's M3.
 
 - [x] Repo, engine pin, CI and the content guard with its positive control.
-- [ ] A default content pack with provenance and credits, a safe loader for it, and tests that reject unlisted files, denied formats and copies of known Nocturne layouts.
+- [x] A default content pack with provenance and credits, a safe loader for it, and tests that reject unlisted files, denied formats and copies of known Nocturne layouts.
 - [ ] A stage tool that validates, solves (within a cap) and fingerprints a stage or a pack.
 - [ ] Starter stages, each with a solution the tests replay, and a headless `--smoke-test`.
 - [ ] A title screen and play of a bundled stage, with Pixel Jack, drawn graphics and synthesized sound; a `--smoke-gui` check that renders both.

@@ -28,6 +28,14 @@ while IFS= read -r file; do
     report "$file: stage file outside tests/"
 done < <(git ls-files -- '*.map' ':!tests/**')
 
+# Content ships beside the game, so it holds only data, text, fonts, images and sounds; provenance.json says whose.
+while IFS= read -r file; do
+    case "$(printf '%s' "$file" | tr '[:upper:]' '[:lower:]')" in
+        *.json|*.md|*.txt|*.ttf|*.png|*.wav|*.ogg) ;;
+        *) report "$file: content may only hold .json, .md, .txt, .ttf, .png, .wav and .ogg files" ;;
+    esac
+done < <(git ls-files -- content)
+
 # Decompiler output: Ghidra's generated names and Il2CppDumper's address comments.
 while IFS= read -r match; do
     report "$match: looks like decompiler output"

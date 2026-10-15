@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "path": "manifest.json",
+      "creator": "Puzzle Boy Community authors",
+      "source": "Original to this repository",
+      "category": "data",
+      "license": "Apache-2.0",
+      "modified": false,
+      "redistribution": "allowed"
+    },
+    {
+      "path": "provenance.json",
+      "creator": "Puzzle Boy Community authors",
+      "source": "Original to this repository",
+      "category": "data",
+      "license": "Apache-2.0",
+      "modified": false,
+      "redistribution": "allowed"
+    },
+    {
+      "path": "ASSET_CREDITS.md",
+      "creator": "Puzzle Boy Community authors",
+      "source": "Original to this repository",
+      "category": "credits",
+      "license": "Apache-2.0",
+      "modified": false,
+      "redistribution": "allowed"
+    },
+    {
+      "path": "fonts/AtkinsonHyperlegible-Regular.ttf",
+      "creator": "Braille Institute of America, Inc. (Elliott Scott, Megan Eiswerth, Linus Boman, Theodore Petrosky)",
+      "source": "https://github.com/google/fonts/tree/main/ofl/atkinsonhyperlegible",
+      "category": "font",
+      "license": "OFL-1.1",
+      "modified": false,
+      "redistribution": "allowed",
+      "version": "1.006",
+      "sha256": "7fb917c89019896d0b52ee84b7cbb3304c18cb90b19a62f5e32712bd23e97669"
+    },
+    {
+      "path": "fonts/AtkinsonHyperlegible-Bold.ttf",
+      "creator": "Braille Institute of America, Inc. (Elliott Scott, Megan Eiswerth, Linus Boman, Theodore Petrosky)",
+      "source": "https://github.com/google/fonts/tree/main/ofl/atkinsonhyperlegible",
+      "category": "font",
+      "license": "OFL-1.1",
+      "modified": false,
+      "redistribution": "allowed",
+      "version": "1.006",
+      "sha256": "5a3b0c8cc8ca545155150b4512a1fa248298df121c50d6557e651e61fbdab92f"
+    },
+    {
+      "path": "fonts/AtkinsonHyperlegible-OFL.txt",
+      "creator": "Braille Institute of America, Inc.",
+      "source": "https://github.com/google/fonts/tree/main/ofl/atkinsonhyperlegible",
+      "category": "license",
+      "license": "OFL-1.1",
+      "modified": false,
+      "redistribution": "allowed",
+      "sha256": "f32d22b3908fcad2c86a74000614ec22e6a7f66ea7e867e616026a27aebdc143"
+    },
+    {
+      "path": "fonts/Silkscreen-Regular.ttf",
+      "creator": "The Silkscreen Project Authors (Jason Kottke)",
+      "source": "https://github.com/google/fonts/tree/main/ofl/silkscreen",
+      "category": "font",
+      "license": "OFL-1.1",
+      "modified": false,
+      "redistribution": "allowed",
+      "version": "1.001",
+      "sha256": "c845473330b94c2079ce9af01c51ac8ba2d99c24f4d14c039843bbb8e642ebd8"
+    },
+    {
+      "path": "fonts/Silkscreen-Bold.ttf",
+      "creator": "The Silkscreen Project Authors (Jason Kottke)",
+      "source": "https://github.com/google/fonts/tree/main/ofl/silkscreen",
+      "category": "font",
+      "license": "OFL-1.1",
+      "modified": false,
+      "redistribution": "allowed",
+      "version": "1.001",
+      "sha256": "768476aa712d4f5c3e18d3bce80f980a8bd3f72b7094d22ec5e768df3acfed61"
+    },
+    {
+      "path": "fonts/Silkscreen-OFL.txt",
+      "creator": "The Silkscreen Project Authors",
+      "source": "https://github.com/google/fonts/tree/main/ofl/silkscreen",
+      "category": "license",
+      "license": "OFL-1.1",
+      "modified": false,
+      "redistribution": "allowed",
+      "sha256": "86c5e9c9382cdcc5948704fdfe60f2aa164a719746931219a42736ecd9cefbd3"
+    },
+    {
+      "path": "themes/default/theme.json",
+      "creator": "Puzzle Boy Community authors",
+      "source": "Original to this repository; the palette is the Puzzle Boy brand's (puzzle-boy docs/brand), group colors are the Okabe-Ito colorblind-safe set",
+      "category": "theme",
+      "license": "Apache-2.0",
+      "modified": false,
+      "redistribution": "allowed"
+    },
+    {
+      "path": "themes/default/pixel-jack.txt",
+      "creator": "Puzzle Boy Community authors",
+      "source": "Original; the Pixel Jack mark from puzzle-boy docs/brand/mark.svg, one character per pixel",
+      "category": "art",
+      "license": "Apache-2.0",
+      "modified": false,
+      "redistribution": "allowed"
+    },
+    {
+      "path": "stages/**",
+      "creator": "Puzzle Boy Community authors",
+      "source": "Original to this repository; no stage is a Nocturne layout (scripts/known-atlus-layouts.txt)",
+      "category": "stage",
+      "license": "Apache-2.0",
+      "modified": false,
+      "redistribution": "allowed"
+    }
+  ]
+}

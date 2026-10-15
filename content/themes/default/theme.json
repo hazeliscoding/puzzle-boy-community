@@ -1,0 +1,30 @@
+{
+  "format": "puzzle-boy-theme",
+  "schemaVersion": 1,
+  "name": "Pixel Jack",
+  "colors": {
+    "pumpkin": "#F07F2A",
+    "pumpkinShade": "#C9581C",
+    "ember": "#FFC94A",
+    "hat": "#2A2148",
+    "hatOnDark": "#4A3B91",
+    "band": "#7A4FD0",
+    "bandOnDark": "#B497FF",
+    "ink": "#1A1426",
+    "cream": "#F4EEE2",
+    "night": "#15102A"
+  },
+  "groupColors": ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7"],
+  "mark": {
+    "file": "pixel-jack.txt",
+    "size": [16, 16],
+    "legend": {
+      "H": "hatOnDark",
+      "b": "bandOnDark",
+      "p": "pumpkinShade",
+      "P": "pumpkin",
+      "e": "ember"
+    },
+    "transparent": "."
+  }
+}
