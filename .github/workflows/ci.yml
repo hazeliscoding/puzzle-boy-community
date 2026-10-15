@@ -4,12 +4,15 @@ on:
   pull_request:
   push:
     branches: [main]
+  # The release workflow runs these same checks before it packages anything.
+  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # github.workflow names the caller when the release runs this, so the two never cancel each other.
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -41,6 +44,10 @@ jobs:
         run: |
           scripts/check-content.test.sh
           scripts/check-content.sh
+
+      # The release archive check, against archives with each fault planted. The release workflow runs the check itself.
+      - name: Archive check controls
+        run: scripts/check-archive.test.sh
 
       - name: Restore
         run: dotnet restore PuzzleBoy.Community.slnx

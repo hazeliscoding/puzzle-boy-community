@@ -1,0 +1,219 @@
+name: Release
+
+# A v* tag publishes a GitHub release once every check below passes. A manual run builds and checks the archives
+# only, as workflow artifacts.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # The guards, build, tests, headless smoke test and format check, exactly as CI runs them.
+    uses: ./.github/workflows/ci.yml
+
+  package:
+    # Every archive comes from Linux: MonoGame's packages carry the native libraries for all three systems, and GNU tar
+    # sets the executable bit.
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+
+      # The rules come from the engine submodule. Without it, restore fails with a puzzling missing-project error.
+      - name: Engine submodule
+        run: |
+          if [ ! -f external/puzzle-boy-engine/src/PuzzleBoy.Rules/PuzzleBoy.Rules.csproj ]; then
+            echo "::error::external/puzzle-boy-engine is empty. Check out with submodules, or run: git submodule update --init"
+            exit 1
+          fi
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      # The credits and the smoke test show the csproj's version, so a tag must match it.
+      - name: Tag matches the version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' src/PuzzleBoy.Community/PuzzleBoy.Community.csproj)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::The tag is $GITHUB_REF_NAME but the game's version is $version. Change <Version> in the csproj first."
+            exit 1
+          fi
+
+      - name: Package
+        run: |
+          for rid in win-x64 linux-x64 osx-arm64 osx-x64; do
+            scripts/package.sh "$rid" dist
+          done
+
+      - name: Check the archives
+        run: |
+          for archive in dist/*.zip dist/*.tar.gz; do
+            scripts/check-archive.sh "$archive"
+          done
+          cat dist/SHA256SUMS
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: puzzle-boy-community
+          path: dist/
+          if-no-files-found: error
+
+  smoke:
+    # Each archive, unpacked on its own system with nothing else: no checkout, no .NET on PATH, no Nocturne, an empty
+    # profile. The headless smoke test must pass everywhere. The window must open on Linux (under Xvfb); hosted Windows
+    # and macOS runners may have no usable OpenGL, so there a missing window is reported as not verified, never as a pass.
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, rid: win-x64, exe: PuzzleBoyCommunity.exe }
+          - { os: ubuntu-latest, rid: linux-x64, exe: PuzzleBoyCommunity }
+          - { os: macos-latest, rid: osx-arm64, exe: PuzzleBoyCommunity }
+          # GitHub's last Intel macOS image, kept until August 2027. Without it osx-x64 is built but never started.
+          - { os: macos-15-intel, rid: osx-x64, exe: PuzzleBoyCommunity }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: puzzle-boy-community
+          path: dist
+
+      - name: Verify the archive's hash
+        working-directory: dist
+        run: |
+          line=$(grep "  puzzle-boy-community-${{ matrix.rid }}\." SHA256SUMS)
+          if command -v sha256sum > /dev/null; then echo "$line" | sha256sum -c -; else echo "$line" | shasum -a 256 -c -; fi
+
+      # Writes run.sh, which starts the unpacked game with every profile folder empty and the .NET folders off PATH.
+      - name: Unpack into a clean folder
+        run: |
+          root="$(cd "$RUNNER_TEMP" && pwd)/clean"
+          mkdir -p "$root"/{app,home,appdata,localappdata,xdg-data,xdg-config,xdg-cache,tmp,no-dotnet,data-headless,data-gui,shots}
+          archive="dist/puzzle-boy-community-${{ matrix.rid }}"
+          if [ "${{ matrix.rid }}" = win-x64 ]; then unzip -q "$archive.zip" -d "$root/app"; else tar -xzf "$archive.tar.gz" -C "$root/app"; fi
+          ls -l "$root/app/${{ matrix.exe }}"
+          native() { if command -v cygpath > /dev/null; then cygpath -w "$1"; else printf '%s\n' "$1"; fi; }
+          clean_path=$(printf '%s' "$PATH" | tr ':' '\n' | grep -vi dotnet | paste -sd: -)
+          cat > "$root/run.sh" <<EOF
+          #!/usr/bin/env bash
+          exec env HOME='$root/home' USERPROFILE='$(native "$root/home")' APPDATA='$(native "$root/appdata")' \
+            LOCALAPPDATA='$(native "$root/localappdata")' XDG_DATA_HOME='$root/xdg-data' XDG_CONFIG_HOME='$root/xdg-config' \
+            XDG_CACHE_HOME='$root/xdg-cache' TMPDIR='$root/tmp' TEMP='$(native "$root/tmp")' TMP='$(native "$root/tmp")' \
+            DOTNET_ROOT='$root/no-dotnet' PATH='$clean_path' '$root/app/${{ matrix.exe }}' "\$@"
+          EOF
+          chmod +x "$root/run.sh"
+          {
+            echo "CLEAN=$root"
+            echo "DATA_HEADLESS=$(native "$root/data-headless")"
+            echo "DATA_GUI=$(native "$root/data-gui")"
+            echo "SHOTS=$(native "$root/shots")"
+          } >> "$GITHUB_ENV"
+
+      # Output is redirected to a file: on Windows the game has no console otherwise.
+      - name: Smoke test (no window)
+        run: |
+          "$CLEAN/run.sh" --smoke-test --data-dir "$DATA_HEADLESS" > smoke-test.txt 2>&1 && code=0 || code=$?
+          cat smoke-test.txt
+          [ "$code" = 0 ] && grep -q '^smoke test passed' smoke-test.txt
+
+      - name: Smoke test in a real window (Linux, Xvfb)
+        if: runner.os == 'Linux'
+        timeout-minutes: 10
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q xvfb libgl1-mesa-dri libglx-mesa0 libegl1
+          xvfb-run -a -s "-screen 0 1280x720x24" "$CLEAN/run.sh" --smoke-gui "$SHOTS/smoke.png" --smoke-gui-screens "$SHOTS/screens" --data-dir "$DATA_GUI" > gui.txt 2>&1 && code=0 || code=$?
+          cat gui.txt
+          if ! { [ "$code" = 0 ] && grep -q '^smoke gui passed' gui.txt && [ -s "$CLEAN/shots/smoke.png" ] && [ -s "$CLEAN/shots/smoke-stage.png" ]; }; then
+            echo "::error title=GUI smoke test failed on ${{ matrix.rid }}::See the log and the screenshots artifact."
+            exit 1
+          fi
+          echo "::notice title=GUI verified on ${{ matrix.rid }}::The unpacked game opened a window under Xvfb, drew the title and stage 1, and took a step."
+
+      # Shows as a failed step when the runner can't open an OpenGL window, with a warning saying so; the job goes on.
+      # Any other failure (a crash, a step that didn't move, a missing screenshot) fails the job in the next step.
+      - name: Smoke test in a real window (if this runner has OpenGL)
+        id: gui
+        if: runner.os != 'Linux'
+        continue-on-error: true
+        timeout-minutes: 10
+        run: |
+          "$CLEAN/run.sh" --smoke-gui "$SHOTS/smoke.png" --smoke-gui-screens "$SHOTS/screens" --data-dir "$DATA_GUI" > gui.txt 2>&1 && code=0 || code=$?
+          cat gui.txt
+          if [ "$code" = 0 ] && grep -q '^smoke gui passed' gui.txt && [ -s "$CLEAN/shots/smoke.png" ] && [ -s "$CLEAN/shots/smoke-stage.png" ]; then
+            echo "result=verified" >> "$GITHUB_OUTPUT"
+            echo "::notice title=GUI verified on ${{ matrix.rid }}::The unpacked game opened a window, drew the title and stage 1, and took a step."
+            echo "**${{ matrix.rid }}:** GUI verified on this runner." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # The game's own message when no OpenGL device works, and what MonoGame and SDL say when a window or context fails.
+          if [ "$code" != 0 ] && grep -qiE 'no graphics device works here|NoSuitableGraphicsDevice|SDL Error|OpenGL|GL context|framebuffer' gui.txt; then
+            echo "result=unverified" >> "$GITHUB_OUTPUT"
+            echo "::warning title=GUI not verified on this runner (${{ matrix.rid }})::It couldn't open an OpenGL window here. The headless smoke test passed; the window on ${{ matrix.rid }} is unchecked by this run."
+            echo "**${{ matrix.rid }}:** GUI not verified on this runner (no OpenGL window). Only the headless smoke test ran." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "result=broken" >> "$GITHUB_OUTPUT"
+          echo "::error title=GUI smoke test failed on ${{ matrix.rid }}::The game failed for a reason other than missing OpenGL; see the log."
+          exit 1
+
+      - name: Fail unless the window was verified or OpenGL was missing
+        if: runner.os != 'Linux' && steps.gui.outputs.result != 'verified' && steps.gui.outputs.result != 'unverified'
+        run: exit 1
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: screenshots-${{ matrix.rid }}
+          path: ${{ runner.temp }}/clean/shots
+          if-no-files-found: ignore
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: smoke
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: puzzle-boy-community
+          path: dist
+
+      # The same bytes the smoke jobs unpacked and checked against these hashes.
+      - name: Verify the hashes
+        working-directory: dist
+        run: sha256sum -c SHA256SUMS
+
+      # Update the play-tested paragraph when someone plays a build by hand (ROADMAP.md, C5 has the table).
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notes.md <<'EOF'
+          Download the archive for your system, unpack it anywhere and run PuzzleBoyCommunity (PuzzleBoyCommunity.exe on Windows). You don't need Shin Megami Tensei III Nocturne, Steam, .NET or a network connection: the game, its stages, fonts, default theme and sound are all in the archive, and none of it comes from Nocturne. A Classic Nocturne theme drawn from your own copy of the game is optional and comes in a later milestone; no release ever ships an Atlus asset. SHA256SUMS lists each archive's hash.
+
+          **The builds are unsigned.** Windows SmartScreen may say it protected your PC: choose More info, then Run anyway. macOS Gatekeeper blocks apps from unidentified developers: before the first run, open Terminal in the unpacked folder and run `xattr -dr com.apple.quarantine .`, then `./PuzzleBoyCommunity`. On Linux and macOS the archive keeps the executable bit; if a tool dropped it, run `chmod +x PuzzleBoyCommunity`.
+
+          **Tested so far.** Windows x64: unpacked and run on a Windows 11 PC with an empty profile and no .NET; the automated tour (title, first stage, settings, editor, pack export and import) passed. Linux x64: the same tour under WSLg on Windows, not yet on a Linux desktop. macOS arm64 and x64: the headless smoke test passes in CI on GitHub's macOS runners; nobody has played them yet. Nobody has played a whole release build through by hand.
+
+          **OpenAL Soft.** The openal.dll, libopenal.so and libopenal.dylib in each archive are OpenAL Soft, under the GNU LGPL 2.0 or later. Its source is at https://github.com/kcat/openal-soft/tree/dc7d7054a5b4f3bec1dc23a42fd616a0847af948, and you may replace the library with your own build. THIRD_PARTY_NOTICES.txt beside the game has every library's license.
+          EOF
+          echo "This release's CI run, with each platform's smoke results and screenshots: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> notes.md
+          gh release create "$GITHUB_REF_NAME" dist/puzzle-boy-community-* dist/SHA256SUMS --repo "$GITHUB_REPOSITORY" \
+            --title "Puzzle Boy Community Edition $GITHUB_REF_NAME" --notes-file notes.md --generate-notes
