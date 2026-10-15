@@ -52,6 +52,9 @@ internal sealed class SmokeGui(string titlePng, string? screensDir = null)
     /// <summary>0 once both screenshots are saved and the step changed the board; 1 until then.</summary>
     public int ExitCode { get; private set; } = 1;
 
+    /// <summary>True once the run has passed or failed and is only waiting to exit.</summary>
+    public bool Done => _done;
+
     /// <summary>Why the run failed, or null.</summary>
     public string? Failure { get; private set; }
 
@@ -296,6 +299,26 @@ internal sealed class SmokeGui(string titlePng, string? screensDir = null)
         foreach (var tick in Shot(null, "editor.png"))
         {
             yield return tick;
+        }
+
+        // What the window's close button does. The split is unsaved, so the game stays and asks; Esc keeps editing.
+        game.Exit();
+        yield return [];
+        if (!game.AskingToQuit || game.Editor != editor)
+        {
+            Fail(game, "closing the window with unsaved changes didn't ask first");
+            yield break;
+        }
+
+        foreach (var tick in Shot(null, "editor-quit.png").Concat(Press(Keys.Escape)))
+        {
+            yield return tick;
+        }
+
+        if (game.AskingToQuit || game.CurrentScreen != Screen.Editor)
+        {
+            Fail(game, "Keep Editing didn't return to the stage");
+            yield break;
         }
 
         // P refuses a stage with a problem. Ctrl+Z takes the stroke back, and then P plays it.

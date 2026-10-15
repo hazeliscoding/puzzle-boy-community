@@ -114,6 +114,7 @@ internal sealed partial class CommunityGame : Game
             }
         };
 
+        Exiting += HoldExitForUnsavedChanges;
         IsFixedTimeStep = true;
         TargetElapsedTime = TimeSpan.FromSeconds(1.0 / 30);
         IsMouseVisible = true;

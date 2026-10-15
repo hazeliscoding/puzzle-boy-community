@@ -56,6 +56,8 @@ internal sealed partial class CommunityGame
     private MenuList _libraryMenu = new(1);
     private MenuList _overlayMenu = new(1);
     private EditorOverlay _overlay;
+    private bool _confirmQuit;
+    private bool _quitConfirmed;
     private int _libraryScroll;
     private string? _libraryStatus;
     private (int X, int Y)? _rectAnchor;
@@ -91,6 +93,9 @@ internal sealed partial class CommunityGame
 
     /// <summary>The stage open in the editor, or null on its list.</summary>
     internal StageEditor? Editor => _editor;
+
+    /// <summary>True while the unsaved-changes question asks whether to quit, after the window was closed.</summary>
+    internal bool AskingToQuit => _overlay == EditorOverlay.ConfirmClose && _confirmQuit;
 
     /// <summary>The editor's list of the player's stages, as last read.</summary>
     internal IReadOnlyList<CustomStage> CustomList => _custom;
@@ -356,6 +361,12 @@ internal sealed partial class CommunityGame
                 if (close == 0)
                 {
                     _overlay = EditorOverlay.None;
+                    _confirmQuit = false;
+                }
+                else if (close == 1 && _confirmQuit)
+                {
+                    _quitConfirmed = true;
+                    Exit();
                 }
                 else if (close == 1)
                 {
@@ -702,6 +713,7 @@ internal sealed partial class CommunityGame
                 {
                     _overlay = EditorOverlay.ConfirmClose;
                     _overlayMenu = new MenuList(2);
+                    _confirmQuit = false;
                 }
                 else
                 {
@@ -792,6 +804,31 @@ internal sealed partial class CommunityGame
         editor.Message = $"{what}: fix the {(count == 1 ? "problem" : $"{count} problems")} first.";
         _sounds.Play(Sfx.Buzz);
         return false;
+    }
+
+    /// <summary>
+    /// Holds any exit (the window's close button, Alt+F4, Quit) while the open stage has unsaved changes, and asks first
+    /// with the same question as Close Stage. A playtest ends so the question shows over the editor.
+    /// </summary>
+    private void HoldExitForUnsavedChanges(object? sender, ExitingEventArgs e)
+    {
+        // A finished smoke run always exits; it never leaves a player's work behind.
+        if (_quitConfirmed || _editor is not { Dirty: true } editor || _smoke is { Done: true })
+        {
+            return;
+        }
+
+        e.Cancel = true;
+        if (_playtest)
+        {
+            EndPlaytest("Your changes aren't saved.");
+        }
+
+        editor.EndStroke();
+        (_rectAnchor, _keyStroke, _mouseStroke) = (null, false, false);
+        _overlay = EditorOverlay.ConfirmClose;
+        _overlayMenu = new MenuList(2);
+        _confirmQuit = true;
     }
 
     /// <summary>Back to the editor's list, dropping the open stage.</summary>
@@ -1105,7 +1142,7 @@ internal sealed partial class CommunityGame
                 DrawMenuOverlay("EDITOR", EditorMenuItems);
                 break;
             case EditorOverlay.ConfirmClose:
-                DrawConfirm("UNSAVED CHANGES", $"Close “{editor.Title}” and lose the changes since it was last saved?", ["Keep Editing", "Discard"]);
+                DrawConfirm("UNSAVED CHANGES", _confirmQuit ? $"Quit and lose the changes to “{editor.Title}” since it was last saved?" : $"Close “{editor.Title}” and lose the changes since it was last saved?", ["Keep Editing", _confirmQuit ? "Quit" : "Discard"]);
                 break;
             case EditorOverlay.Title:
                 DrawTitleEntry();
