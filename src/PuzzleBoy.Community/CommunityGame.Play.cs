@@ -36,7 +36,7 @@ internal sealed partial class CommunityGame
             _sounds.Play(Sfx.Goal);
         }
 
-        _pivot = Vector3.Lerp(_pivot, Pivot(), 0.2f);
+        _pivot = _save.Data.Settings.ReduceMotion ? Pivot() : Vector3.Lerp(_pivot, Pivot(), 0.2f);
         if (session.ReadyToContinue)
         {
             if (session.Next())
@@ -45,9 +45,9 @@ internal sealed partial class CommunityGame
             }
             else
             {
-                // The pack is done: back to the stage list, to its first stage.
+                // The pack is done: back to the stage list.
                 _session = null;
-                _selectMenu.Set(0);
+                FocusNextStage();
                 _nav.ReturnTo(Screen.StageSelect);
             }
 
@@ -135,10 +135,11 @@ internal sealed partial class CommunityGame
 
         Stat(1260, "MOVES", session.Moves.ToString(System.Globalization.CultureInfo.InvariantCulture));
         Stat(1140, "UNDO", session.UndoAvailable.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        Stat(1020, "TIME", FormatTime(session.ElapsedTicks / 30.0)[..^2]);
         var several = session.Board.Characters.Count > 1;
         if (several)
         {
-            Stat(1020, "JACK", $"{session.Board.ActiveIndex + 1}/{session.Board.Characters.Count}");
+            Stat(900, "JACK", $"{session.Board.ActiveIndex + 1}/{session.Board.Characters.Count}");
         }
 
         _ui.Rect(0, 672, 1280, 48, _ui["ink"] * 0.78f);
@@ -161,7 +162,7 @@ internal sealed partial class CommunityGame
         {
             _ui.Panel(right - 108, 18, 108, 96, _ui["ink"] * 0.72f);
             _ui.Text(Font.Title, 15, label, new Vector2(right - 54, 32), _ui["bandOnDark"], 0.5f, 1);
-            _ui.Text(Font.BodyBold, 40, value, new Vector2(right - 54, 52), _ui["cream"], 0.5f);
+            _ui.Text(Font.BodyBold, value.Length > 3 ? 32 : 40, value, new Vector2(right - 54, value.Length > 3 ? 58 : 52), _ui["cream"], 0.5f);
         }
     }
 
@@ -185,8 +186,8 @@ internal sealed partial class CommunityGame
         var t = session.ClearTicks;
         var rise = Math.Clamp(t / 8f, 0, 1);
 
-        // Confetti in the block colors, falling from the top.
-        for (var i = 0; i < 70; i++)
+        // Confetti in the block colors, falling from the top; none when the player reduces motion.
+        for (var i = 0; i < (_save.Data.Settings.ReduceMotion ? 0 : 70); i++)
         {
             var hash = (uint)((i + 1) * 2654435761u);
             var x = (hash % 1280) + (MathF.Sin((t * 0.1f) + i) * 20);

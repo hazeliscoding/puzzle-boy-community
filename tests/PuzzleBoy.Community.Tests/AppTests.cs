@@ -1,6 +1,9 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using PuzzleBoy.Community.App;
+using PuzzleBoy.Community.Content;
+using PuzzleBoy.Community.Play;
+using PuzzleBoy.Community.Save;
 
 namespace PuzzleBoy.Community.Tests;
 
@@ -160,5 +163,65 @@ public class AppTests
         Assert.Contains("Puzzle Boy, Shin Megami Tensei and Nocturne are trademarks of ATLUS and SEGA.", CommunityGame.Notice);
         Assert.Contains("not affiliated with or endorsed by either company", CommunityGame.Notice);
         Assert.Contains("It contains no ATLUS or SEGA assets.", CommunityGame.Notice);
+    }
+
+    [Fact]
+    public void Volumes_step_by_ten_percent_and_hold_at_the_ends_unless_confirm_wraps_them()
+    {
+        var settings = new GameSettings { MusicVolume = 0.9f };
+        Assert.True(SettingsMenu.Adjust(settings, 3, 1));
+        Assert.Equal("100%", SettingsMenu.Value(settings, 3));
+        Assert.False(SettingsMenu.Adjust(settings, 3, 1));
+        Assert.True(SettingsMenu.Adjust(settings, 3, 1, wrap: true));
+        Assert.Equal("0%", SettingsMenu.Value(settings, 3));
+        Assert.False(SettingsMenu.Adjust(settings, 3, -1));
+    }
+
+    [Fact]
+    public void Every_switch_flips_either_way()
+    {
+        var settings = new GameSettings();
+        foreach (var row in new[] { 0, 5, 6, 7 })
+        {
+            var before = SettingsMenu.Value(settings, row);
+            Assert.True(SettingsMenu.Adjust(settings, row, -1));
+            Assert.NotEqual(before, SettingsMenu.Value(settings, row));
+        }
+
+        Assert.True(settings is { Fullscreen: true, Mute: true, ReduceMotion: true, HighContrast: true });
+    }
+
+    [Fact]
+    public void The_settings_rows_show_their_values_and_end_with_the_actions()
+    {
+        var settings = new GameSettings { WindowScale = 1.5f, UiScale = 1.1f };
+        Assert.Equal("1920 × 1080", SettingsMenu.Value(settings, 1));
+        Assert.Equal("110%", SettingsMenu.Value(settings, 2));
+        Assert.Equal("Windowed", SettingsMenu.Value(settings, 0));
+        Assert.Equal(["Import Classic Content", "Reset to defaults", "Back"], SettingsMenu.Labels[SettingsMenu.ImportRow..]);
+        Assert.Equal("", SettingsMenu.Value(settings, SettingsMenu.ResetRow));
+        Assert.False(SettingsMenu.HasValue(SettingsMenu.BackRow));
+    }
+
+    [Fact]
+    public void Stage_select_shows_each_stage_as_cleared_open_or_locked()
+    {
+        var stages = ContentManifest.Load(Repo.Content, [])!.Packs[0].Stages;
+        var data = new SaveData();
+        data.Record(stages[0].Id, 5, 3);
+        Assert.Equal(StageStatus.Cleared, CommunityGame.StatusOf(data, stages, 0));
+        Assert.Equal(StageStatus.Open, CommunityGame.StatusOf(data, stages, 1));
+        Assert.Equal(StageStatus.Locked, CommunityGame.StatusOf(data, stages, 2));
+    }
+
+    [Fact]
+    public void With_reduced_motion_the_view_turns_and_tilts_at_once()
+    {
+        var camera = new CameraRig { Instant = true };
+        Assert.True(camera.TurnRight());
+        Assert.False(camera.IsBusy);
+        Assert.Equal(90, camera.Yaw);
+        Assert.True(camera.ToggleOverhead());
+        Assert.Equal(1, camera.OverheadAmount);
     }
 }

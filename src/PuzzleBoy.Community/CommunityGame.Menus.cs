@@ -2,8 +2,23 @@ using Microsoft.Xna.Framework;
 using PuzzleBoy.Community.App;
 using PuzzleBoy.Community.Audio;
 using PuzzleBoy.Community.Graphics;
+using PuzzleBoy.Community.Save;
+using PuzzleBoy.Rules;
 
 namespace PuzzleBoy.Community;
+
+/// <summary>A stage's state in stage select.</summary>
+internal enum StageStatus
+{
+    /// <summary>Can't be played until the stage before it is cleared.</summary>
+    Locked,
+
+    /// <summary>Playable and not cleared yet.</summary>
+    Open,
+
+    /// <summary>Cleared at least once.</summary>
+    Cleared,
+}
 
 /// <summary>The menu screens: title, stage select, pause, settings, credits and the placeholders.</summary>
 internal sealed partial class CommunityGame
@@ -14,19 +29,24 @@ internal sealed partial class CommunityGame
     /// <summary>The pause menu, in order.</summary>
     internal static readonly string[] PauseItems = ["Resume", "Undo", "Restart", "Help", "Settings", "Quit to Title"];
 
-    /// <summary>The settings menu while it's a placeholder, in order.</summary>
-    internal static readonly string[] SettingsItems = ["Import Classic Content", "Back"];
-
     /// <summary>
     /// The trademark and affiliation notice, as the credits show it. A shorter form sits on the title screen.
     /// </summary>
     internal const string Notice = "Inspired by Puzzle Boy (Atlus) and its 3D version in Shin Megami Tensei III: Nocturne. Puzzle Boy, Shin Megami Tensei and Nocturne are trademarks of ATLUS and SEGA. This is an independent fan project, not affiliated with or endorsed by either company. It contains no ATLUS or SEGA assets.";
 
+    // Stage select shows this many rows and scrolls the rest.
+    private const int SelectRows = 9;
+
     private static readonly MenuLayout TitleMenu = new(96, 300, 400, 54);
-    private static readonly MenuLayout PauseMenu = new(470, 236, 340, 50);
-    private static readonly MenuLayout SettingsMenu = new(440, 360, 400, 54);
-    private static readonly MenuLayout SelectMenu = new(340, 190, 600, 54);
+    private static readonly MenuLayout PauseMenu = new(470, 262, 340, 50);
+    private static readonly MenuLayout SettingsLayout = new(240, 136, 800, 44);
+    private static readonly MenuLayout ConfirmLayout = new(490, 380, 300, 54);
+    private static readonly MenuLayout SelectMenu = new(72, 150, 580, 50);
     private static readonly MenuLayout BackButton = new(540, 600, 200, 54);
+
+    /// <summary>Where stage <paramref name="index"/> of <paramref name="stages"/> stands in the player's progress.</summary>
+    internal static StageStatus StatusOf(SaveData data, IReadOnlyList<Content.PackStage> stages, int index) =>
+        data.IsCompleted(stages[index].Id) ? StageStatus.Cleared : data.IsUnlocked(stages, index) ? StageStatus.Open : StageStatus.Locked;
 
     private void UpdateTitle(Controls controls)
     {
@@ -48,13 +68,14 @@ internal sealed partial class CommunityGame
                 StartStage(pack, index);
                 break;
             case 1:
+                FocusNextStage();
                 _nav.Open(Screen.StageSelect);
                 break;
             case 2:
                 _nav.Open(Screen.Editor);
                 break;
             case 3:
-                _nav.Open(Screen.Settings);
+                OpenSettings();
                 break;
             case 4:
                 _nav.Open(Screen.Credits);
@@ -65,6 +86,20 @@ internal sealed partial class CommunityGame
         }
     }
 
+    /// <summary>Focuses the stage Play would start, so stage select opens where the player left off.</summary>
+    private void FocusNextStage()
+    {
+        _selectMenu.Set(_selectable.IndexOf(_save.Data.NextToPlay(_manifest.Packs)));
+        KeepFocusVisible();
+    }
+
+    private void KeepFocusVisible()
+    {
+        var focus = _selectMenu.Focus;
+        _selectScroll = Math.Clamp(_selectScroll, Math.Max(0, focus - SelectRows + 1), focus);
+        _selectScroll = Math.Clamp(_selectScroll, 0, Math.Max(0, _selectable.Count - SelectRows));
+    }
+
     private void UpdateStageSelect(Controls controls)
     {
         if (Cancelled(controls))
@@ -73,10 +108,19 @@ internal sealed partial class CommunityGame
             return;
         }
 
-        if (RunMenu(_selectMenu, controls, SelectMenu) is { } choice && choice < _selectable.Count)
+        var choice = RunMenu(_selectMenu, controls, SelectMenu, _selectScroll, SelectRows);
+        KeepFocusVisible();
+        if (choice is { } chosen && chosen < _selectable.Count)
         {
-            var (pack, index) = _selectable[choice];
-            StartStage(pack, index);
+            var (pack, index) = _selectable[chosen];
+            if (_save.Data.IsUnlocked(pack.Stages, index))
+            {
+                StartStage(pack, index);
+            }
+            else
+            {
+                _sounds.Play(Sfx.Buzz);
+            }
         }
     }
 
@@ -120,7 +164,7 @@ internal sealed partial class CommunityGame
                 _helpOpen = true;
                 break;
             case 4:
-                _nav.Open(Screen.Settings);
+                OpenSettings();
                 break;
             case 5:
                 _session = null;
@@ -129,23 +173,97 @@ internal sealed partial class CommunityGame
         }
     }
 
+    private void OpenSettings()
+    {
+        _settingsMenu.Set(0);
+        _confirmReset = false;
+        _nav.Open(Screen.Settings);
+    }
+
     private void UpdateSettings(Controls controls)
     {
+        if (_confirmReset)
+        {
+            UpdateResetConfirm(controls);
+            return;
+        }
+
         if (Cancelled(controls))
         {
             GoBack();
             return;
         }
 
-        switch (RunMenu(_settingsMenu, controls, SettingsMenu))
+        var row = _settingsMenu.Focus;
+        if ((_menuLeft || _menuRight) && SettingsMenu.HasValue(row))
         {
-            case 0:
+            ChangeSetting(row, _menuLeft ? -1 : 1, wrap: false);
+        }
+
+        if (RunMenu(_settingsMenu, controls, SettingsLayout) is not { } chosen)
+        {
+            return;
+        }
+
+        if (SettingsMenu.HasValue(chosen))
+        {
+            // A click on the left half of the value steps it down; anything else steps it up, wrapping.
+            var valueLeft = SettingsLayout.Left + SettingsLayout.Width - 330;
+            var down = _clicked && _pointer.X >= valueLeft && _pointer.X < valueLeft + 165;
+            ChangeSetting(chosen, down ? -1 : 1, wrap: true);
+            return;
+        }
+
+        switch (chosen)
+        {
+            case SettingsMenu.ImportRow:
                 _nav.Open(Screen.ImportClassic);
                 break;
-            case 1:
+            case SettingsMenu.ResetRow:
+                _confirmReset = true;
+                _confirmMenu.Set(0);
+                break;
+            case SettingsMenu.BackRow:
                 _nav.Back();
                 break;
         }
+    }
+
+    private void UpdateResetConfirm(Controls controls)
+    {
+        if (Cancelled(controls))
+        {
+            _confirmReset = false;
+            _sounds.Play(Sfx.Cancel);
+            return;
+        }
+
+        switch (RunMenu(_confirmMenu, controls, ConfirmLayout))
+        {
+            case 0:
+                _confirmReset = false;
+                break;
+            case 1:
+                _save.Data.Settings = new GameSettings();
+                ApplySettings(display: true);
+                _save.Save();
+                _confirmReset = false;
+                break;
+        }
+    }
+
+    /// <summary>Changes a setting, puts it into effect at once and saves it.</summary>
+    private void ChangeSetting(int row, int by, bool wrap)
+    {
+        if (!SettingsMenu.Adjust(_save.Data.Settings, row, by, wrap))
+        {
+            _sounds.Play(Sfx.Buzz);
+            return;
+        }
+
+        ApplySettings(display: row is 0 or 1);
+        _save.Save();
+        _sounds.Play(Sfx.MenuMove);
     }
 
     private void DrawTitle()
@@ -166,12 +284,190 @@ internal sealed partial class CommunityGame
         DrawDrift(0.6f);
         _ui.Begin();
         Heading("STAGE SELECT");
+        var layout = SelectMenu;
+        for (var row = 0; row < SelectRows && _selectScroll + row < _selectable.Count; row++)
+        {
+            var i = _selectScroll + row;
+            var (pack, index) = _selectable[i];
+            var top = layout.Top + (row * layout.Spacing);
+            var focused = i == _selectMenu.Focus;
+            if (focused)
+            {
+                FocusBar(layout, top);
+            }
 
-        // shortcut: no scrolling yet; the list fits 8 stages, and C2 replaces this screen with the real stage select.
-        var labels = _selectable.Select(s => $"{s.Pack.Title}  ·  {s.Index + 1}   {s.Pack.Stages[s.Index].Title}").ToArray();
-        DrawMenu(_selectMenu, labels, SelectMenu, 26);
+            var status = StatusOf(_save.Data, pack.Stages, index);
+            var ink = focused ? _ui["ink"] : status == StageStatus.Locked ? _ui["cream"] * 0.55f : _ui["cream"] * 0.92f;
+            StatusIcon(status, layout.Left + 14, top + 13, 24, ink);
+            var number = (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            _ui.Text(Font.BodyBold, 22, number, new Vector2(layout.Left + 72, top + 12), ink, 1);
+            _ui.Text(Font.BodyBold, 22, pack.Stages[index].Title, new Vector2(layout.Left + 86, top + 12), ink);
+            _ui.Text(Font.Title, 13, StatusWord(status), new Vector2(layout.Left + layout.Width - 16, top + 18), ink, 1, 1);
+        }
+
+        // Chevrons say there's more above or below; the counter says where the focus is.
+        var middle = layout.Left + (layout.Width / 2);
+        if (_selectScroll > 0)
+        {
+            Chevron(middle, layout.Top - 10, up: true);
+        }
+
+        if (_selectScroll + SelectRows < _selectable.Count)
+        {
+            Chevron(middle, layout.Top + (SelectRows * layout.Spacing) + 6, up: false);
+        }
+
+        _ui.Text(Font.Title, 13, $"{_selectMenu.Focus + 1} / {_selectable.Count}", new Vector2(layout.Left + layout.Width, layout.Top + (SelectRows * layout.Spacing) + 4), _ui["cream"] * 0.7f, 1, 1);
+        DrawStageDetails();
         _ui.Hints([("Arrows", "Choose"), ("Enter", "Play"), ("Esc", "Back")], 640, 660, _ui["cream"], 17);
         _ui.End();
+    }
+
+    /// <summary>The focused stage's card: its state, a preview of how it starts and its best clear.</summary>
+    private void DrawStageDetails()
+    {
+        var (pack, index) = _selectable[_selectMenu.Focus];
+        var stage = pack.Stages[index];
+        var status = StatusOf(_save.Data, pack.Stages, index);
+        var (x, y, width, height) = (690f, 150f, 520f, 460f);
+        _ui.Panel(x, y, width, height, _ui["ink"] * 0.78f);
+        _ui.Text(Font.Title, 14, $"{pack.Title.ToUpperInvariant()}  ·  STAGE {index + 1} OF {pack.Stages.Count}", new Vector2(x + 24, y + 18), _ui["bandOnDark"], spacing: 1);
+        _ui.Text(Font.BodyBold, 30, stage.Title, new Vector2(x + 24, y + 40), _ui["cream"]);
+        StatusIcon(status, x + 24, y + 88, 22, _ui["cream"]);
+        _ui.Text(Font.BodyBold, 19, status switch
+        {
+            StageStatus.Cleared => "Cleared",
+            StageStatus.Open => "Not cleared yet",
+            _ => "Locked",
+        }, new Vector2(x + 54, y + 88), _ui["cream"]);
+
+        var (px, py, pw, ph) = (x + 24, y + 124, width - 48, 260f);
+        _ui.Panel(px, py, pw, ph, _ui["night"]);
+        if (status == StageStatus.Locked)
+        {
+            StatusIcon(StageStatus.Locked, px + (pw / 2) - 24, py + (ph / 2) - 58, 48, _ui["cream"] * 0.6f);
+            _ui.Text(Font.Body, 20, $"Clear “{pack.Stages[index - 1].Title}” to open it.", new Vector2(px + (pw / 2), py + (ph / 2) + 4), _ui["cream"] * 0.8f, 0.5f);
+        }
+        else
+        {
+            DrawPreview(stage.Stage, px + 8, py + 8, pw - 16, ph - 16);
+        }
+
+        var best = _save.Data.Stages.GetValueOrDefault(stage.Id);
+        var line = best is { BestMoves: { } moves, BestTime: { } time }
+            ? $"Best: {moves} {(moves == 1 ? "move" : "moves")}  ·  {FormatTime(time)}"
+            : best is { Completed: true } ? "Best: not recorded" : "Best: none yet";
+        _ui.Text(Font.BodyBold, 21, line, new Vector2(x + 24, y + 404), _ui["cream"]);
+    }
+
+    /// <summary>
+    /// A top-down picture of how <paramref name="stage"/> starts, fitted into the box: walls, floor, holes, blocks in their
+    /// group's color and pattern, swivels, the goal and the characters, with +y up as in play. It shows nothing of a
+    /// solution.
+    /// </summary>
+    private void DrawPreview(Stage stage, float x, float y, float width, float height)
+    {
+        var board = new Board(stage);
+        var (minX, minY, maxX, maxY) = BoardRenderer.PlayBounds(board);
+        (minX, minY, maxX, maxY) = (Math.Max(0, minX - 1), Math.Max(0, minY - 1), Math.Min(Stage.Width - 1, maxX + 1), Math.Min(Stage.Height - 1, maxY + 1));
+        var cell = MathF.Floor(Math.Min(Math.Min(width / (maxX - minX + 1), height / (maxY - minY + 1)), 30));
+        var left = x + ((width - ((maxX - minX + 1) * cell)) / 2);
+        var top = y + ((height - ((maxY - minY + 1) * cell)) / 2);
+        var hc = _save.Data.Settings.HighContrast;
+        var floor = Color.Lerp(_ui["hatOnDark"], _ui["cream"], hc ? 0.66f : 0.5f);
+        var wall = hc ? _ui["ink"] : Color.Lerp(_ui["hat"], _ui["night"], 0.3f);
+        Vector2 At(int cx, int cy) => new(left + ((cx - minX) * cell), top + ((maxY - cy) * cell));
+        Rectangle Tile(int tile) => new(tile * Atlas.TileSize, 0, Atlas.TileSize, Atlas.TileSize);
+
+        for (var cy = minY; cy <= maxY; cy++)
+        {
+            for (var cx = minX; cx <= maxX; cx++)
+            {
+                var p = At(cx, cy);
+                var value = board[cx, cy];
+                var kind = Cell.KindOf(value);
+                if (kind == CellKind.Wall)
+                {
+                    _ui.Rect(p.X, p.Y, cell, cell, wall);
+                    continue;
+                }
+
+                _ui.Rect(p.X, p.Y, cell, cell, hc || (cx + cy) % 2 == 0 ? floor : Color.Lerp(floor, _ui["hatOnDark"], 0.15f));
+                if ((value & Cell.HoleFlag) != 0)
+                {
+                    _ui.Rect(p.X + 2, p.Y + 2, cell - 4, cell - 4, Color.Black);
+                }
+
+                var color = _board.GroupColor(Math.Max(1, Cell.GroupOf(value)));
+                switch (kind)
+                {
+                    case CellKind.Block:
+                        _ui.Sprite(_board.AtlasTexture, Tile(BoardRenderer.GroupPattern(Cell.GroupOf(value))), p.X + 1, p.Y + 1, cell - 2, cell - 2, color);
+                        break;
+                    case CellKind.SwivelArm:
+                        _ui.Sprite(_board.AtlasTexture, Tile(BoardRenderer.GroupPattern(Cell.GroupOf(value))), p.X + 4, p.Y + 4, cell - 8, cell - 8, color);
+                        break;
+                    case CellKind.SwivelCenter:
+                        _ui.Sprite(_board.AtlasTexture, Tile(Atlas.Pivot), p.X + 2, p.Y + 2, cell - 4, cell - 4, Color.Lerp(color, _ui["ink"], 0.3f));
+                        break;
+                }
+            }
+        }
+
+        var goal = At(board.Goal.X, board.Goal.Y);
+        _ui.Panel(goal.X + (cell * 0.15f), goal.Y + (cell * 0.15f), cell * 0.7f, cell * 0.7f, _ui["ember"]);
+        _ui.Panel(goal.X + (cell * 0.32f), goal.Y + (cell * 0.32f), cell * 0.36f, cell * 0.36f, _ui["pumpkinShade"]);
+        foreach (var character in board.Characters.Where(c => c.Visible))
+        {
+            // Pixel Jack in miniature: a pumpkin under a hat.
+            var p = At(character.X, character.Y);
+            _ui.Panel(p.X + (cell * 0.18f), p.Y + (cell * 0.36f), cell * 0.64f, cell * 0.52f, _ui["pumpkin"]);
+            _ui.Rect(p.X + (cell * 0.3f), p.Y + (cell * 0.12f), cell * 0.4f, cell * 0.26f, _ui["hatOnDark"]);
+            _ui.Rect(p.X + (cell * 0.14f), p.Y + (cell * 0.32f), cell * 0.72f, cell * 0.08f, _ui["band"]);
+        }
+    }
+
+    /// <summary>The word beside a stage's icon, so its state never depends on color or shape alone.</summary>
+    private static string StatusWord(StageStatus status) => status switch
+    {
+        StageStatus.Cleared => "CLEARED",
+        StageStatus.Open => "NEW",
+        _ => "LOCKED",
+    };
+
+    /// <summary>A stage state's icon in a square of <paramref name="size"/>: a check, an open ring or a padlock.</summary>
+    private void StatusIcon(StageStatus status, float x, float y, float size, Color color)
+    {
+        var s = size;
+        switch (status)
+        {
+            case StageStatus.Cleared:
+                _ui.Line(new Vector2(x + (0.1f * s), y + (0.55f * s)), new Vector2(x + (0.4f * s), y + (0.85f * s)), 0.16f * s, color);
+                _ui.Line(new Vector2(x + (0.34f * s), y + (0.85f * s)), new Vector2(x + (0.92f * s), y + (0.18f * s)), 0.16f * s, color);
+                break;
+            case StageStatus.Open:
+                for (var i = 0; i < 12; i++)
+                {
+                    var (a, b) = (i * MathF.Tau / 12, (i + 1) * MathF.Tau / 12);
+                    var c = new Vector2(x + (s / 2), y + (s / 2));
+                    _ui.Line(c + (new Vector2(MathF.Cos(a), MathF.Sin(a)) * s * 0.36f), c + (new Vector2(MathF.Cos(b), MathF.Sin(b)) * s * 0.36f), 0.12f * s, color);
+                }
+
+                break;
+            default:
+                _ui.Rect(x + (0.26f * s), y + (0.08f * s), 0.12f * s, 0.4f * s, color);
+                _ui.Rect(x + (0.62f * s), y + (0.08f * s), 0.12f * s, 0.4f * s, color);
+                _ui.Rect(x + (0.26f * s), y + (0.04f * s), 0.48f * s, 0.12f * s, color);
+                _ui.Rect(x + (0.14f * s), y + (0.44f * s), 0.72f * s, 0.52f * s, color);
+                break;
+        }
+    }
+
+    private void Chevron(float x, float y, bool up)
+    {
+        var (tip, foot) = up ? (y, y + 8) : (y + 8, y);
+        _ui.Line(new Vector2(x - 12, foot), new Vector2(x, tip), 3, _ui["cream"] * 0.7f);
+        _ui.Line(new Vector2(x, tip), new Vector2(x + 12, foot), 3, _ui["cream"] * 0.7f);
     }
 
     private void DrawSettings()
@@ -179,9 +475,55 @@ internal sealed partial class CommunityGame
         DrawDrift(0.6f);
         _ui.Begin();
         Heading("SETTINGS");
-        _ui.Text(Font.Body, 24, "Volume, display and accessibility options arrive with saving, in a later update.", new Vector2(640, 260), _ui["cream"], 0.5f);
-        DrawMenu(_settingsMenu, SettingsItems, SettingsMenu, 28);
-        _ui.Hints([("Arrows", "Choose"), ("Enter", "Select"), ("Esc", "Back")], 640, 660, _ui["cream"], 17);
+        var settings = _save.Data.Settings;
+        var layout = SettingsLayout;
+        for (var row = 0; row < SettingsMenu.Labels.Length; row++)
+        {
+            var top = layout.Top + (row * layout.Spacing);
+            var focused = row == _settingsMenu.Focus;
+            if (focused)
+            {
+                FocusBar(layout, top);
+            }
+
+            var ink = focused ? _ui["ink"] : _ui["cream"] * 0.92f;
+            var textTop = top + ((layout.Spacing - 26) / 2);
+            _ui.Text(Font.BodyBold, 21, SettingsMenu.Labels[row], new Vector2(layout.Left + 36, textTop), ink);
+            if (!SettingsMenu.HasValue(row))
+            {
+                continue;
+            }
+
+            var right = layout.Left + layout.Width - 24;
+            var value = SettingsMenu.Value(settings, row);
+            if (SettingsMenu.IsSlider(row))
+            {
+                var level = row == 3 ? settings.MusicVolume : settings.SfxVolume;
+                var (barX, barY) = (right - 290, top + (layout.Spacing / 2) - 5);
+                _ui.Panel(barX, barY, 200, 10, focused ? _ui["ink"] * 0.35f : _ui["cream"] * 0.25f);
+                var fill = focused ? _ui["ink"] : settings.Mute ? _ui["cream"] * 0.5f : _ui["ember"];
+                _ui.Panel(barX, barY, Math.Max(10, 200 * level), 10, fill);
+            }
+
+            _ui.Text(Font.BodyBold, 21, focused ? $"<  {value}  >" : value, new Vector2(right, textTop), ink, 1);
+        }
+
+        if (_sounds.Silent)
+        {
+            _ui.Text(Font.Body, 16, "No audio device was found, so the game is silent.", new Vector2(640, 626), _ui["ember"], 0.5f);
+        }
+
+        _ui.Hints([("Up Down", "Choose"), ("Left Right", "Change"), ("Enter", "Select"), ("Esc", "Back")], 640, 660, _ui["cream"], 17);
+        if (_confirmReset)
+        {
+            _ui.Rect(0, 0, VirtualScreen.Width, VirtualScreen.Height, _ui["ink"] * 0.6f);
+            _ui.Panel(400, 250, 480, 260, _ui["hat"] * 0.97f);
+            _ui.Text(Font.TitleBold, 28, "RESET SETTINGS?", new Vector2(640, 276), _ui["cream"], 0.5f, 2);
+            _ui.Text(Font.Body, 19, "Every setting goes back to its default.", new Vector2(640, 326), _ui["cream"], 0.5f);
+            _ui.Text(Font.Body, 19, "Your progress is kept.", new Vector2(640, 350), _ui["cream"], 0.5f);
+            DrawMenu(_confirmMenu, ["Cancel", "Reset"], ConfirmLayout, 24);
+        }
+
         _ui.End();
     }
 
@@ -226,17 +568,20 @@ internal sealed partial class CommunityGame
             return;
         }
 
-        _ui.Panel(430, 140, 420, 430, _ui["hat"] * 0.97f);
-        _ui.Text(Font.TitleBold, 40, "PAUSED", new Vector2(640, 170), _ui["cream"], 0.5f, 2);
+        var session = _session!;
+        _ui.Panel(430, 132, 420, 470, _ui["hat"] * 0.97f);
+        _ui.Text(Font.TitleBold, 40, "PAUSED", new Vector2(640, 156), _ui["cream"], 0.5f, 2);
+        var moves = session.Moves == 1 ? "1 move" : $"{session.Moves} moves";
+        _ui.Text(Font.Body, 19, $"{session.Stage.Title}  ·  {moves}  ·  {FormatTime(session.ElapsedTicks / 30.0)[..^2]}", new Vector2(640, 214), _ui["bandOnDark"], 0.5f);
         DrawMenu(_pauseMenu, PauseItems, PauseMenu, 26);
         _ui.Hints([("Arrows", "Choose"), ("Enter", "Select"), ("Esc", "Resume")], 640, 680, _ui["cream"], 16);
     }
 
     private void DrawHelp()
     {
-        _ui.Panel(200, 70, 880, 580, _ui["hat"] * 0.97f);
-        _ui.Text(Font.TitleBold, 36, "HOW TO PLAY", new Vector2(640, 96), _ui["cream"], 0.5f, 2);
-        var height = _ui.Wrapped(Font.Body, 21, "Lead Pixel Jack to the glowing goal. Walk into a block to push it; it moves only if all of it can. Push a block entirely over holes and it drops in, making floor. Push a swivel's arm and it turns around its center. Undo takes back your last push or turn.", new Vector2(250, 156), 780, _ui["cream"]);
+        _ui.Panel(200, 56, 880, 604, _ui["hat"] * 0.97f);
+        _ui.Text(Font.TitleBold, 36, "HOW TO PLAY", new Vector2(640, 80), _ui["cream"], 0.5f, 2);
+        var height = _ui.Wrapped(Font.Body, 20, "Lead Pixel Jack to the glowing goal. Walk into a block to push it; it moves only if all of it can. Push a block entirely over holes and it drops in, making floor. Push a swivel's arm and it turns around its center. Undo takes back your last push or turn.", new Vector2(250, 134), 780, _ui["cream"]);
         (string Keys, string Pad, string Action)[] rows =
         [
             ("Arrows / WASD", "D-pad / stick", "Move (hold to keep walking)"),
@@ -246,23 +591,24 @@ internal sealed partial class CommunityGame
             ("R", "Back", "Restart"),
             ("C", "X", "Switch character"),
             ("Esc / P", "Start", "Pause"),
+            ("Enter  Esc", "A  B", "Choose and go back in menus"),
         ];
-        var y = 156 + height + 10;
+        var y = 134 + height + 8;
         _ui.Text(Font.Title, 15, "KEYBOARD", new Vector2(250, y), _ui["ember"], spacing: 2);
         _ui.Text(Font.Title, 15, "CONTROLLER", new Vector2(480, y), _ui["ember"], spacing: 2);
         y += 26;
         foreach (var (keys, pad, action) in rows)
         {
-            _ui.Text(Font.BodyBold, 20, keys, new Vector2(250, y), _ui["cream"]);
-            _ui.Text(Font.BodyBold, 20, pad, new Vector2(480, y), _ui["cream"]);
-            _ui.Text(Font.Body, 20, action, new Vector2(680, y), _ui["cream"] * 0.85f);
-            y += 30;
+            _ui.Text(Font.BodyBold, 19, keys, new Vector2(250, y), _ui["cream"]);
+            _ui.Text(Font.BodyBold, 19, pad, new Vector2(480, y), _ui["cream"]);
+            _ui.Text(Font.Body, 19, action, new Vector2(680, y), _ui["cream"] * 0.85f);
+            y += 19 * _ui.TextScale * 1.45f;
         }
 
         if (_session?.Stage.Hint is { } hint)
         {
             _ui.Text(Font.Title, 15, "HINT", new Vector2(250, y + 8), _ui["ember"], spacing: 2);
-            _ui.Wrapped(Font.Body, 20, hint, new Vector2(330, y + 4), 700, _ui["cream"]);
+            _ui.Wrapped(Font.Body, 19, hint, new Vector2(330, y + 4), 700, _ui["cream"]);
         }
 
         _ui.Hints([("Enter", "Close")], 640, 680, _ui["cream"], 16);
@@ -270,7 +616,15 @@ internal sealed partial class CommunityGame
 
     private void Heading(string title)
     {
-        _ui.ShadowText(Font.TitleBold, 56, title, new Vector2(640, 72), _ui["cream"], _ui["pumpkinShade"], 0.5f, 2, 5);
+        _ui.ShadowText(Font.TitleBold, 56, title, new Vector2(640, 52), _ui["cream"], _ui["pumpkinShade"], 0.5f, 2, 5);
+    }
+
+    /// <summary>The ember bar behind a focused item whose row starts at <paramref name="top"/>.</summary>
+    private void FocusBar(MenuLayout layout, float top)
+    {
+        var glow = 0.85f + (0.15f * MathF.Sin(Motion * 0.15f));
+        _ui.Panel(layout.Left - 6, top + 4, layout.Width + 12, layout.Spacing - 8, _ui["pumpkinShade"] * glow);
+        _ui.Panel(layout.Left, top + 4, layout.Width, layout.Spacing - 8, _ui["ember"]);
     }
 
     /// <summary>Draws a vertical menu with an ember bar behind the focused item.</summary>
@@ -282,20 +636,27 @@ internal sealed partial class CommunityGame
             var focused = i == menu.Focus;
             if (focused)
             {
-                var glow = 0.85f + (0.15f * MathF.Sin(_ticks * 0.15f));
-                _ui.Panel(layout.Left - 6, top + 4, layout.Width + 12, layout.Spacing - 8, _ui["pumpkinShade"] * glow);
-                _ui.Panel(layout.Left, top + 4, layout.Width, layout.Spacing - 8, _ui["ember"]);
+                FocusBar(layout, top);
                 _ui.Rect(layout.Left + 14, top + (layout.Spacing / 2) - 5, 10, 10, _ui["ink"]);
             }
 
             var color = focused ? _ui["ink"] : _ui["cream"] * 0.9f;
-            _ui.Text(Font.BodyBold, size, labels[i], new Vector2(layout.Left + 36, top + ((layout.Spacing - (size * 1.2f)) / 2)), color);
+            _ui.Text(Font.BodyBold, size, labels[i], new Vector2(layout.Left + 36, top + ((layout.Spacing - (size * _ui.TextScale * 1.2f)) / 2)), color);
         }
     }
 
-    /// <summary>Blocks drifting slowly through the dark, behind the menus; <paramref name="strength"/> dims them.</summary>
+    /// <summary>
+    /// Blocks drifting slowly through the dark, behind the menus; <paramref name="strength"/> dims them. They stand still
+    /// when the player reduces motion, and high contrast leaves them out.
+    /// </summary>
     private void DrawDrift(float strength)
     {
+        if (_save.Data.Settings.HighContrast)
+        {
+            return;
+        }
+
+        var ticks = Motion;
         var mesh = new Mesh();
         for (var i = 0; i < 16; i++)
         {
@@ -303,8 +664,8 @@ internal sealed partial class CommunityGame
             var x = ((hash % 1000) / 1000f * 15) - 7.5f;
             var z = -4 - ((hash / 1000 % 1000) / 1000f * 10);
             var speed = 0.006f + (hash % 7 * 0.002f);
-            var y = ((((hash % 997) / 997f * 12) + (_ticks * speed)) % 12) - 6;
-            var spin = Matrix.CreateRotationX((_ticks * speed * 0.7f) + i) * Matrix.CreateRotationY((_ticks * speed) + (i * 2));
+            var y = ((((hash % 997) / 997f * 12) + (ticks * speed)) % 12) - 6;
+            var spin = Matrix.CreateRotationX((ticks * speed * 0.7f) + i) * Matrix.CreateRotationY((ticks * speed) + (i * 2));
             var group = i + 1;
             mesh.AddBox(new(-0.4f, -0.4f, -0.4f), new(0.4f, 0.4f, 0.4f), _board.GroupColor(group) * strength, BoardRenderer.GroupPattern(group), BoardRenderer.GroupPattern(group), spin * Matrix.CreateTranslation(x, y, z));
         }
@@ -315,9 +676,10 @@ internal sealed partial class CommunityGame
 
     private void DrawTitleJack()
     {
+        var ticks = Motion;
         var view = Matrix.CreateLookAt(new Vector3(0, 0.45f, 4.2f), new Vector3(0, 0.45f, 0), Vector3.Up);
-        var bob = MathF.Sin(_ticks * 0.08f) * 0.06f;
-        var place = Matrix.CreateScale(1.85f) * Matrix.CreateRotationY(MathF.Sin(_ticks * 0.025f) * 0.5f) * Matrix.CreateTranslation(1.55f, -0.95f + bob, 0);
+        var bob = MathF.Sin(ticks * 0.08f) * 0.06f;
+        var place = Matrix.CreateScale(1.85f) * Matrix.CreateRotationY(MathF.Sin(ticks * 0.025f) * 0.5f) * Matrix.CreateTranslation(1.55f, -0.95f + bob, 0);
         var stand = new Mesh();
         stand.AddBox(new(-0.55f, -0.22f, -0.55f), new(0.55f, 0, 0.55f), Color.Lerp(_ui["hatOnDark"], _ui["cream"], 0.25f), Atlas.Plain, Atlas.Plain, Matrix.Identity, _ui["band"]);
         _board.DrawMesh(stand, place, view, Projection(40), Color.White);

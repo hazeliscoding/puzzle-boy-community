@@ -18,6 +18,9 @@ internal sealed class CameraRig
     private bool _overhead;
     private int _angleAge = AngleTicks;
 
+    /// <summary>True makes turns and changes of angle land at once, for players who reduce motion.</summary>
+    public bool Instant { get; set; }
+
     /// <summary>Right turns minus left turns, mod 4. It turns the controls with the view.</summary>
     public int Mode { get; private set; }
 
@@ -61,7 +64,7 @@ internal sealed class CameraRig
         }
 
         _overhead = !_overhead;
-        _angleAge = 0;
+        _angleAge = Instant ? AngleTicks : 0;
         return true;
     }
 
@@ -94,7 +97,7 @@ internal sealed class CameraRig
         Mode = (Mode + sense + 4) % 4;
         _fromYaw = _toYaw;
         _toYaw += sense * 90;
-        _turnAge = 0;
+        _turnAge = Instant ? TurnTicks : 0;
         return true;
     }
 

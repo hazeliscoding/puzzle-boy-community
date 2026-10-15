@@ -22,12 +22,15 @@ internal sealed partial class CommunityGame : Game
     private readonly Navigator _nav = new();
     private readonly MenuList _titleMenu = new(TitleItems.Length);
     private readonly MenuList _pauseMenu = new(PauseItems.Length);
-    private readonly MenuList _settingsMenu = new(SettingsItems.Length);
+    private readonly MenuList _settingsMenu = new(SettingsMenu.Labels.Length);
+    private readonly MenuList _confirmMenu = new(2);
     private readonly MenuList _backMenu = new(1);
     private readonly MenuList _selectMenu;
     private readonly List<(StagePack Pack, int Index)> _selectable;
     private readonly KeyRepeat _up = new();
     private readonly KeyRepeat _down = new();
+    private readonly KeyRepeat _left = new();
+    private readonly KeyRepeat _right = new();
     private readonly CameraRig _camera = new();
     private readonly SmokeGui? _smoke;
     private readonly SaveStore _save;
@@ -45,6 +48,11 @@ internal sealed partial class CommunityGame : Game
     private bool _rightClicked;
     private bool _menuUp;
     private bool _menuDown;
+    private bool _menuLeft;
+    private bool _menuRight;
+    private int _wheel;
+    private int _selectScroll;
+    private bool _confirmReset;
     private bool _helpOpen;
     private Vector3 _pivot;
     private float _distance;
@@ -109,6 +117,7 @@ internal sealed partial class CommunityGame : Game
         _ui = new Ui(GraphicsDevice, _theme, _manifest.Fonts);
         _board = new BoardRenderer(GraphicsDevice, _theme);
         _sounds = new Sounds();
+        ApplySettings(display: true);
         _sounds.StartMusic();
     }
 
@@ -139,10 +148,13 @@ internal sealed partial class CommunityGame : Game
         _pointerMoved = IsActive && mouse.Position != _previousMouse.Position && _ticks > 0;
         _clicked = IsActive && mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton == ButtonState.Released;
         _rightClicked = IsActive && mouse.RightButton == ButtonState.Pressed && _previousMouse.RightButton == ButtonState.Released;
+        _wheel = IsActive ? Math.Sign(mouse.ScrollWheelValue - _previousMouse.ScrollWheelValue) : 0;
 
         // The repeat counts every tick, whichever screen reads it.
         _menuUp = _up.Fires(controls.Held(Command.Up));
         _menuDown = _down.Fires(controls.Held(Command.Down));
+        _menuLeft = _left.Fires(controls.Held(Command.Left));
+        _menuRight = _right.Fires(controls.Held(Command.Right));
         _ticks++;
         _camera.Tick();
         switch (_nav.Current)
@@ -241,6 +253,34 @@ internal sealed partial class CommunityGame : Game
         _ui.End();
     }
 
+    /// <summary>Ticks for decorative motion: frozen at 0 when the player reduces motion.</summary>
+    private int Motion => _save.Data.Settings.ReduceMotion ? 0 : _ticks;
+
+    /// <summary>Puts the saved settings into effect; <paramref name="display"/> also resizes the window or goes fullscreen.</summary>
+    private void ApplySettings(bool display)
+    {
+        var settings = _save.Data.Settings;
+        _ui.TextScale = settings.UiScale;
+        _ui.HighContrast = settings.HighContrast;
+        _ui.ReduceMotion = settings.ReduceMotion;
+        _board.HighContrast = settings.HighContrast;
+        _camera.Instant = settings.ReduceMotion;
+        _sounds.SetVolumes(settings.MusicVolume, settings.SfxVolume, settings.Mute);
+        if (!display)
+        {
+            return;
+        }
+
+        // Borderless fullscreen at the desktop's size: no mode switch, so alt-tab and a second display behave.
+        var mode = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
+        var (width, height) = settings.Fullscreen ? (mode.Width, mode.Height) : GameSettings.WindowSize(settings.WindowScale, mode.Width, mode.Height);
+        _graphics.HardwareModeSwitch = false;
+        _graphics.IsFullScreen = settings.Fullscreen;
+        _graphics.PreferredBackBufferWidth = width;
+        _graphics.PreferredBackBufferHeight = height;
+        _graphics.ApplyChanges();
+    }
+
     /// <summary>Starts stage <paramref name="index"/> of <paramref name="pack"/> and opens the play screen.</summary>
     private void StartStage(StagePack pack, int index)
     {
@@ -287,18 +327,24 @@ internal sealed partial class CommunityGame : Game
     private bool Cancelled(Controls controls) => controls.Pressed(Command.Back) || _rightClicked;
 
     /// <summary>
-    /// One tick of a vertical menu laid out as <paramref name="layout"/>: arrows and the mouse move the focus, Confirm or
-    /// a click on the focused item chooses. Returns the chosen item, or null.
+    /// One tick of a vertical menu laid out as <paramref name="layout"/>: arrows, the wheel and the mouse move the focus,
+    /// Confirm or a click on the focused item chooses. Returns the chosen item, or null. A scrolled list shows
+    /// <paramref name="visible"/> items from <paramref name="first"/>, the first of them at the layout's top.
     /// </summary>
-    private int? RunMenu(MenuList menu, Controls controls, MenuLayout layout)
+    private int? RunMenu(MenuList menu, Controls controls, MenuLayout layout, int first = 0, int visible = int.MaxValue)
     {
-        if (_menuUp || _menuDown)
+        if (_menuUp || _menuDown || _wheel != 0)
         {
-            menu.Move(_menuUp ? -1 : 1);
+            menu.Move(_menuUp || _wheel > 0 ? -1 : 1);
             _sounds.Play(Sfx.MenuMove);
         }
 
-        var hit = menu.HitTest(_pointer, layout.Left, layout.Top, layout.Width, layout.Spacing);
+        var hit = menu.HitTest(_pointer, layout.Left, layout.Top - (first * layout.Spacing), layout.Width, layout.Spacing);
+        if (hit < first || hit >= first + visible)
+        {
+            hit = -1;
+        }
+
         if (_pointerMoved && hit >= 0 && menu.Set(hit))
         {
             _sounds.Play(Sfx.MenuMove);

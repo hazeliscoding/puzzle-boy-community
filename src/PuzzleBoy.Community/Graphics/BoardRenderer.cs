@@ -26,11 +26,11 @@ internal sealed class BoardRenderer : IDisposable
     private readonly Mesh _jack;
     private readonly Mesh _solid = new();
     private readonly Mesh _glow = new();
-    private readonly Color _floorA;
-    private readonly Color _floorB;
-    private readonly Color _wall;
-    private readonly Color _wallTop;
-    private readonly Color _pit;
+    private Color _floorA;
+    private Color _floorB;
+    private Color _wall;
+    private Color _wallTop;
+    private Color _pit;
 
     /// <summary>Makes the texture, the effect and Pixel Jack's figure.</summary>
     public BoardRenderer(GraphicsDevice device, Theme theme)
@@ -40,12 +40,28 @@ internal sealed class BoardRenderer : IDisposable
         _atlas = Atlas.Create(device);
         _effect = new BasicEffect(device) { TextureEnabled = true, VertexColorEnabled = true, LightingEnabled = false, Texture = _atlas };
         _jack = JackModel.Build(theme);
-        // The floor is the brightest plane, so the play area reads at a glance against the darker walls.
-        _floorA = Color.Lerp(theme["hatOnDark"], theme["cream"], 0.5f);
-        _floorB = Color.Lerp(theme["hatOnDark"], theme["cream"], 0.42f);
-        _wall = Color.Lerp(theme["hat"], theme["night"], 0.3f);
-        _wallTop = theme["hatOnDark"];
-        _pit = Color.Lerp(theme["night"], Color.Black, 0.6f);
+        HighContrast = false;
+    }
+
+    /// <summary>The texture of box faces and patterns, for 2D drawings that match the board, such as stage previews.</summary>
+    public Texture2D AtlasTexture => _atlas;
+
+    /// <summary>
+    /// True draws a flat, lighter floor, black pits and ink walls, so the play area stands out more; false the usual
+    /// checkered look.
+    /// </summary>
+    public bool HighContrast
+    {
+        set
+        {
+            // The floor is the brightest plane, so the play area reads at a glance against the darker walls.
+            var t = _theme;
+            _floorA = Color.Lerp(t["hatOnDark"], t["cream"], value ? 0.66f : 0.5f);
+            _floorB = value ? _floorA : Color.Lerp(t["hatOnDark"], t["cream"], 0.42f);
+            _wall = value ? t["ink"] : Color.Lerp(t["hat"], t["night"], 0.3f);
+            _wallTop = value ? Color.Lerp(t["ink"], t["hatOnDark"], 0.3f) : t["hatOnDark"];
+            _pit = value ? Color.Black : Color.Lerp(t["night"], Color.Black, 0.6f);
+        }
     }
 
     /// <summary>Pixel Jack's figure in model space, for screens that show him off the board.</summary>

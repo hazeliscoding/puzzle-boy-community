@@ -64,6 +64,15 @@ internal sealed class Ui : IDisposable
         }
     }
 
+    /// <summary>How big body text is drawn, as a multiple of the size asked for; titles keep their size.</summary>
+    public float TextScale { get; set; } = 1f;
+
+    /// <summary>True draws text and panels at full strength, however faded the caller asks for, unless nearly gone.</summary>
+    public bool HighContrast { get; set; }
+
+    /// <summary>True keeps the backdrop's stars still.</summary>
+    public bool ReduceMotion { get; set; }
+
     /// <summary>A palette color by name.</summary>
     public Color this[string name] => _theme[name];
 
@@ -95,7 +104,7 @@ internal sealed class Ui : IDisposable
             var hash = (uint)(i * 2654435761u);
             var x = (hash % 10007) / 10007f * w;
             var y = ((hash / 10007) % 9973) / 9973f * h * 0.8f;
-            var twinkle = 0.35f + (0.3f * MathF.Sin((ticks * 0.05f) + i));
+            var twinkle = 0.35f + (0.3f * MathF.Sin(((ReduceMotion ? 0 : ticks) * 0.05f) + i));
             var size = i % 7 == 0 ? 3 : 2;
             _batch.Draw(_pixel, new Rectangle((int)x, (int)y, size, size), _theme["cream"] * twinkle);
         }
@@ -105,7 +114,7 @@ internal sealed class Ui : IDisposable
 
     /// <summary>The size <paramref name="text"/> takes in <paramref name="font"/> at <paramref name="size"/> pixels.</summary>
     public Vector2 Measure(Font font, float size, string text, float spacing = 0) =>
-        Get(font).GetFont(size).MeasureString(text, characterSpacing: spacing);
+        Get(font).GetFont(Scaled(font, size)).MeasureString(text, characterSpacing: spacing);
 
     /// <summary>
     /// Draws <paramref name="text"/> with its top at <paramref name="position"/>.Y, aligned on <paramref name="position"/>.X:
@@ -115,7 +124,7 @@ internal sealed class Ui : IDisposable
     {
         var measure = Measure(font, size, text, spacing);
         var at = new Vector2(MathF.Round(position.X - (measure.X * align)), MathF.Round(position.Y));
-        _batch.DrawString(Get(font).GetFont(size), text, at, color, characterSpacing: spacing);
+        _batch.DrawString(Get(font).GetFont(Scaled(font, size)), text, at, Strong(color, 90), characterSpacing: spacing);
         return measure;
     }
 
@@ -142,7 +151,7 @@ internal sealed class Ui : IDisposable
                 if (line.Length > 0 && Measure(font, size, tryLine).X > width)
                 {
                     Text(font, size, line, new Vector2(position.X, y), color);
-                    y += size * lineHeight;
+                    y += Scaled(font, size) * lineHeight;
                     line = word;
                 }
                 else
@@ -152,7 +161,7 @@ internal sealed class Ui : IDisposable
             }
 
             Text(font, size, line, new Vector2(position.X, y), color);
-            y += size * lineHeight;
+            y += Scaled(font, size) * lineHeight;
         }
 
         return y - position.Y;
@@ -165,6 +174,7 @@ internal sealed class Ui : IDisposable
     /// <summary>Fills a rectangle with rounded corners.</summary>
     public void Panel(float x, float y, float width, float height, Color color)
     {
+        color = Strong(color, 60);
         var c = Math.Min(Corner, Math.Min(width, height) / 2);
         void Part(float px, float py, float pw, float ph, Rectangle source) =>
             _batch.Draw(_rounded, new Vector2(px, py), source, color, 0, Vector2.Zero, new Vector2(pw / source.Width, ph / source.Height), SpriteEffects.None, 0);
@@ -177,6 +187,17 @@ internal sealed class Ui : IDisposable
         Rect(x, y + c, c, height - (2 * c), color);
         Rect(x + width - c, y + c, c, height - (2 * c), color);
     }
+
+    /// <summary>Draws a line <paramref name="thickness"/> wide from <paramref name="from"/> to <paramref name="to"/>.</summary>
+    public void Line(Vector2 from, Vector2 to, float thickness, Color color)
+    {
+        var along = to - from;
+        _batch.Draw(_pixel, from, null, color, MathF.Atan2(along.Y, along.X), new Vector2(0, 0.5f), new Vector2(along.Length(), thickness), SpriteEffects.None, 0);
+    }
+
+    /// <summary>Draws the <paramref name="source"/> part of <paramref name="texture"/> stretched over a rectangle.</summary>
+    public void Sprite(Texture2D texture, Rectangle source, float x, float y, float width, float height, Color color) =>
+        _batch.Draw(texture, new Vector2(x, y), source, color, 0, Vector2.Zero, new Vector2(width / source.Width, height / source.Height), SpriteEffects.None, 0);
 
     /// <summary>Draws a key cap with <paramref name="key"/> on it at <paramref name="position"/>, and returns its width.</summary>
     public float KeyCap(string key, Vector2 position, float size = 18)
@@ -225,6 +246,13 @@ internal sealed class Ui : IDisposable
             font.Dispose();
         }
     }
+
+    // Body text follows the UI scale; titles are display type and keep their layout.
+    private float Scaled(Font font, float size) => font is Font.Body or Font.BodyBold ? size * TextScale : size;
+
+    // In high contrast a dimmed color is drawn opaque, unless it's fading out (alpha below the threshold).
+    private Color Strong(Color color, byte threshold) =>
+        HighContrast && color.A >= threshold && color.A < 255 ? color * (255f / color.A) : color;
 
     private FontSystem Get(Font font) => _fonts.TryGetValue(font, out var system) ? system : _fonts.Values.First();
 
