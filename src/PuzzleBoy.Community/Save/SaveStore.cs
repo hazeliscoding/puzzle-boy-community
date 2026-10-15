@@ -188,7 +188,8 @@ internal sealed class SaveStore
                 return (null, "it's too big");
             }
 
-            root = JsonNode.Parse(File.ReadAllBytes(path));
+            // A duplicate property would otherwise throw ArgumentException later, when the object is first read.
+            root = JsonNode.Parse(File.ReadAllBytes(path), documentOptions: new JsonDocumentOptions { AllowDuplicateProperties = false });
         }
         catch (JsonException)
         {

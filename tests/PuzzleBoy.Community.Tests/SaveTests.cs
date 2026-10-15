@@ -120,6 +120,8 @@ public class SaveTests
     [InlineData("[1, 2]")]
     [InlineData("{\"schemaVersion\": \"one\"}")]
     [InlineData("{\"schemaVersion\": 1, \"stages\": [1]}")]
+    [InlineData("{\"schemaVersion\": 1, \"schemaVersion\": 1}")]
+    [InlineData("{\"schemaVersion\": 1, \"stages\": {}, \"stages\": {}}")]
     public void A_damaged_save_with_no_good_backup_starts_fresh_with_a_notice(string text)
     {
         using var temp = new TempFolder();
