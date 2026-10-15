@@ -13,8 +13,8 @@ namespace PuzzleBoy.Community.Graphics;
 internal sealed class BoardRenderer : IDisposable
 {
     private const float FloorDepth = 1.1f;
-    // Low walls, so they never hide a character standing behind them.
-    private const float WallHeight = 0.12f;
+    // High enough to read as a barrier, low enough that the play camera always sees a character standing behind one.
+    private const float WallHeight = 0.3f;
     private const float BlockHeight = 0.84f;
     private const float ArmHeight = 0.6f;
     private const float CenterHeight = 0.95f;
@@ -59,7 +59,8 @@ internal sealed class BoardRenderer : IDisposable
             _floorA = Color.Lerp(t["hatOnDark"], t["cream"], value ? 0.66f : 0.5f);
             _floorB = value ? _floorA : Color.Lerp(t["hatOnDark"], t["cream"], 0.42f);
             _wall = value ? t["ink"] : Color.Lerp(t["hat"], t["night"], 0.3f);
-            _wallTop = value ? Color.Lerp(t["ink"], t["hatOnDark"], 0.3f) : t["hatOnDark"];
+            // Darker than both floor tones by at least 3:1, the WCAG minimum for something the player must see.
+            _wallTop = value ? Color.Lerp(t["ink"], t["hatOnDark"], 0.3f) : Color.Lerp(t["hatOnDark"], t["night"], 0.3f);
             _pit = value ? Color.Black : Color.Lerp(t["night"], Color.Black, 0.6f);
         }
     }
