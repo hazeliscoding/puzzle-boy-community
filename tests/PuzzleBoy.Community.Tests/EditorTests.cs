@@ -347,6 +347,109 @@ public class EditorTests
     }
 
     [Fact]
+    public void A_whole_stroke_is_one_undo_step_and_redo_puts_it_back()
+    {
+        var editor = Room();
+        editor.Tool = EditorTool.Hole;
+        editor.BeginStroke();
+        foreach (var x in new[] { 2, 3, 4, 5 })
+        {
+            editor.PaintAt(x, 3);
+        }
+
+        editor.EndStroke();
+        Assert.True(editor.Undo());
+        Assert.All(new[] { 2, 3, 4, 5 }, x => Assert.Equal(new Tile(CellKind.Floor), editor[x, 3]));
+        Assert.True(editor.Redo());
+        Assert.All(new[] { 2, 3, 4, 5 }, x => Assert.Equal(new Tile(CellKind.Hole), editor[x, 3]));
+        Assert.False(editor.Redo());
+    }
+
+    [Fact]
+    public void Undo_takes_back_rectangles_titles_goals_and_starts_in_order()
+    {
+        var editor = Room();
+        editor.SetTitle("Renamed");
+        Paint(editor, EditorTool.Start, 2, 4);
+        Assert.True(editor.Undo());
+        Assert.Equal([(1, 2)], editor.Starts);
+        Assert.True(editor.Undo());
+        Assert.Equal("New Stage", editor.Title);
+        Assert.True(editor.Undo());
+        Assert.Null(editor.Goal);
+        Assert.True(editor.Undo());
+        Assert.Equal(new Tile(CellKind.Floor), editor[3, 2]);
+        Assert.True(editor.Undo());
+        Assert.Empty(editor.Starts);
+        Assert.True(editor.Undo());
+        Assert.Equal(new Tile(CellKind.Wall), editor[1, 1]);
+        Assert.False(editor.Undo());
+        Assert.False(editor.CanUndo);
+    }
+
+    [Fact]
+    public void A_change_after_an_undo_drops_the_redo()
+    {
+        var editor = Room();
+        editor.Undo();
+        Assert.True(editor.CanRedo);
+        Paint(editor, EditorTool.Wall, 6, 4);
+        Assert.False(editor.CanRedo);
+        Assert.False(editor.Redo());
+    }
+
+    [Fact]
+    public void Undoing_back_to_the_saved_stage_makes_it_clean_and_redo_dirty_again()
+    {
+        var editor = Room();
+        editor.MarkSaved("room");
+        Paint(editor, EditorTool.Hole, 2, 3);
+        Assert.True(editor.Dirty);
+        editor.Undo();
+        Assert.False(editor.Dirty);
+        editor.Redo();
+        Assert.True(editor.Dirty);
+    }
+
+    [Fact]
+    public void Undo_leaves_the_cursor_tools_and_group_where_they_are()
+    {
+        var editor = Room();
+        editor.NewGroup();
+        editor.Cursor = (5, 5);
+        editor.Undo();
+        Assert.Equal((5, 5), editor.Cursor);
+        Assert.Equal((EditorTool.Goal, 2), (editor.Tool, editor.Group));
+    }
+
+    [Fact]
+    public void A_capped_search_never_calls_a_stage_unsolvable()
+    {
+        var editor = Room();
+        var stage = editor.TryBuild()!;
+        Assert.Equal("Solved: it clears in 7 moves.", StageEditor.SolveMessage(Play.Solver.Solve(stage, 1000), 1000));
+
+        var capped = StageEditor.SolveMessage(Play.Solver.Solve(stage, 1), 1);
+        Assert.Equal(Play.SolveOutcome.LimitReached, Play.Solver.Solve(stage, 1).Outcome);
+        Assert.StartsWith("Search limit reached (not proven unsolvable)", capped, StringComparison.Ordinal);
+
+        // Walled off from the goal.
+        Paint(editor, EditorTool.Wall, 5, 2);
+        editor.FillRect((5, 1), (5, 4));
+        var walled = Play.Solver.Solve(editor.TryBuild()!, 1000);
+        Assert.Equal(Play.SolveOutcome.Unsolvable, walled.Outcome);
+        Assert.StartsWith("Unsolvable", StageEditor.SolveMessage(walled, 1000), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_playtest_pause_menu_returns_to_the_editor_instead_of_the_title()
+    {
+        Assert.Equal(CommunityGame.PauseItems.Length, CommunityGame.PlaytestPauseItems.Length);
+        Assert.Equal("Back to Editor", CommunityGame.PlaytestPauseItems[^1]);
+        Assert.Equal(CommunityGame.PauseItems[..^1], CommunityGame.PlaytestPauseItems[..^1]);
+    }
+
+    [Fact]
     public void A_drag_fills_in_the_cells_it_skipped() =>
         Assert.Equal([(0, 0), (1, 1), (2, 1), (3, 2), (4, 2)], CommunityGame.Line((0, 0), (4, 2)));
 }

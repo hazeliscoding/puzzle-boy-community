@@ -39,6 +39,8 @@ internal sealed partial class CommunityGame : Game
     private BoardRenderer _board = null!;
     private Sounds _sounds = null!;
     private PlaySession? _session;
+    private StagePack? _playPack;
+    private bool _playtest;
     private KeyboardState _previousKeys;
     private GamePadState _previousPad;
     private MouseState _previousMouse;
@@ -305,6 +307,7 @@ internal sealed partial class CommunityGame : Game
     /// <summary>Starts stage <paramref name="index"/> of <paramref name="pack"/> and opens the play screen.</summary>
     private void StartStage(StagePack pack, int index)
     {
+        (_playPack, _playtest, _newBest) = (pack, false, false);
         _session = new PlaySession(pack.Stages, index);
         _nav.Open(Screen.Playing);
     }

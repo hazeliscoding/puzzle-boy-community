@@ -29,6 +29,9 @@ internal sealed partial class CommunityGame
     /// <summary>The pause menu, in order.</summary>
     internal static readonly string[] PauseItems = ["Resume", "Undo", "Restart", "Help", "Settings", "Quit to Title"];
 
+    /// <summary>The pause menu in a playtest, whose last item returns to the editor.</summary>
+    internal static readonly string[] PlaytestPauseItems = [.. PauseItems[..^1], "Back to Editor"];
+
     /// <summary>
     /// The trademark and affiliation notice, as the credits show it. A shorter form sits on the title screen.
     /// </summary>
@@ -168,6 +171,9 @@ internal sealed partial class CommunityGame
                 break;
             case 4:
                 OpenSettings();
+                break;
+            case 5 when _playtest:
+                EndPlaytest("Playtest stopped.");
                 break;
             case 5:
                 _session = null;
@@ -609,7 +615,7 @@ internal sealed partial class CommunityGame
         _ui.Text(Font.TitleBold, 40, "PAUSED", new Vector2(640, 156), _ui["cream"], 0.5f, 2);
         var moves = session.Moves == 1 ? "1 move" : $"{session.Moves} moves";
         _ui.Text(Font.Body, 19, $"{session.Stage.Title}  ·  {moves}  ·  {FormatTime(session.ElapsedTicks / 30.0)[..^2]}", new Vector2(640, 214), _ui["bandOnDark"], 0.5f);
-        DrawMenu(_pauseMenu, PauseItems, PauseMenu, 26);
+        DrawMenu(_pauseMenu, _playtest ? PlaytestPauseItems : PauseItems, PauseMenu, 26);
         _ui.Hints([("Arrows", "Choose"), ("Enter", "Select"), ("Esc", "Resume")], 640, 680, _ui["cream"], 16);
     }
 

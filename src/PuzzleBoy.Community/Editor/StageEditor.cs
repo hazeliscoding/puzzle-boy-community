@@ -1,3 +1,4 @@
+using PuzzleBoy.Community.Play;
 using PuzzleBoy.Rules;
 
 namespace PuzzleBoy.Community.Editor;
@@ -52,13 +53,21 @@ internal sealed class StageEditor
     /// <summary>The tools in the order of their number keys, 1 to 9.</summary>
     public static readonly EditorTool[] Tools = Enum.GetValues<EditorTool>();
 
+    // Undo keeps this many changes; an old one falls off the end.
+    private const int UndoLimit = 200;
+
     private readonly HashSet<(int X, int Y)> _strokeCells = [];
-    private readonly StageBuilder _stage;
+    private readonly List<Snapshot> _undo = [];
+    private readonly List<Snapshot> _redo = [];
+    private StageBuilder _stage;
     private IReadOnlyList<StageProblem>? _problems;
     private (int X, int Y) _cursor = (Stage.Width / 2, Stage.Height / 2);
-    private bool _stroking;
+    private Snapshot? _strokeBefore;
     private bool _strokeChanged;
+
+    // Every state the stage has been in has its own number, so undoing back to the saved one makes it clean again.
     private int _change;
+    private int _lastChange;
     private int _savedChange;
 
     /// <summary>Opens <paramref name="stage"/> titled <paramref name="title"/>, or a new stage of all wall.</summary>
@@ -100,8 +109,17 @@ internal sealed class StageEditor
     /// <summary>What the last refused action or notable change was about, for the status line; null when there's nothing to say.</summary>
     public string? Message { get; set; }
 
-    /// <summary>True when the stage was changed since it was opened or last saved.</summary>
+    /// <summary>True when the stage differs from when it was opened or last saved.</summary>
     public bool Dirty => _change != _savedChange;
+
+    /// <summary>A number for the stage's current state: any change, undo or redo gives another.</summary>
+    public int Version => _change;
+
+    /// <summary>True when there's a change to undo.</summary>
+    public bool CanUndo => _undo.Count > 0;
+
+    /// <summary>True when there's an undone change to redo.</summary>
+    public bool CanRedo => _redo.Count > 0;
 
     /// <summary>The problem the editor last jumped to, an index into <see cref="Problems"/>, or -1.</summary>
     public int ProblemFocus { get; private set; } = -1;
@@ -131,6 +149,23 @@ internal sealed class StageEditor
         EditorTool.SwivelArm => "Swivel arm",
         _ => tool.ToString(),
     };
+
+    /// <summary>
+    /// What a capped search found, for the status line. Reaching the cap never reads as unsolvable: the stage may still
+    /// have a solution the search didn't reach.
+    /// </summary>
+    /// <param name="result">The search's result.</param>
+    /// <param name="cap">The most positions it was allowed to visit.</param>
+    public static string SolveMessage(SolveResult result, int cap)
+    {
+        var culture = System.Globalization.CultureInfo.InvariantCulture;
+        return result.Outcome switch
+        {
+            SolveOutcome.Solved => string.Create(culture, $"Solved: it clears in {result.Moves!.Length} {(result.Moves.Length == 1 ? "move" : "moves")}."),
+            SolveOutcome.LimitReached => string.Create(culture, $"Search limit reached (not proven unsolvable): no solution in the first {cap:N0} positions."),
+            _ => string.Create(culture, $"Unsolvable: none of its {result.States:N0} positions clears it."),
+        };
+    }
 
     /// <summary>The stage, or null while it has <see cref="Problems"/>. Each call builds a new one, so playing it never changes the editor.</summary>
     public Stage? TryBuild() => Problems.Count == 0 ? _stage.Build() : null;
@@ -182,11 +217,14 @@ internal sealed class StageEditor
         return true;
     }
 
-    /// <summary>Starts a stroke: every cell painted until <see cref="EndStroke"/> is painted at most once.</summary>
+    /// <summary>
+    /// Starts a stroke: every cell painted until <see cref="EndStroke"/> is painted at most once, and the whole stroke
+    /// is one change to undo.
+    /// </summary>
     public void BeginStroke()
     {
         EndStroke();
-        _stroking = true;
+        _strokeBefore = Take();
         _strokeChanged = false;
         _strokeCells.Clear();
     }
@@ -194,17 +232,23 @@ internal sealed class StageEditor
     /// <summary>Ends the stroke begun with <see cref="BeginStroke"/>, if any.</summary>
     public void EndStroke()
     {
-        if (!_stroking)
+        if (_strokeBefore is not { } before)
         {
             return;
         }
 
-        _stroking = false;
+        _strokeBefore = null;
         if (_strokeChanged)
         {
-            Changed();
+            Changed(before);
         }
     }
+
+    /// <summary>Takes back the last change: a stroke, a rectangle or a title. False when there's none.</summary>
+    public bool Undo() => Step(_undo, _redo);
+
+    /// <summary>Puts back the last change <see cref="Undo"/> took back. False when there's none.</summary>
+    public bool Redo() => Step(_redo, _undo);
 
     /// <summary>
     /// Paints cell (<paramref name="x"/>, <paramref name="y"/>) with the tool, once per stroke. Returns true when the cell
@@ -218,7 +262,7 @@ internal sealed class StageEditor
             return false;
         }
 
-        var single = !_stroking;
+        var single = _strokeBefore is null;
         if (single)
         {
             BeginStroke();
@@ -253,6 +297,7 @@ internal sealed class StageEditor
         }
 
         var tile = new Tile(KindOf(Tool));
+        var before = Take();
         var changed = false;
         for (var y = Math.Max(0, Math.Min(a.Y, b.Y)); y <= Math.Min(Stage.Height - 1, Math.Max(a.Y, b.Y)); y++)
         {
@@ -265,7 +310,7 @@ internal sealed class StageEditor
 
         if (changed)
         {
-            Changed();
+            Changed(before);
         }
 
         return changed;
@@ -280,8 +325,9 @@ internal sealed class StageEditor
             return false;
         }
 
+        var before = Take();
         Title = trimmed;
-        Changed();
+        Changed(before);
         return true;
     }
 
@@ -547,10 +593,51 @@ internal sealed class StageEditor
         return true;
     }
 
-    private void Changed()
+    /// <summary>Records a change made since <paramref name="before"/>, which undo returns to.</summary>
+    private void Changed(Snapshot before)
     {
-        _change++;
+        _undo.Add(before);
+        if (_undo.Count > UndoLimit)
+        {
+            _undo.RemoveAt(0);
+        }
+
+        _redo.Clear();
+        _change = ++_lastChange;
         _problems = null;
         ProblemFocus = -1;
     }
+
+    /// <summary>Moves the last state of <paramref name="from"/> into the stage, keeping the current one on <paramref name="to"/>.</summary>
+    private bool Step(List<Snapshot> from, List<Snapshot> to)
+    {
+        EndStroke();
+        if (from.Count == 0)
+        {
+            return false;
+        }
+
+        to.Add(Take());
+        var snapshot = from[^1];
+        from.RemoveAt(from.Count - 1);
+        _stage = new StageBuilder { Goal = snapshot.Goal };
+        for (var i = 0; i < snapshot.Tiles.Length; i++)
+        {
+            _stage[i % Stage.Width, i / Stage.Width] = snapshot.Tiles[i];
+        }
+
+        _stage.Characters.AddRange(snapshot.Starts);
+        (Title, _change, _problems, ProblemFocus) = (snapshot.Title, snapshot.Change, null, -1);
+        return true;
+    }
+
+    private Snapshot Take() => new(
+        [.. Enumerable.Range(0, Stage.Width * Stage.Height).Select(i => _stage[i % Stage.Width, i / Stage.Width])],
+        _stage.Goal,
+        [.. _stage.Characters],
+        Title,
+        _change);
+
+    /// <summary>The whole stage at one moment, for undo and redo.</summary>
+    private sealed record Snapshot(Tile[] Tiles, (int X, int Y)? Goal, (int X, int Y)[] Starts, string Title, int Change);
 }

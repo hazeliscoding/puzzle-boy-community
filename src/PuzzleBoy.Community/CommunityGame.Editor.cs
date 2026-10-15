@@ -2,8 +2,10 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using PuzzleBoy.Community.App;
 using PuzzleBoy.Community.Audio;
+using PuzzleBoy.Community.Content;
 using PuzzleBoy.Community.Editor;
 using PuzzleBoy.Community.Graphics;
+using PuzzleBoy.Community.Play;
 using PuzzleBoy.Community.Save;
 using PuzzleBoy.Rules;
 
@@ -16,13 +18,16 @@ namespace PuzzleBoy.Community;
 internal sealed partial class CommunityGame
 {
     /// <summary>The canvas menu Esc opens, in order.</summary>
-    internal static readonly string[] EditorMenuItems = ["Resume", "Save", "Rename", "Close Stage"];
+    internal static readonly string[] EditorMenuItems = ["Resume", "Undo", "Redo", "Playtest", "Solve (capped)", "Save", "Rename", "Close Stage"];
+
+    /// <summary>The most positions the editor's Solve visits before it gives up, which takes a few seconds.</summary>
+    internal const int EditorSolveCap = 250_000;
 
     /// <summary>What can be done with a stage in the editor's list, in order.</summary>
     internal static readonly string[] LibraryActions = ["Edit", "Duplicate", "Delete", "Cancel"];
 
     private static readonly RectangleF CanvasBox = new(272, 72, 600, 588);
-    private static readonly MenuLayout EditorMenuLayout = new(490, 210, 300, 50);
+    private static readonly MenuLayout EditorMenuLayout = new(490, 196, 300, 50);
     private static readonly MenuLayout ToolLayout = new(24, 104, 224, 32);
 
     // The group selector's buttons, the hole toggle and the problem list, in virtual pixels.
@@ -50,6 +55,8 @@ internal sealed partial class CommunityGame
     private Vector2? _panFrom;
     private string _titleDraft = "";
     private MouseState _mouse;
+    private Task<SolveResult>? _solve;
+    private int _solveVersion;
 
     /// <summary>What sits over the editor and takes its input.</summary>
     private enum EditorOverlay
@@ -224,6 +231,13 @@ internal sealed partial class CommunityGame
         var keys = controls.Keys;
         bool Key(Keys key) => keys.IsKeyDown(key) && !controls.PreviousKeys.IsKeyDown(key);
         bool Pad(Buttons button) => controls.Pad.IsButtonDown(button) && !controls.PreviousPad.IsButtonDown(button);
+        if (_solve is { IsCompleted: true } solve)
+        {
+            // A result for a stage that has changed since would mislead.
+            editor.Message = editor.Version == _solveVersion ? StageEditor.SolveMessage(solve.Result, EditorSolveCap) : "The stage changed while it was being solved. Solve it again.";
+            _solve = null;
+        }
+
         switch (_overlay)
         {
             case EditorOverlay.Menu:
@@ -271,6 +285,14 @@ internal sealed partial class CommunityGame
             if (Key(Keys.S))
             {
                 SaveStage(editor);
+            }
+            else if (Key(Keys.Z) && !shift)
+            {
+                Undo(editor, redo: false);
+            }
+            else if (Key(Keys.Y) || (Key(Keys.Z) && shift))
+            {
+                Undo(editor, redo: true);
             }
 
             return;
@@ -322,6 +344,12 @@ internal sealed partial class CommunityGame
         if (key(Keys.T))
         {
             OpenTitleEntry(editor);
+            return;
+        }
+
+        if (key(Keys.P) || key(Keys.F5) || pad(Buttons.Y))
+        {
+            Playtest(editor);
             return;
         }
 
@@ -542,13 +570,26 @@ internal sealed partial class CommunityGame
                 _overlay = EditorOverlay.None;
                 break;
             case 1:
+            case 2:
+                // The menu stays open, so several undos can follow.
+                Undo(editor, redo: _overlayMenu.Focus == 2);
+                break;
+            case 3:
+                _overlay = EditorOverlay.None;
+                Playtest(editor);
+                break;
+            case 4:
+                _overlay = EditorOverlay.None;
+                Solve(editor);
+                break;
+            case 5:
                 _overlay = EditorOverlay.None;
                 SaveStage(editor);
                 break;
-            case 2:
+            case 6:
                 OpenTitleEntry(editor);
                 break;
-            case 3:
+            case 7:
                 if (editor.Dirty)
                 {
                     _overlay = EditorOverlay.ConfirmClose;
@@ -563,11 +604,94 @@ internal sealed partial class CommunityGame
         }
     }
 
+    private void Undo(StageEditor editor, bool redo)
+    {
+        _keyStroke = _mouseStroke = false;
+        if (redo ? editor.Redo() : editor.Undo())
+        {
+            editor.Message = null;
+            _sounds.Play(Sfx.Cancel);
+        }
+        else
+        {
+            editor.Message = redo ? "Nothing to redo." : "Nothing to undo.";
+            _sounds.Play(Sfx.Buzz);
+        }
+    }
+
+    /// <summary>
+    /// Plays the stage as it is now on the play screen, through the same board and session as any stage. The editor
+    /// keeps its document, cursor and undo history; Esc or a clear comes back to it. A stage with problems isn't played.
+    /// </summary>
+    private void Playtest(StageEditor editor)
+    {
+        editor.EndStroke();
+        _keyStroke = _mouseStroke = false;
+        if (!Playable(editor, "Not played"))
+        {
+            return;
+        }
+
+        StartStage(new StagePack("playtest", "Playtest", "You", "NOASSERTION", [new PackStage("playtest/stage", editor.Title, editor.TryBuild()!)]), 0);
+        _playtest = true;
+        _sounds.Play(Sfx.Confirm);
+    }
+
+    /// <summary>Leaves a playtest for the editor, showing <paramref name="message"/> there.</summary>
+    private void EndPlaytest(string message)
+    {
+        _session = null;
+        _playtest = false;
+        _nav.ReturnTo(Screen.Editor);
+        _editor?.Message = message;
+        _sounds.Play(Sfx.Cancel);
+    }
+
+    /// <summary>
+    /// Starts a search for a solution, at most <see cref="EditorSolveCap"/> positions, in the background; the result shows
+    /// in the status line when it's done.
+    /// </summary>
+    private void Solve(StageEditor editor)
+    {
+        if (_solve is not null)
+        {
+            editor.Message = "Still solving…";
+            return;
+        }
+
+        if (!Playable(editor, "Not solved"))
+        {
+            return;
+        }
+
+        var stage = editor.TryBuild()!;
+        _solveVersion = editor.Version;
+        _solve = Task.Run(() => Solver.Solve(stage, EditorSolveCap));
+        editor.Message = string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Solving, trying up to {EditorSolveCap:N0} positions…");
+    }
+
+    /// <summary>True when the stage has no problems; otherwise the cursor goes to the first and the status says <paramref name="what"/> and why.</summary>
+    private bool Playable(StageEditor editor, string what)
+    {
+        if (editor.Problems.Count == 0)
+        {
+            return true;
+        }
+
+        var count = editor.Problems.Count;
+        editor.FocusProblem(0);
+        _view.Follow(editor.Cursor.X, editor.Cursor.Y);
+        editor.Message = $"{what}: fix the {(count == 1 ? "problem" : $"{count} problems")} first.";
+        _sounds.Play(Sfx.Buzz);
+        return false;
+    }
+
     /// <summary>Back to the editor's list, dropping the open stage.</summary>
     private void CloseCanvas()
     {
         var name = _editor?.Name;
         _editor = null;
+        _solve = null;
         _overlay = EditorOverlay.None;
         _sounds.Play(Sfx.Cancel);
         RefreshLibrary(name);
@@ -580,13 +704,8 @@ internal sealed partial class CommunityGame
     private void SaveStage(StageEditor editor)
     {
         editor.EndStroke();
-        if (editor.Problems.Count > 0)
+        if (!Playable(editor, "Not saved"))
         {
-            var count = editor.Problems.Count;
-            editor.FocusProblem(0);
-            _view.Follow(editor.Cursor.X, editor.Cursor.Y);
-            editor.Message = $"Not saved: fix the {(count == 1 ? "problem" : $"{count} problems")} first. A saved stage is always playable.";
-            _sounds.Play(Sfx.Buzz);
             return;
         }
 
@@ -884,7 +1003,7 @@ internal sealed partial class CommunityGame
 
         DrawToolPanel(editor);
         DrawStagePanel(editor);
-        _ui.Hints([("Arrows", "Cursor"), ("Space", "Paint"), ("1-9", "Tool"), ("R", "Rectangle"), ("Tab", "Problem"), ("Ctrl S", "Save"), ("Esc", "Menu")], 640, 680, _ui["cream"], 16);
+        _ui.Hints([("Arrows", "Cursor"), ("Space", "Paint"), ("1-9", "Tool"), ("Tab", "Problem"), ("P", "Playtest"), ("Ctrl Z", "Undo"), ("Ctrl S", "Save"), ("Esc", "Menu")], 640, 680, _ui["cream"], 16);
     }
 
     private static string DescribeCell(StageEditor editor, Tile tile)

@@ -28,12 +28,23 @@ internal sealed partial class CommunityGame
         if (events.HasFlag(PlayEvents.Cleared))
         {
             _sounds.Play(Sfx.Clear);
-            _newBest = _save.Data.Record(session.Stage.Id, session.Moves, session.ElapsedTicks / 30.0);
-            _save.Save();
+
+            // A playtest is the editor's, not the player's progress.
+            if (!_playtest)
+            {
+                _newBest = _save.Data.Record(session.Stage.Id, session.Moves, session.ElapsedTicks / 30.0);
+                _save.Save();
+            }
         }
         else if (events.HasFlag(PlayEvents.ReachedGoal))
         {
             _sounds.Play(Sfx.Goal);
+        }
+
+        if (session.ReadyToContinue && _playtest)
+        {
+            EndPlaytest($"Playtest cleared in {session.Moves} {(session.Moves == 1 ? "move" : "moves")}.");
+            return;
         }
 
         if (session.ReadyToContinue)
@@ -46,6 +57,13 @@ internal sealed partial class CommunityGame
                 _nav.ReturnTo(Screen.StageSelect);
             }
 
+            return;
+        }
+
+        // Esc goes straight back to the editor from a playtest; P still pauses. Backspace and B also mean Undo, so not them.
+        if (_playtest && controls.Pressed(Command.Back) && !controls.Pressed(Command.Undo))
+        {
+            EndPlaytest("Playtest stopped.");
             return;
         }
 
@@ -126,9 +144,9 @@ internal sealed partial class CommunityGame
 
     private void DrawHud(PlaySession session)
     {
-        var pack = _manifest.Packs.First(p => p.Stages.Contains(session.Stage));
+        var heading = _playtest ? "PLAYTEST  ·  NOTHING IS RECORDED" : $"{_playPack!.Title.ToUpperInvariant()}  ·  STAGE {session.Index + 1} OF {session.Count}";
         _ui.Panel(20, 18, 460, 96, _ui["ink"] * 0.72f);
-        _ui.Text(Font.Title, 16, $"{pack.Title.ToUpperInvariant()}  ·  STAGE {session.Index + 1} OF {session.Count}", new Vector2(40, 32), _ui["bandOnDark"], spacing: 1);
+        _ui.Text(Font.Title, 16, heading, new Vector2(40, 32), _ui["bandOnDark"], spacing: 1);
         _ui.Text(Font.BodyBold, 34, session.Stage.Title, new Vector2(40, 54), _ui["cream"]);
 
         Stat(1260, "MOVES", session.Moves.ToString(System.Globalization.CultureInfo.InvariantCulture));
@@ -153,7 +171,7 @@ internal sealed partial class CommunityGame
             hints.Add(("C", "Switch"));
         }
 
-        hints.Add(("Esc", "Pause"));
+        hints.Add(_playtest ? ("Esc", "Editor") : ("Esc", "Pause"));
         _ui.Hints(hints, 640, 680, _ui["cream"], 16);
 
         void Stat(float right, string label, string value)
@@ -185,7 +203,7 @@ internal sealed partial class CommunityGame
         var hintHeight = hint is null ? 0 : _ui.Wrapped(Font.Body, 20, hint, Vector2.Zero, 680, Color.White, 1.3f, draw: false) + 10;
         var top = 520 - hintHeight;
         _ui.Panel(280, top, 720, 110 + hintHeight, _ui["ink"] * (0.85f * fade));
-        _ui.Text(Font.Title, 18, $"STAGE {session.Index + 1}", new Vector2(640, top + 16), _ui["ember"] * fade, 0.5f, 3);
+        _ui.Text(Font.Title, 18, _playtest ? "PLAYTEST" : $"STAGE {session.Index + 1}", new Vector2(640, top + 16), _ui["ember"] * fade, 0.5f, 3);
         _ui.Text(Font.BodyBold, 40, session.Stage.Title, new Vector2(640, top + 42), _ui["cream"] * fade, 0.5f);
         if (hint is not null)
         {
@@ -215,7 +233,7 @@ internal sealed partial class CommunityGame
         var moves = session.Moves == 1 ? "1 move" : $"{session.Moves} moves";
         var line = $"{moves}  ·  {FormatTime(session.ElapsedTicks / 30.0)}{(_newBest ? "  ·  New best!" : "")}";
         _ui.Text(Font.BodyBold, 30, line, new Vector2(640, 346), _ui["cream"] * rise, 0.5f);
-        var next = session.HasNext ? $"Next: {session.StageAt(session.Index + 1).Title}" : "Pack complete!";
+        var next = _playtest ? "Back to the editor" : session.HasNext ? $"Next: {session.StageAt(session.Index + 1).Title}" : "Pack complete!";
         _ui.Text(Font.Body, 24, next, new Vector2(640, 390), _ui["bandOnDark"] * rise, 0.5f);
     }
 }
