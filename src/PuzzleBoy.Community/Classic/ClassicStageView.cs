@@ -23,6 +23,10 @@ internal sealed class ClassicStageView(CharacterData character)
     private CharacterModel[] _models = [];
     private bool _overhead;
 
+    // The play camera's turn last seen, and the quarter turns it has made since that this camera hasn't: + right, - left.
+    private int _seenMode;
+    private int _owed;
+
     /// <summary>The original's camera, which follows the play camera's turns and overhead view.</summary>
     public ViewCamera Camera { get; } = new();
 
@@ -60,17 +64,17 @@ internal sealed class ClassicStageView(CharacterData character)
             _animation = null;
         }
 
-        // The original's camera turns over 9 ticks, the play camera over 7, so a quick second turn waits here for the first.
+        // The play camera turns over 7 ticks; the original's camera over 9, or 12 overhead, so quick turns pile up here.
+        // They're owed in the way the player turned, never made up the other way round. The controls follow the play
+        // camera, so a step can start while this view is still turning, a few ticks behind overhead.
+        var turned = (mode - _seenMode + 4) % 4;
+        _owed += turned == 3 ? -1 : turned;
+        _seenMode = mode;
         if (!Camera.IsBusy)
         {
-            var turns = (mode - Camera.Mode + 4) % 4;
-            if (turns is 1 or 2)
+            if (_owed != 0 && (_owed > 0 ? Camera.TurnRight() : Camera.TurnLeft()))
             {
-                Camera.TurnRight();
-            }
-            else if (turns == 3)
-            {
-                Camera.TurnLeft();
+                _owed -= Math.Sign(_owed);
             }
             else if (overhead != _overhead && Camera.ToggleAngle())
             {

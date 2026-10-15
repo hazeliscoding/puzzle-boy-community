@@ -188,4 +188,37 @@ public class ThemeSwitchTests
     {
         Assert.Equal([0, 1, 2, null, null, null, 8, 6, 4, 5, 7], Enum.GetValues<Sfx>().Select(ClassicPresenter.Effect));
     }
+
+    [Fact]
+    public void The_classic_camera_catches_up_the_way_the_player_turned_even_overhead_where_it_turns_slower()
+    {
+        var session = new PlaySession([new PackStage("t/turn", "Turn", SolverTests.Draw("1G"))], 0);
+        var rig = new CameraRig();
+        var view = new ClassicStageView(ClassicFixture.Character);
+        Assert.True(rig.ToggleOverhead());
+        var (lefts, lastLeft) = (0, 0);
+        List<float> yaws = [];
+        for (var tick = 1; tick <= 90; tick++)
+        {
+            rig.Tick();
+            view.Tick(session, rig.Mode, rig.Overhead);
+            yaws.Add(view.Camera.Yaw);
+            if (lefts < 4 && rig.TurnLeft())
+            {
+                (lefts, lastLeft) = (lefts + 1, tick);
+            }
+        }
+
+        // Four quick left turns pile up behind the original's 12-tick overhead turn; it makes every one of them to the left,
+        // a full turn round, and never the shorter-looking way back to the right.
+        Assert.Equal(4, lefts);
+        // (An overhead turn's 12 steps of 8.19° overshoot by 0.09° and snap back on the last, as the original's do.)
+        Assert.All(yaws.Zip(yaws.Skip(1)), pair => Assert.True(pair.Second <= pair.First + 0.1f, $"the view turned right, {pair.First} to {pair.Second}"));
+        Assert.Equal(-360f, yaws[^1]);
+        Assert.Equal(rig.Mode, view.Camera.Mode);
+
+        // The overhead lag: the play camera finished its last turn 7 ticks after it started; the original's view, a
+        // turn of 12 ticks per quarter, ends well after.
+        Assert.True(yaws.FindIndex(y => y == -360f) + 1 > lastLeft + 7);
+    }
 }
