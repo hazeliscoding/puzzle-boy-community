@@ -75,7 +75,7 @@ internal sealed partial class CommunityGame
                 _nav.Open(Screen.StageSelect);
                 break;
             case 2:
-                _nav.Open(Screen.Editor);
+                OpenEditor();
                 break;
             case 3:
                 OpenSettings();
@@ -276,8 +276,7 @@ internal sealed partial class CommunityGame
         _ui.Begin();
         _ui.ShadowText(Font.TitleBold, 104, "PUZZLE BOY", new Vector2(88, 64), _ui["cream"], _ui["pumpkinShade"], spacing: 2, depth: 7);
         _ui.Text(Font.Title, 30, "COMMUNITY EDITION", new Vector2(96, 196), _ui["bandOnDark"], spacing: 5);
-        // The editor comes with C3; until then it's marked, as stage select marks a locked stage.
-        DrawMenu(_titleMenu, TitleItems, TitleMenu, 30, soon: 2);
+        DrawMenu(_titleMenu, TitleItems, TitleMenu, 30);
 
         // Esc on the title only points at Quit, so the hints don't offer it as Back.
         _ui.Hints([("Arrows", "Choose"), ("Enter", "Select")], 640, 636, _ui["cream"], 17);
@@ -379,58 +378,80 @@ internal sealed partial class CommunityGame
         var cell = MathF.Floor(Math.Min(Math.Min(width / (maxX - minX + 1), height / (maxY - minY + 1)), 30));
         var left = x + ((width - ((maxX - minX + 1) * cell)) / 2);
         var top = y + ((height - ((maxY - minY + 1) * cell)) / 2);
-        var hc = _save.Data.Settings.HighContrast;
-        var floor = Color.Lerp(_ui["hatOnDark"], _ui["cream"], hc ? 0.66f : 0.5f);
-        var wall = hc ? _ui["ink"] : Color.Lerp(_ui["hat"], _ui["night"], 0.3f);
+        var (floor, wall) = PreviewTones(_save.Data.Settings.HighContrast);
         Vector2 At(int cx, int cy) => new(left + ((cx - minX) * cell), top + ((maxY - cy) * cell));
-        Rectangle Tile(int tile) => new(tile * Atlas.TileSize, 0, Atlas.TileSize, Atlas.TileSize);
 
         for (var cy = minY; cy <= maxY; cy++)
         {
             for (var cx = minX; cx <= maxX; cx++)
             {
                 var p = At(cx, cy);
-                var value = board[cx, cy];
-                var kind = Cell.KindOf(value);
-                if (kind == CellKind.Wall)
-                {
-                    _ui.Rect(p.X, p.Y, cell, cell, wall);
-                    continue;
-                }
-
-                _ui.Rect(p.X, p.Y, cell, cell, hc || (cx + cy) % 2 == 0 ? floor : Color.Lerp(floor, _ui["hatOnDark"], 0.15f));
-                if ((value & Cell.HoleFlag) != 0)
-                {
-                    _ui.Rect(p.X + 2, p.Y + 2, cell - 4, cell - 4, Color.Black);
-                }
-
-                var color = _board.GroupColor(Math.Max(1, Cell.GroupOf(value)));
-                switch (kind)
-                {
-                    case CellKind.Block:
-                        _ui.Sprite(_board.AtlasTexture, Tile(BoardRenderer.GroupPattern(Cell.GroupOf(value))), p.X + 1, p.Y + 1, cell - 2, cell - 2, color);
-                        break;
-                    case CellKind.SwivelArm:
-                        _ui.Sprite(_board.AtlasTexture, Tile(BoardRenderer.GroupPattern(Cell.GroupOf(value))), p.X + 4, p.Y + 4, cell - 8, cell - 8, color);
-                        break;
-                    case CellKind.SwivelCenter:
-                        _ui.Sprite(_board.AtlasTexture, Tile(Atlas.Pivot), p.X + 2, p.Y + 2, cell - 4, cell - 4, Color.Lerp(color, _ui["ink"], 0.3f));
-                        break;
-                }
+                DrawTile(Tile.FromCell(board[cx, cy]), p.X, p.Y, cell, floor, wall, _save.Data.Settings.HighContrast || (cx + cy) % 2 == 0);
             }
         }
 
         var goal = At(board.Goal.X, board.Goal.Y);
-        _ui.Panel(goal.X + (cell * 0.15f), goal.Y + (cell * 0.15f), cell * 0.7f, cell * 0.7f, _ui["ember"]);
-        _ui.Panel(goal.X + (cell * 0.32f), goal.Y + (cell * 0.32f), cell * 0.36f, cell * 0.36f, _ui["pumpkinShade"]);
+        DrawGoal(goal.X, goal.Y, cell);
         foreach (var character in board.Characters.Where(c => c.Visible))
         {
-            // Pixel Jack in miniature: a pumpkin under a hat.
             var p = At(character.X, character.Y);
-            _ui.Panel(p.X + (cell * 0.18f), p.Y + (cell * 0.36f), cell * 0.64f, cell * 0.52f, _ui["pumpkin"]);
-            _ui.Rect(p.X + (cell * 0.3f), p.Y + (cell * 0.12f), cell * 0.4f, cell * 0.26f, _ui["hatOnDark"]);
-            _ui.Rect(p.X + (cell * 0.14f), p.Y + (cell * 0.32f), cell * 0.72f, cell * 0.08f, _ui["band"]);
+            DrawMiniJack(p.X, p.Y, cell);
         }
+    }
+
+    /// <summary>The floor and wall colors of a top-down picture of a stage, starker in high contrast.</summary>
+    private (Color Floor, Color Wall) PreviewTones(bool highContrast) =>
+        (Color.Lerp(_ui["hatOnDark"], _ui["cream"], highContrast ? 0.66f : 0.5f), highContrast ? _ui["ink"] : Color.Lerp(_ui["hat"], _ui["night"], 0.3f));
+
+    /// <summary>
+    /// <paramref name="tile"/> seen from above in a square <paramref name="cell"/> wide: wall, floor (the darker check
+    /// unless <paramref name="plainFloor"/>), a hole, and a block or swivel part in its group's color and pattern. A part
+    /// over a hole leaves a black rim.
+    /// </summary>
+    private void DrawTile(Tile tile, float x, float y, float cell, Color floor, Color wall, bool plainFloor)
+    {
+        if (tile.Kind == CellKind.Wall)
+        {
+            _ui.Rect(x, y, cell, cell, wall);
+            return;
+        }
+
+        _ui.Rect(x, y, cell, cell, plainFloor ? floor : Color.Lerp(floor, _ui["hatOnDark"], 0.15f));
+        if (tile.Kind == CellKind.Hole || tile.OverHole)
+        {
+            _ui.Rect(x + 2, y + 2, cell - 4, cell - 4, Color.Black);
+        }
+
+        var inset = tile.OverHole ? MathF.Round(cell * 0.16f) : 0;
+        var color = _board.GroupColor(Math.Max(1, tile.Group));
+        static Rectangle Source(int index) => new(index * Atlas.TileSize, 0, Atlas.TileSize, Atlas.TileSize);
+        switch (tile.Kind)
+        {
+            case CellKind.Block:
+                _ui.Sprite(_board.AtlasTexture, Source(BoardRenderer.GroupPattern(tile.Group)), x + 1 + inset, y + 1 + inset, cell - 2 - (2 * inset), cell - 2 - (2 * inset), color);
+                break;
+            case CellKind.SwivelArm:
+                _ui.Sprite(_board.AtlasTexture, Source(BoardRenderer.GroupPattern(tile.Group)), x + 4 + inset, y + 4 + inset, cell - 8 - (2 * inset), cell - 8 - (2 * inset), color);
+                break;
+            case CellKind.SwivelCenter:
+                _ui.Sprite(_board.AtlasTexture, Source(Atlas.Pivot), x + 2 + inset, y + 2 + inset, cell - 4 - (2 * inset), cell - 4 - (2 * inset), Color.Lerp(color, _ui["ink"], 0.3f));
+                break;
+        }
+    }
+
+    /// <summary>The goal seen from above in a square <paramref name="cell"/> wide.</summary>
+    private void DrawGoal(float x, float y, float cell)
+    {
+        _ui.Panel(x + (cell * 0.15f), y + (cell * 0.15f), cell * 0.7f, cell * 0.7f, _ui["ember"]);
+        _ui.Panel(x + (cell * 0.32f), y + (cell * 0.32f), cell * 0.36f, cell * 0.36f, _ui["pumpkinShade"]);
+    }
+
+    /// <summary>Pixel Jack in miniature, a pumpkin under a hat, in a square <paramref name="cell"/> wide.</summary>
+    private void DrawMiniJack(float x, float y, float cell)
+    {
+        _ui.Panel(x + (cell * 0.18f), y + (cell * 0.36f), cell * 0.64f, cell * 0.52f, _ui["pumpkin"]);
+        _ui.Rect(x + (cell * 0.3f), y + (cell * 0.12f), cell * 0.4f, cell * 0.26f, _ui["hatOnDark"]);
+        _ui.Rect(x + (cell * 0.14f), y + (cell * 0.32f), cell * 0.72f, cell * 0.08f, _ui["band"]);
     }
 
     /// <summary>The word beside a stage's icon, so its state never depends on color or shape alone.</summary>
@@ -642,11 +663,8 @@ internal sealed partial class CommunityGame
         _ui.Panel(layout.Left, top + 4, layout.Width, layout.Spacing - 8, _ui["ember"]);
     }
 
-    /// <summary>
-    /// Draws a vertical menu with an ember bar behind the focused item. Item <paramref name="soon"/>, if any, is dimmed and
-    /// tagged as not built yet.
-    /// </summary>
-    private void DrawMenu(MenuList menu, string[] labels, MenuLayout layout, float size, int soon = -1)
+    /// <summary>Draws a vertical menu with an ember bar behind the focused item.</summary>
+    private void DrawMenu(MenuList menu, string[] labels, MenuLayout layout, float size)
     {
         for (var i = 0; i < labels.Length; i++)
         {
@@ -658,12 +676,8 @@ internal sealed partial class CommunityGame
                 _ui.Rect(layout.Left + 14, top + (layout.Spacing / 2) - 5, 10, 10, _ui["ink"]);
             }
 
-            var color = focused ? _ui["ink"] : _ui["cream"] * (i == soon ? 0.6f : 0.9f);
+            var color = focused ? _ui["ink"] : _ui["cream"] * 0.9f;
             _ui.Text(Font.BodyBold, size, labels[i], new Vector2(layout.Left + 36, top + ((layout.Spacing - (size * _ui.TextScale * 1.2f)) / 2)), color);
-            if (i == soon)
-            {
-                SoonTag(layout, i, color);
-            }
         }
     }
 

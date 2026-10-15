@@ -95,6 +95,15 @@ internal sealed partial class CommunityGame : Game
             }
         };
 
+        // Typed text for the editor's title; a smoke run takes none from the real keyboard.
+        Window.TextInput += (_, e) =>
+        {
+            if (_smoke is null && _overlay == EditorOverlay.Title)
+            {
+                _typed.Append(e.Character);
+            }
+        };
+
         IsFixedTimeStep = true;
         TargetElapsedTime = TimeSpan.FromSeconds(1.0 / 30);
         IsMouseVisible = true;
@@ -111,6 +120,9 @@ internal sealed partial class CommunityGame : Game
 
     /// <summary>The player's settings and progress.</summary>
     internal SaveStore Save => _save;
+
+    /// <summary>The loaded content.</summary>
+    internal ContentManifest Manifest => _manifest;
 
     /// <summary>The play camera, which maps screen directions to grid directions.</summary>
     internal CameraRig Camera => _camera;
@@ -154,6 +166,7 @@ internal sealed partial class CommunityGame : Game
         _clicked = IsActive && mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton == ButtonState.Released;
         _rightClicked = IsActive && mouse.RightButton == ButtonState.Pressed && _previousMouse.RightButton == ButtonState.Released;
         _wheel = IsActive ? Math.Sign(mouse.ScrollWheelValue - _previousMouse.ScrollWheelValue) : 0;
+        _mouse = mouse;
 
         // The repeat counts every tick, whichever screen reads it.
         _menuUp = _up.Fires(controls.Held(Command.Up));
@@ -178,6 +191,9 @@ internal sealed partial class CommunityGame : Game
                 break;
             case Screen.Settings:
                 UpdateSettings(controls);
+                break;
+            case Screen.Editor:
+                UpdateEditor(controls);
                 break;
             default:
                 // Credits and the placeholders hold a single Back.
@@ -219,7 +235,7 @@ internal sealed partial class CommunityGame : Game
                 DrawCredits();
                 break;
             case Screen.Editor:
-                DrawPlaceholder("LEVEL EDITOR", "Coming soon. You'll paint stages tile by tile, test them as you go, and share them as packs.");
+                DrawEditor();
                 break;
             default:
                 DrawPlaceholder("IMPORT CLASSIC", "Coming later, and always optional. If you own Shin Megami Tensei III: Nocturne, you'll be able to use the classic look and its bonus stages from your own copy. Nothing from it ships with this game.");
