@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\PuzzleBoy.Community\PuzzleBoy.Community.csproj" />
+    <ProjectReference Include="..\..\tools\PuzzleBoy.StageCheck\PuzzleBoy.StageCheck.csproj" />
     <ProjectReference Include="..\..\external\puzzle-boy-engine\src\PuzzleBoy.Rules\PuzzleBoy.Rules.csproj" />
   </ItemGroup>
 

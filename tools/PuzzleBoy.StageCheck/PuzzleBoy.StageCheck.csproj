@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>StageCheck</AssemblyName>
+    <RootNamespace>PuzzleBoy.StageCheck</RootNamespace>
+  </PropertyGroup>
+
+  <!-- The game's content readers, compiled in rather than referenced, so the tool doesn't carry MonoGame. -->
+  <ItemGroup>
+    <Compile Include="..\..\src\PuzzleBoy.Community\Content\*.cs" Link="Content\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- The fingerprint list travels with the tool, so a published copy checks stages anywhere. -->
+  <ItemGroup>
+    <None Include="..\..\scripts\known-atlus-layouts.txt" Link="known-atlus-layouts.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\external\puzzle-boy-engine\src\PuzzleBoy.Rules\PuzzleBoy.Rules.csproj" />
+  </ItemGroup>
+
+</Project>
