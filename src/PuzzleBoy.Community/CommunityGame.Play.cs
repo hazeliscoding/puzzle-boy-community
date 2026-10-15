@@ -111,7 +111,7 @@ internal sealed partial class CommunityGame
         {
             DrawCelebration(session);
         }
-        else if (session.Ticks < IntroTicks)
+        else if (session.Ticks < IntroTicks || ShowsHint(session))
         {
             DrawIntro(session);
         }
@@ -171,12 +171,26 @@ internal sealed partial class CommunityGame
         return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{tenths / 600}:{tenths / 10 % 60:00}.{tenths % 10}");
     }
 
+    /// <summary>
+    /// True while a stage the player hasn't cleared waits for its first step, when the intro shows its hint, so a new idea
+    /// is explained where it's first needed rather than only in Help.
+    /// </summary>
+    private bool ShowsHint(PlaySession session) =>
+        session.Stage.Hint is not null && session.Moves == 0 && !_save.Data.IsCompleted(session.Stage.Id);
+
     private void DrawIntro(PlaySession session)
     {
-        var fade = Math.Clamp((IntroTicks - session.Ticks) / 15f, 0, 1);
-        _ui.Panel(340, 520, 600, 110, _ui["ink"] * (0.8f * fade));
-        _ui.Text(Font.Title, 18, $"STAGE {session.Index + 1}", new Vector2(640, 536), _ui["ember"] * fade, 0.5f, 3);
-        _ui.Text(Font.BodyBold, 40, session.Stage.Title, new Vector2(640, 562), _ui["cream"] * fade, 0.5f);
+        var hint = ShowsHint(session) ? session.Stage.Hint : null;
+        var fade = hint is null ? Math.Clamp((IntroTicks - session.Ticks) / 15f, 0, 1) : 1;
+        var hintHeight = hint is null ? 0 : _ui.Wrapped(Font.Body, 20, hint, Vector2.Zero, 680, Color.White, 1.3f, draw: false) + 10;
+        var top = 520 - hintHeight;
+        _ui.Panel(280, top, 720, 110 + hintHeight, _ui["ink"] * (0.85f * fade));
+        _ui.Text(Font.Title, 18, $"STAGE {session.Index + 1}", new Vector2(640, top + 16), _ui["ember"] * fade, 0.5f, 3);
+        _ui.Text(Font.BodyBold, 40, session.Stage.Title, new Vector2(640, top + 42), _ui["cream"] * fade, 0.5f);
+        if (hint is not null)
+        {
+            _ui.Wrapped(Font.Body, 20, hint, new Vector2(300, top + 104), 680, _ui["cream"], 1.3f);
+        }
     }
 
     private void DrawCelebration(PlaySession session)

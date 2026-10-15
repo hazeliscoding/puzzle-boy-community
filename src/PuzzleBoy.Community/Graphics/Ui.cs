@@ -140,9 +140,9 @@ internal sealed class Ui : IDisposable
 
     /// <summary>
     /// Draws <paramref name="text"/> wrapped to lines no wider than <paramref name="width"/>, from <paramref name="position"/>
-    /// down. Returns the height used.
+    /// down. Returns the height used. With <paramref name="draw"/> false it only measures, so a panel can be sized first.
     /// </summary>
-    public float Wrapped(Font font, float size, string text, Vector2 position, float width, Color color, float lineHeight = 1.35f)
+    public float Wrapped(Font font, float size, string text, Vector2 position, float width, Color color, float lineHeight = 1.35f, bool draw = true)
     {
         var y = position.Y;
         foreach (var paragraph in text.Split('\n'))
@@ -153,7 +153,11 @@ internal sealed class Ui : IDisposable
                 var tryLine = line.Length == 0 ? word : $"{line} {word}";
                 if (line.Length > 0 && Measure(font, size, tryLine).X > width)
                 {
-                    Text(font, size, line, new Vector2(position.X, y), color);
+                    if (draw)
+                    {
+                        Text(font, size, line, new Vector2(position.X, y), color);
+                    }
+
                     y += Scaled(font, size) * lineHeight;
                     line = word;
                 }
@@ -163,7 +167,11 @@ internal sealed class Ui : IDisposable
                 }
             }
 
-            Text(font, size, line, new Vector2(position.X, y), color);
+            if (draw)
+            {
+                Text(font, size, line, new Vector2(position.X, y), color);
+            }
+
             y += Scaled(font, size) * lineHeight;
         }
 

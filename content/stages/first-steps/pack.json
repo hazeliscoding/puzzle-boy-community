@@ -21,7 +21,7 @@
     { "id": "windmill-lift", "title": "Windmill Lift", "file": "windmill-lift.json", "hint": "The windmill never changes shape, but it will carry you round its corners." },
     { "id": "three-hinges", "title": "Three Hinges", "file": "three-hinges.json", "hint": "Every hinge can be closed again, and some of them have to be." },
     { "id": "round-the-hinge", "title": "Round the Hinge", "file": "round-the-hinge.json", "hint": "The bar you open first is in the way at the very end." },
-    { "id": "make-way", "title": "Make Way", "file": "make-way.json", "hint": "Only your partner can fill the gap. Press C to switch, and stay out of their way." },
+    { "id": "make-way", "title": "Make Way", "file": "make-way.json", "hint": "Only your partner can fill the gap. Switch to them with C (X on a controller), and stay out of their way." },
     { "id": "bucket-brigade", "title": "Bucket Brigade", "file": "bucket-brigade.json", "hint": "Each of you can push in one direction only. Pass each block along, then step back for the next." },
     { "id": "down-the-chute", "title": "Down the Chute", "file": "down-the-chute.json", "hint": "Every block that reaches the bottom row goes down the one narrow chute." },
     { "id": "swing-gate", "title": "Swing Gate", "file": "swing-gate.json", "hint": "The last hole needs a block from the far side of the swing gate. Swing it so a block can get past." },
