@@ -8,14 +8,17 @@ namespace PuzzleBoy.Community.Classic;
 
 /// <summary>
 /// Draws and sounds a stage in play in the Classic theme, through the engine's shared renderer as puzzle-boy does:
-/// <see cref="BoardView"/> for the atlas-textured board, glass walls, outlines, goal, backdrop and Jack-o'-Lantern, and
-/// <see cref="Sounds"/> for the original's effects and music. Community's HUD, pause and clear screens draw over it.
+/// <see cref="BoardView"/> for the atlas-textured board, glass walls, outlines, goal, backdrop and Jack-o'-Lantern,
+/// <see cref="Sounds"/> for the original's effects and music, and with a schema 2 pack, the shared <see cref="Hud"/> for
+/// the original's HUD and help page and a <see cref="ClassicSkin"/> for the rest of the interface. With a schema 1 pack,
+/// Community's HUD, pause and clear screens draw over the board instead.
 /// </summary>
 internal sealed class ClassicPresenter : IDisposable
 {
     private readonly BoardView _board;
     private readonly Sounds _effects;
     private readonly Dictionary<string, Nocturne.SoundData> _musicClips;
+    private readonly Hud? _hud;
     private Sounds? _music;
 
     /// <summary>Uploads <paramref name="assets"/> to <paramref name="device"/>.</summary>
@@ -27,7 +30,21 @@ internal sealed class ClassicPresenter : IDisposable
         // The engine's Sounds can't stop its music, so the music gets an instance of its own to dispose when play ends.
         _musicClips = assets.Sounds.Where(s => s.Key.Contains("_BGM", StringComparison.Ordinal)).ToDictionary();
         _effects = new Sounds(assets.Sounds.Where(s => !_musicClips.ContainsKey(s.Key)).ToDictionary());
+        if (assets.Ui is { } ui)
+        {
+            _hud = new Hud(device, ui.Sheets, ui.Text);
+            Skin = new ClassicSkin(device, ui, assets.Background, assets.Character);
+        }
     }
+
+    /// <summary>The Nocturne-styled interface for Community's screens, or null when the pack has none.</summary>
+    public ClassicSkin? Skin { get; }
+
+    /// <summary>True when play draws the original's HUD, □ menu and help page rather than Community's.</summary>
+    public bool HasHud => _hud is not null;
+
+    /// <summary>The original HUD's timing for the stage in play; the game ticks it.</summary>
+    public ClassicHud Clock { get; } = new();
 
     /// <summary>The assets it draws with.</summary>
     public ClassicAssets Assets { get; }
@@ -60,6 +77,15 @@ internal sealed class ClassicPresenter : IDisposable
         stage.Follow(session);
         _board.Draw(session.Board, stage.Animation, stage.View(session), ClassicStageView.Projection(aspect), ticks, stage.Pose(session), stage.Camera.Yaw);
     }
+
+    /// <summary>
+    /// Draws the original's HUD as <see cref="Clock"/> last set it: the stage counter, COMPLETE!, UNDO, the scroll arrows
+    /// and the controls bar. Nothing without a HUD.
+    /// </summary>
+    public void DrawHud() => _hud?.Draw(Clock.State);
+
+    /// <summary>Draws the original's rules page. Nothing without a HUD.</summary>
+    public void DrawHelp() => _hud?.DrawHelp();
 
     /// <summary>Plays the original's effect <paramref name="number"/>.</summary>
     public void Play(int number) => _effects.Play(number);
@@ -98,6 +124,8 @@ internal sealed class ClassicPresenter : IDisposable
         Leave();
         _board.Dispose();
         _effects.Dispose();
+        _hud?.Dispose();
+        Skin?.Dispose();
     }
 
     private static void SetMaster(float volume)

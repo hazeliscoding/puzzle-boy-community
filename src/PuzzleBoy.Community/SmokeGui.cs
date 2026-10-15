@@ -21,8 +21,9 @@ namespace PuzzleBoy.Community;
 /// A folder for <c>title.png</c>, <c>stage-select.png</c>, <c>settings.png</c>, <c>credits.png</c>,
 /// <c>editor-list.png</c>, <c>editor.png</c>, <c>playtest.png</c>, <c>editor-solve.png</c>, <c>export.png</c>,
 /// <c>my-stages.png</c>, <c>import.png</c> (and <c>import-conflict.png</c> when the pack is already there),
-/// <c>imported.png</c>, <c>imported-play.png</c>, <c>playing.png</c>, <c>pause.png</c> and <c>help.png</c>, or
-/// null to save only the two screenshots.
+/// <c>imported.png</c>, <c>imported-play.png</c>, <c>playing.png</c>, <c>pause.png</c> and <c>help.png</c> (and
+/// <c>help-controls.png</c>, help's second page, in the Classic theme's original menus), or null to save only the two
+/// screenshots.
 /// </param>
 internal sealed class SmokeGui(string titlePng, string? screensDir = null)
 {
@@ -223,8 +224,9 @@ internal sealed class SmokeGui(string titlePng, string? screensDir = null)
                 yield return tick;
             }
 
-            // Help is the pause menu's fourth item.
-            foreach (var tick in Press(Keys.Down, Keys.Down, Keys.Down, Keys.Enter))
+            // Help is the pause menu's fourth item, or the third of the Classic theme's original menu.
+            var help = game.PauseMenuActions.ToList().IndexOf(PauseAction.Help);
+            foreach (var tick in Press([.. Enumerable.Repeat(Keys.Down, help), Keys.Enter]))
             {
                 yield return tick;
             }
@@ -232,6 +234,15 @@ internal sealed class SmokeGui(string titlePng, string? screensDir = null)
             foreach (var tick in Shot(null, "help.png"))
             {
                 yield return tick;
+            }
+
+            if (game.ClassicMenus)
+            {
+                // The original's rules page comes first; Community's controls are the next page, and Left goes back.
+                foreach (var tick in Press(Keys.Right).Concat(Shot(null, "help-controls.png")).Concat(Press(Keys.Left)))
+                {
+                    yield return tick;
+                }
             }
         }
 
@@ -244,8 +255,13 @@ internal sealed class SmokeGui(string titlePng, string? screensDir = null)
             }
         }
 
+        if (game.SkinFallbacks.Count > 0)
+        {
+            Console.WriteLine($"smoke gui: the Classic font lacked a character of {game.SkinFallbacks.Count} string(s), drawn in Community's font: {string.Join(" | ", game.SkinFallbacks)}");
+        }
+
         _done = true;
-        _passed = $"{TitlePng}, {StagePng}{(ScreensDir is null ? "" : $", screens in {ScreensDir}")}; {session.Stage.Id} from {before} to {after} in the {theme} theme";
+        _passed = $"{TitlePng}, {StagePng}{(ScreensDir is null ? "" : $", screens in {ScreensDir}")}; {session.Stage.Id} from {before} to {after} in the {theme} theme{(game.Skinned ? ", Nocturne-styled interface" : "")}";
     }
 
     /// <summary>

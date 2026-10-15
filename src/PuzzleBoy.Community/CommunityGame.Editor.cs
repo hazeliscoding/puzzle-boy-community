@@ -947,7 +947,7 @@ internal sealed partial class CommunityGame
                 FocusBar(layout, top);
             }
 
-            var ink = focused ? _ui["ink"] : _ui["cream"] * 0.92f;
+            var ink = focused ? FocusInk : _ui["cream"] * 0.92f;
             if (i == 0)
             {
                 _ui.Text(Font.BodyBold, 22, "+  New stage", new Vector2(layout.Left + 20, top + 12), ink);
@@ -976,7 +976,7 @@ internal sealed partial class CommunityGame
             _ui.Text(Font.Body, 18, _libraryStatus, new Vector2(640, 622), _ui["ember"], 0.5f);
         }
 
-        _ui.Hints([("Arrows", "Choose"), ("Enter", "Select"), ("Esc", "Back")], 640, 660, _ui["cream"], 17);
+        _ui.Hints(MenuHints(("Arrows", "Choose"), ("Enter", "Select"), ("Esc", "Back")), 640, 660, _ui["cream"], 17);
         if (_overlay == EditorOverlay.Actions)
         {
             var stage = _custom[_libraryMenu.Focus - 1];
@@ -1017,7 +1017,7 @@ internal sealed partial class CommunityGame
                 FocusBar(layout, top);
             }
 
-            var ink = focused ? _ui["ink"] : _ui["cream"];
+            var ink = focused ? FocusInk : _ui["cream"];
             var marked = _custom.Count(s => _exportMarked.Contains(s.Name));
             var (label, value) = i switch
             {
@@ -1047,7 +1047,7 @@ internal sealed partial class CommunityGame
         {
             DrawPath(path, new Vector2(300, 528 + height), 680, 16, color);
         }
-        _ui.Hints([("Enter", "Change"), ("Left Right", "License"), ("Esc", "Back")], 640, 648, _ui["cream"], 16);
+        _ui.Hints(MenuHints(("Enter", "Change"), ("Left Right", "License"), ("Esc", "Back")), 640, 648, _ui["cream"], 16);
     }
 
     /// <summary>The focused entry's card: what New does, or a preview of the stage.</summary>

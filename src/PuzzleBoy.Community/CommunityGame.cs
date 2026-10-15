@@ -24,6 +24,7 @@ internal sealed partial class CommunityGame : Game
     private readonly Navigator _nav = new();
     private readonly MenuList _titleMenu = new(TitleItems.Length);
     private readonly MenuList _pauseMenu = new(PauseItems.Length);
+    private readonly MenuList _classicPauseMenu = new(ClassicPauseActions.Length);
     private readonly MenuList _settingsMenu = new(SettingsMenu.Labels.Length);
     private readonly MenuList _confirmMenu = new(2);
     private readonly MenuList _backMenu = new(1);
@@ -67,6 +68,7 @@ internal sealed partial class CommunityGame : Game
     private MenuList _importMenu = new(1);
     private bool _confirmReset;
     private bool _helpOpen;
+    private int _helpPage;
     private int _ticks;
     private int _noticeTicks;
     private string? _notice;
@@ -80,6 +82,13 @@ internal sealed partial class CommunityGame : Game
     private bool _themePending;
     private bool _themeShown;
     private bool _classicPlaying;
+
+    // The Nocturne-styled interface: checked once the window is up, and again after a theme change or an import; it loads
+    // after a frame that says so. A schema 1 pack's owner is told once a session to import again.
+    private bool _skinChecked;
+    private bool _skinPending;
+    private bool _skinShown;
+    private bool _reimportTold;
 
     /// <summary>Opens a 1280×720 window on the title screen.</summary>
     /// <param name="manifest">The loaded content; it must hold at least one stage.</param>
@@ -167,6 +176,21 @@ internal sealed partial class CommunityGame : Game
     /// <summary>True while the stage in play is drawn in the Classic theme.</summary>
     internal bool PlaysClassic => _classic is not null && !_themePending;
 
+    /// <summary>
+    /// True while play shows the original's HUD, □ menu and help: the Classic theme with a schema 2 pack, while the
+    /// interface is Nocturne-styled (a theme changed mid-stage turns it back to Community's at once).
+    /// </summary>
+    internal bool ClassicMenus => PlaysClassic && _classic!.HasHud && _ui.Skin is not null;
+
+    /// <summary>True while Community's screens are drawn in the Nocturne-styled interface.</summary>
+    internal bool Skinned => _ui.Skin is not null;
+
+    /// <summary>Strings the Nocturne-styled interface's font couldn't draw, which Community's font drew instead.</summary>
+    internal IReadOnlyCollection<string> SkinFallbacks => _ui.SkinFallbacks;
+
+    /// <summary>What the pause menu's items do, in order, in the theme in play.</summary>
+    internal IReadOnlyList<PauseAction> PauseMenuActions => ClassicMenus ? ClassicPauseActions : PauseActions;
+
     /// <inheritdoc />
     protected override void LoadContent()
     {
@@ -216,6 +240,26 @@ internal sealed partial class CommunityGame : Game
         _menuRight = _right.Fires(controls.Held(Command.Right));
         _ticks++;
         _camera.Tick();
+        if (!_skinChecked)
+        {
+            _skinChecked = true;
+            RequestSkin();
+        }
+
+        if (_skinPending)
+        {
+            // The frame that says the interface is loading has shown; nothing else runs until it's loaded.
+            if (_skinShown)
+            {
+                (_skinPending, _skinShown) = (false, false);
+                LoadSkin();
+            }
+
+            (_previousKeys, _previousPad, _previousMouse) = (keys, pad, mouse);
+            base.Update(gameTime);
+            return;
+        }
+
         switch (_nav.Current)
         {
             case Screen.Title:
@@ -267,6 +311,12 @@ internal sealed partial class CommunityGame : Game
             }
         }
 
+        // The original HUD's timers run once a tick, after play and the menu.
+        if (ClassicMenus && _session is { } session && _nav.Current is Screen.Playing or Screen.Paused)
+        {
+            _classic!.Clock.Tick(session, _camera, _nav.Current == Screen.Playing ? ClassicOverlay.None : _helpOpen ? ClassicOverlay.Help : ClassicOverlay.Menu);
+        }
+
         _previousKeys = keys;
         _previousPad = pad;
         _previousMouse = mouse;
@@ -302,6 +352,15 @@ internal sealed partial class CommunityGame : Game
             case Screen.ImportClassic:
                 DrawImportClassic();
                 break;
+        }
+
+        if (_skinPending)
+        {
+            _ui.Begin();
+            _ui.Panel(390, 320, 500, 80, _ui["ink"] * 0.85f);
+            _ui.Text(Font.Title, 18, "LOADING THE CLASSIC THEME", new Vector2(640, 348), _ui["ember"], 0.5f, 2);
+            _ui.End();
+            _skinShown = true;
         }
 
         DrawNotice();
@@ -407,27 +466,103 @@ internal sealed partial class CommunityGame : Game
         var pack = setting != Themes.Default && present ? ClassicPack.Open(folder, checkHashes: true, out problem) : null;
         if (!ClassicTheme.Choose(setting, present, problem, out var notice))
         {
+            _ui.Skin = null;
             ShowNotice(notice);
             return;
         }
 
+        _classic = Presenter(pack!);
+        _ui.Skin = _classic?.Skin;
+        if (_classic is not null && !_classic.HasHud)
+        {
+            TellReimport(pack!);
+        }
+    }
+
+    /// <summary>
+    /// The presenter for <paramref name="pack"/>: the one already made when it decodes to the same assets, else a new one.
+    /// Null, with a notice, when the pack doesn't decode.
+    /// </summary>
+    private ClassicPresenter? Presenter(ClassicPack pack)
+    {
         try
         {
-            var assets = ClassicAssetCache.Load(pack!);
+            var assets = ClassicAssetCache.Load(pack);
             if (!ReferenceEquals(_classicPresenter?.Assets, assets))
             {
+                // The skin is the old presenter's; it goes with it, and LoadSkin puts the new one's in place.
+                _ui.Skin = null;
                 _classicPresenter?.Dispose();
                 _classicPresenter = new ClassicPresenter(GraphicsDevice, assets);
                 _classicStage = new ClassicStageView(assets.Character);
             }
 
-            _classic = _classicPresenter;
+            return _classicPresenter;
         }
         catch (Exception e)
         {
             // The bundle reader throws all sorts for a damaged bundle; any of them means the same to the player.
             ShowNotice($"The Classic theme couldn't be loaded ({e.GetType().Name}), so this plays with the Default theme. Import your classic pack again.");
+            return null;
         }
+    }
+
+    /// <summary>
+    /// Asks for the Nocturne-styled interface to match the theme setting and the classic pack: dropped at once when they
+    /// rule it out, else loaded after a frame that says so.
+    /// </summary>
+    private void RequestSkin()
+    {
+        if (!ClassicTheme.UsesInterface(_save.Data.Settings.Theme, ClassicPack.IsIn(ClassicStages.PackFolder(_save.Folder))))
+        {
+            _ui.Skin = null;
+            return;
+        }
+
+        _skinPending = true;
+    }
+
+    /// <summary>
+    /// Loads the Nocturne-styled interface for Community's screens from the classic pack, when the setting allows the
+    /// Classic theme and the pack passes its check, decodes and has the interface. Otherwise Community's own interface
+    /// shows: a pack that fails its check gets its notice when a stage starts, and one without the interface says so here.
+    /// </summary>
+    private void LoadSkin()
+    {
+        _ui.Skin = null;
+        var folder = ClassicStages.PackFolder(_save.Folder);
+        if (_save.Data.Settings.Theme == Themes.Default || ClassicPack.Open(folder, checkHashes: true, out _) is not { } pack)
+        {
+            return;
+        }
+
+        if (Presenter(pack) is not { } presenter)
+        {
+            return;
+        }
+
+        _ui.Skin = presenter.Skin;
+        if (presenter.Skin is null)
+        {
+            TellReimport(pack);
+        }
+    }
+
+    /// <summary>
+    /// Says once a session why the classic pack's interface isn't shown: a schema 1 pack has none, and a schema 2 pack's
+    /// didn't decode.
+    /// </summary>
+    private void TellReimport(ClassicPack pack)
+    {
+        if (_reimportTold)
+        {
+            return;
+        }
+
+        _reimportTold = true;
+        ShowNotice(pack.HasUi
+            ? $"The Nocturne-styled menus couldn't be loaded ({_classicPresenter?.Assets.UiProblem}), so Community's menus show. Import your classic pack again."
+            : ReimportNotice);
     }
 
     /// <summary>Shows <paramref name="notice"/> over the game for a few seconds, if there is one.</summary>

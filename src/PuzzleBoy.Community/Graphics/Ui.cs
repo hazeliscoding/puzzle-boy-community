@@ -22,8 +22,50 @@ internal enum Font
 }
 
 /// <summary>
+/// Another look for <see cref="Ui"/>'s text, windows, key prompts, cursor and backdrop: the Classic theme's
+/// Nocturne-styled interface. Coordinates are virtual pixels inside <see cref="Ui"/>'s batch, which <c>fit</c> maps to
+/// the window (scale, then offset).
+/// </summary>
+internal interface IUiSkin
+{
+    /// <summary>True when the skin's font has every character of <paramref name="text"/>; otherwise Community's font draws it.</summary>
+    bool Covers(string text);
+
+    /// <summary>The width and line height of <paramref name="text"/> at <paramref name="size"/> pixels, in the skin's font.</summary>
+    Vector2 Measure(float size, string text);
+
+    /// <summary>Draws <paramref name="text"/> in the skin's style for <paramref name="font"/>, its top-left at <paramref name="top"/>, tinted <paramref name="color"/> (premultiplied).</summary>
+    void Text(SpriteBatch batch, (float Scale, Vector2 Offset) fit, Font font, float size, string text, Vector2 top, Color color);
+
+    /// <summary>Draws a window over the rectangle at <paramref name="alpha"/>, 0 to 1.</summary>
+    void Window(SpriteBatch batch, float x, float y, float width, float height, float alpha);
+
+    /// <summary>Draws the prompt for <paramref name="key"/> (such as <c>W</c>, <c>Tab</c> or <c>Enter</c>) <paramref name="height"/> tall; returns its width.</summary>
+    float Key(SpriteBatch batch, (float Scale, Vector2 Offset) fit, string key, Vector2 at, float height);
+
+    /// <summary>The width <see cref="Key"/> draws <paramref name="key"/> at, <paramref name="height"/> tall.</summary>
+    float KeyWidth(string key, float height);
+
+    /// <summary>Draws the menu cursor pointing right, its middle at (<paramref name="x"/>, <paramref name="y"/>), sized for a row <paramref name="height"/> tall.</summary>
+    void Cursor(SpriteBatch batch, float x, float y, float height, float alpha);
+
+    /// <summary>Fills a <paramref name="width"/>×<paramref name="height"/> window with the backdrop; draws in window pixels, with its own batch.</summary>
+    void Backdrop(SpriteBatch batch, int width, int height);
+
+    /// <summary>
+    /// Draws the skin's own character where the title puts Pixel Jack, idling at <paramref name="ticks"/>, in 3D on a
+    /// viewport <paramref name="aspect"/> wide over tall. Returns false, drawing nothing, when the skin has none.
+    /// </summary>
+    bool Character(int ticks, float aspect);
+
+    /// <summary>Draws the in-play menu with <paramref name="labels"/> and the cursor on <paramref name="focus"/>, where the skin's original puts it.</summary>
+    void OriginalMenu(SpriteBatch batch, (float Scale, Vector2 Offset) fit, IReadOnlyList<string> labels, int focus);
+}
+
+/// <summary>
 /// 2D drawing on the 1280×720 virtual screen: text in the content fonts, rectangles, rounded panels, key caps and the
-/// night-sky backdrop. Coordinates are virtual pixels; <see cref="Begin"/> scales them to the window.
+/// night-sky backdrop. Coordinates are virtual pixels; <see cref="Begin"/> scales them to the window. With a
+/// <see cref="Skin"/> its text, windows, key caps, cursor and backdrop take the skin's look instead.
 /// </summary>
 internal sealed class Ui : IDisposable
 {
@@ -76,6 +118,15 @@ internal sealed class Ui : IDisposable
     /// <summary>True keeps the backdrop's stars still.</summary>
     public bool ReduceMotion { get; set; }
 
+    /// <summary>
+    /// The look that replaces Community's text, windows, key caps, cursor and backdrop, or null for Community's own. A
+    /// panel in a window color (ink, hat or night) becomes a window; other panels, rectangles and lines stay as drawn.
+    /// </summary>
+    public IUiSkin? Skin { get; set; }
+
+    /// <summary>Strings the skin's font couldn't draw, which Community's font drew instead.</summary>
+    public HashSet<string> SkinFallbacks { get; } = [];
+
     /// <summary>A palette color by name.</summary>
     public Color this[string name] => _theme[name];
 
@@ -83,7 +134,7 @@ internal sealed class Ui : IDisposable
     public void Begin()
     {
         var pp = _device.PresentationParameters;
-        var (scale, offset) = VirtualScreen.Fit(pp.BackBufferWidth, pp.BackBufferHeight);
+        var (scale, offset) = _fit = VirtualScreen.Fit(pp.BackBufferWidth, pp.BackBufferHeight);
         _batch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null,
             Matrix.CreateScale(scale) * Matrix.CreateTranslation(offset.X, offset.Y, 0));
     }
@@ -99,6 +150,12 @@ internal sealed class Ui : IDisposable
     {
         var pp = _device.PresentationParameters;
         var (w, h) = (pp.BackBufferWidth, pp.BackBufferHeight);
+        if (Skin is { } skin)
+        {
+            skin.Backdrop(_batch, w, h);
+            return;
+        }
+
         _batch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone);
         _batch.Draw(_sky, new Rectangle(0, 0, w, h), Color.White);
         for (var i = 0; i < 90; i++)
@@ -117,7 +174,7 @@ internal sealed class Ui : IDisposable
 
     /// <summary>The size <paramref name="text"/> takes in <paramref name="font"/> at <paramref name="size"/> pixels.</summary>
     public Vector2 Measure(Font font, float size, string text, float spacing = 0) =>
-        Get(font).GetFont(Scaled(font, size)).MeasureString(text, characterSpacing: spacing);
+        Skinned(text) is { } skin ? skin.Measure(Scaled(font, size), text) : Get(font).GetFont(Scaled(font, size)).MeasureString(text, characterSpacing: spacing);
 
     /// <summary>
     /// Draws <paramref name="text"/> with its top at <paramref name="position"/>.Y, aligned on <paramref name="position"/>.X:
@@ -127,14 +184,24 @@ internal sealed class Ui : IDisposable
     {
         var measure = Measure(font, size, text, spacing);
         var at = new Vector2(MathF.Round(position.X - (measure.X * align)), MathF.Round(position.Y));
+        if (Skinned(text) is { } skin)
+        {
+            skin.Text(_batch, _fit, font, Scaled(font, size), text, new Vector2(position.X - (measure.X * align), position.Y), Strong(color, 90));
+            return measure;
+        }
+
         _batch.DrawString(Get(font).GetFont(Scaled(font, size)), text, at, Strong(color, 90), characterSpacing: spacing);
         return measure;
     }
 
-    /// <summary>Draws <paramref name="text"/> with a soft drop shadow under it.</summary>
+    /// <summary>Draws <paramref name="text"/> with a soft drop shadow under it; a skin's font has its own outline instead.</summary>
     public Vector2 ShadowText(Font font, float size, string text, Vector2 position, Color color, Color shadow, float align = 0, float spacing = 0, float depth = 4)
     {
-        Text(font, size, text, position + new Vector2(0, depth), shadow, align, spacing);
+        if (Skinned(text) is null)
+        {
+            Text(font, size, text, position + new Vector2(0, depth), shadow, align, spacing);
+        }
+
         return Text(font, size, text, position, color, align, spacing);
     }
 
@@ -182,10 +249,16 @@ internal sealed class Ui : IDisposable
     public void Rect(float x, float y, float width, float height, Color color) =>
         _batch.Draw(_pixel, new Vector2(x, y), null, color, 0, Vector2.Zero, new Vector2(width, height), SpriteEffects.None, 0);
 
-    /// <summary>Fills a rectangle with rounded corners.</summary>
+    /// <summary>Fills a rectangle with rounded corners, or with a skin, draws a window there if it's in a window color.</summary>
     public void Panel(float x, float y, float width, float height, Color color)
     {
         color = Strong(color, 60);
+        if (Skin is { } skin && color.A > 0 && WindowColors.Any(w => Matches(color, _theme[w])))
+        {
+            skin.Window(_batch, x, y, width, height, color.A / 255f);
+            return;
+        }
+
         var c = Math.Min(Corner, Math.Min(width, height) / 2);
         void Part(float px, float py, float pw, float ph, Rectangle source) =>
             _batch.Draw(_rounded, new Vector2(px, py), source, color, 0, Vector2.Zero, new Vector2(pw / source.Width, ph / source.Height), SpriteEffects.None, 0);
@@ -210,9 +283,39 @@ internal sealed class Ui : IDisposable
     public void Sprite(Texture2D texture, Rectangle source, float x, float y, float width, float height, Color color) =>
         _batch.Draw(texture, new Vector2(x, y), source, color, 0, Vector2.Zero, new Vector2(width / source.Width, height / source.Height), SpriteEffects.None, 0);
 
+    /// <summary>
+    /// With a skin, draws its menu cursor for a row <paramref name="height"/> tall with its middle at
+    /// (<paramref name="x"/>, <paramref name="y"/>) and returns true. Without one it draws nothing and returns false:
+    /// Community's menus mark focus with a bar instead.
+    /// </summary>
+    public bool Cursor(float x, float y, float height, float alpha = 1)
+    {
+        Skin?.Cursor(_batch, x, y, height, alpha);
+        return Skin is not null;
+    }
+
+    /// <summary>
+    /// With a skin, draws its in-play menu with <paramref name="labels"/> and the cursor on <paramref name="focus"/> and
+    /// returns true; without one it draws nothing and returns false.
+    /// </summary>
+    public bool OriginalMenu(IReadOnlyList<string> labels, int focus)
+    {
+        Skin?.OriginalMenu(_batch, _fit, labels, focus);
+        return Skin is not null;
+    }
+
+    /// <summary>The width <see cref="KeyCap"/> draws <paramref name="key"/> at.</summary>
+    public float KeyCapWidth(string key, float size = 18) =>
+        Skin is { } skin ? skin.KeyWidth(key, size + 12) : Math.Max(Measure(Font.BodyBold, size, key).X + 16, size + 12);
+
     /// <summary>Draws a key cap with <paramref name="key"/> on it at <paramref name="position"/>, and returns its width.</summary>
     public float KeyCap(string key, Vector2 position, float size = 18)
     {
+        if (Skin is { } skin)
+        {
+            return skin.Key(_batch, _fit, key, position, size + 12);
+        }
+
         var text = Measure(Font.BodyBold, size, key);
         var width = Math.Max(text.X + 16, size + 12);
         var height = size + 12;
@@ -230,7 +333,7 @@ internal sealed class Ui : IDisposable
     {
         var list = hints.ToList();
         float Width((string Keys, string Action) hint) =>
-            hint.Keys.Split(' ').Sum(k => Math.Max(Measure(Font.BodyBold, size, k).X + 16, size + 12) + 4) + 4 + Measure(Font.Body, size, hint.Action).X;
+            hint.Keys.Split(' ').Sum(k => KeyCapWidth(k, size) + 4) + 4 + Measure(Font.Body, size, hint.Action).X;
         const float Gap = 28;
         var x = centerX - ((list.Sum(Width) + (Gap * (list.Count - 1))) / 2);
         foreach (var hint in list)
@@ -260,6 +363,32 @@ internal sealed class Ui : IDisposable
 
     // The largest Silkscreen size that counts as a small label rather than a heading.
     private const float SmallLabel = 18;
+
+    // The palette colors a panel is a window in: the dark ones Community draws its panels, overlays and dialogs with.
+    private static readonly string[] WindowColors = ["ink", "hat", "night"];
+
+    private (float Scale, Vector2 Offset) _fit = (1, Vector2.Zero);
+
+    // A color, faded or not (premultiplied), is a palette color when its unfaded channels match within rounding.
+    private static bool Matches(Color color, Color palette) =>
+        Math.Abs((color.R * 255f / color.A) - palette.R) < 3 && Math.Abs((color.G * 255f / color.A) - palette.G) < 3 && Math.Abs((color.B * 255f / color.A) - palette.B) < 3;
+
+    // The skin draws text whose every character its font has; Community's font draws the rest, and they're noted.
+    private IUiSkin? Skinned(string text)
+    {
+        if (Skin is not { } skin)
+        {
+            return null;
+        }
+
+        if (skin.Covers(text))
+        {
+            return skin;
+        }
+
+        SkinFallbacks.Add(text);
+        return null;
+    }
 
     // Body text and the small labels a player has to read follow the UI scale; headings are display type and keep their layout.
     private float Scaled(Font font, float size) => font is Font.Body or Font.BodyBold || (font == Font.Title && size <= SmallLabel) ? size * TextScale : size;

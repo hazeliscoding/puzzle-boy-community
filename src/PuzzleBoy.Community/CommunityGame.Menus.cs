@@ -23,6 +23,28 @@ internal enum StageStatus
     Cleared,
 }
 
+/// <summary>What a pause menu item does.</summary>
+internal enum PauseAction
+{
+    /// <summary>Closes the menu.</summary>
+    Resume,
+
+    /// <summary>Takes back the last push or turn; the menu stays open.</summary>
+    Undo,
+
+    /// <summary>Starts the stage again and closes the menu.</summary>
+    Restart,
+
+    /// <summary>Opens help.</summary>
+    Help,
+
+    /// <summary>Opens settings.</summary>
+    Settings,
+
+    /// <summary>Leaves the stage: to the title, or from a playtest to the editor.</summary>
+    Quit,
+}
+
 /// <summary>The menu screens: title, stage select, pause, settings and credits.</summary>
 internal sealed partial class CommunityGame
 {
@@ -34,6 +56,18 @@ internal sealed partial class CommunityGame
 
     /// <summary>The pause menu in a playtest, whose last item returns to the editor.</summary>
     internal static readonly string[] PlaytestPauseItems = [.. PauseItems[..^1], "Back to Editor"];
+
+    /// <summary>What each of <see cref="PauseItems"/> does, in order.</summary>
+    internal static readonly PauseAction[] PauseActions = [PauseAction.Resume, PauseAction.Undo, PauseAction.Restart, PauseAction.Help, PauseAction.Settings, PauseAction.Quit];
+
+    /// <summary>
+    /// The Classic theme's □ menu, in order: the original's Undo, Restart, Help and Quit, with Community's Settings before
+    /// Quit. Like the original's it has no Resume: Backspace, F or Esc closes it.
+    /// </summary>
+    internal static readonly PauseAction[] ClassicPauseActions = [PauseAction.Undo, PauseAction.Restart, PauseAction.Help, PauseAction.Settings, PauseAction.Quit];
+
+    /// <summary>The Classic theme's help pages: the original's rules, then Community's controls.</summary>
+    internal const int ClassicHelpPages = 2;
 
     /// <summary>What can be done when an imported pack's id is already taken, in order.</summary>
     internal static readonly string[] ImportChoiceItems = ["Replace It", "Keep Both", "Cancel"];
@@ -60,6 +94,9 @@ internal sealed partial class CommunityGame
 
     private static readonly MenuLayout TitleMenu = new(96, 300, 400, 54);
     private static readonly MenuLayout PauseMenu = new(470, 262, 340, 50);
+
+    // The original's □ menu: rows 58 units apart from y 164, its panel from x 90, 516 wide, in the 1920×1080 layout.
+    private static readonly MenuLayout ClassicPauseMenu = new(90 * 2 / 3f, 164 * 2 / 3f, 516 * 2 / 3f, 58 * 2 / 3f);
     private static readonly MenuLayout SettingsLayout = new(240, 130, 800, 40);
     private static readonly MenuLayout ConfirmLayout = new(490, 380, 300, 54);
     private static readonly MenuLayout SelectMenu = new(72, 150, 580, 50);
@@ -258,12 +295,7 @@ internal sealed partial class CommunityGame
     {
         if (_helpOpen)
         {
-            if (Cancelled(controls) || controls.Pressed(Command.Confirm) || controls.Pressed(Command.Pause) || _clicked)
-            {
-                _helpOpen = false;
-                Sound(Sfx.Cancel);
-            }
-
+            UpdateHelp(controls);
             return;
         }
 
@@ -273,36 +305,68 @@ internal sealed partial class CommunityGame
             return;
         }
 
-        switch (RunMenu(_pauseMenu, controls, PauseMenu))
+        var (menu, actions, layout) = ClassicMenus ? (_classicPauseMenu, ClassicPauseActions, ClassicPauseMenu) : (_pauseMenu, PauseActions, PauseMenu);
+        if (RunMenu(menu, controls, layout) is not { } chosen)
         {
-            case 0:
+            return;
+        }
+
+        switch (actions[chosen])
+        {
+            case PauseAction.Resume:
                 _nav.Back();
                 break;
-            case 1:
+            case PauseAction.Undo when _session!.Undo():
                 // The menu stays open so several undos can follow.
-                if (!_session!.Undo())
-                {
-                    Sound(Sfx.Buzz);
-                }
-
+                _classic?.Clock.Undid();
                 break;
-            case 2:
+            case PauseAction.Undo:
+                Sound(Sfx.Buzz);
+                break;
+            case PauseAction.Restart:
                 _session!.Restart();
                 _nav.Back();
                 break;
-            case 3:
-                _helpOpen = true;
+            case PauseAction.Help:
+                (_helpOpen, _helpPage) = (true, 0);
                 break;
-            case 4:
+            case PauseAction.Settings:
                 OpenSettings();
                 break;
-            case 5 when _playtest:
+            case PauseAction.Quit when _playtest:
                 EndPlaytest("Playtest stopped.");
                 break;
-            case 5:
+            case PauseAction.Quit:
                 _session = null;
                 _nav.ReturnTo(Screen.Title);
                 break;
+        }
+    }
+
+    /// <summary>
+    /// A tick of help over the pause menu. Back, F or a click closes it. In the Classic theme, Right or Confirm turns to
+    /// the next page and Left back, and Confirm on the last page closes it; Community's single page closes on Confirm.
+    /// </summary>
+    private void UpdateHelp(Controls controls)
+    {
+        var pages = ClassicMenus ? ClassicHelpPages : 1;
+        var turn = _menuRight || (controls.Pressed(Command.Confirm) && _helpPage + 1 < pages) ? 1 : _menuLeft ? -1 : 0;
+        if (turn != 0 && pages > 1)
+        {
+            var page = Math.Clamp(_helpPage + turn, 0, pages - 1);
+            if (page != _helpPage)
+            {
+                _helpPage = page;
+                Sound(Sfx.MenuMove);
+            }
+
+            return;
+        }
+
+        if (Cancelled(controls) || controls.Pressed(Command.Confirm) || controls.Pressed(Command.Pause) || _clicked)
+        {
+            _helpOpen = false;
+            Sound(Sfx.Cancel);
         }
     }
 
@@ -381,6 +445,7 @@ internal sealed partial class CommunityGame
                 ApplySettings(display: true);
                 _save.Save();
                 _confirmReset = false;
+                RequestSkin();
                 break;
         }
     }
@@ -397,19 +462,29 @@ internal sealed partial class CommunityGame
         ApplySettings(display: row is 0 or 1);
         _save.Save();
         Sound(Sfx.MenuMove);
+        if (row == SettingsMenu.ThemeRow)
+        {
+            RequestSkin();
+        }
     }
 
     private void DrawTitle()
     {
         DrawDrift(0.7f);
-        DrawTitleJack();
+
+        // The Classic theme's interface brings the original's Jack-o'-Lantern; Community's own is Pixel Jack.
+        if (_ui.Skin?.Character(Motion, GraphicsDevice.Viewport.AspectRatio) != true)
+        {
+            DrawTitleJack();
+        }
+
         _ui.Begin();
         _ui.ShadowText(Font.TitleBold, 104, "PUZZLE BOY", new Vector2(88, 64), _ui["cream"], _ui["pumpkinShade"], spacing: 2, depth: 7);
         _ui.Text(Font.Title, 30, "COMMUNITY EDITION", new Vector2(96, 196), _ui["bandOnDark"], spacing: 5);
         DrawMenu(_titleMenu, TitleItems, TitleMenu, 30);
 
         // Esc on the title only points at Quit, so the hints don't offer it as Back.
-        _ui.Hints([("Arrows", "Choose"), ("Enter", "Select")], 640, 636, _ui["cream"], 17);
+        _ui.Hints(MenuHints(("Arrows", "Choose"), ("Enter", "Select")), 640, 636, _ui["cream"], 17);
         _ui.Text(Font.Body, 15, "A fan project inspired by Puzzle Boy. Not affiliated with or endorsed by ATLUS or SEGA.", new Vector2(640, 690), _ui["cream"] * 0.6f, 0.5f);
         _ui.End();
     }
@@ -455,7 +530,7 @@ internal sealed partial class CommunityGame
             }
 
             var status = StatusOf(_save.Data, pack.Stages, index);
-            var ink = focused ? _ui["ink"] : status == StageStatus.Locked ? _ui["cream"] * 0.55f : _ui["cream"] * 0.92f;
+            var ink = focused ? FocusInk : status == StageStatus.Locked ? _ui["cream"] * 0.55f : _ui["cream"] * 0.92f;
             StatusIcon(status, layout.Left + 14, top + 13, 24, ink);
             var number = (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
             _ui.Text(Font.BodyBold, 22, number, new Vector2(layout.Left + 72, top + 12), ink, 1);
@@ -481,7 +556,7 @@ internal sealed partial class CommunityGame
             DrawStageDetails();
         }
 
-        _ui.Hints([("Up Down", "Choose"), ("Left Right", "Pack"), ("Enter", "Play"), ("Esc", "Back")], 640, 660, _ui["cream"], 17);
+        _ui.Hints(MenuHints(("Up Down", "Choose"), ("Left Right", "Pack"), ("Enter", "Play"), ("Esc", "Back")), 640, 660, _ui["cream"], 17);
         _ui.End();
     }
 
@@ -576,7 +651,7 @@ internal sealed partial class CommunityGame
                 FocusBar(layout, top);
             }
 
-            _ui.Text(Font.BodyBold, 22, Shorten(Path.GetFileName(_importZips[i]), 40), new Vector2(layout.Left + 20, top + 12), focused ? _ui["ink"] : _ui["cream"] * 0.92f);
+            _ui.Text(Font.BodyBold, 22, Shorten(Path.GetFileName(_importZips[i]), 40), new Vector2(layout.Left + 20, top + 12), focused ? FocusInk : _ui["cream"] * 0.92f);
         }
 
         var (x, y, width) = (690f, 150f, 520f);
@@ -592,7 +667,7 @@ internal sealed partial class CommunityGame
             _ui.Wrapped(Font.Body, 18, _importStatus, new Vector2(x + 24, y + 320), width - 48, _ui["ember"]);
         }
 
-        _ui.Hints([("Up Down", "Choose"), ("Left Right", "Pack"), ("Enter", "Import"), ("Esc", "Back")], 640, 660, _ui["cream"], 17);
+        _ui.Hints(MenuHints(("Up Down", "Choose"), ("Left Right", "Pack"), ("Enter", "Import"), ("Esc", "Back")), 640, 660, _ui["cream"], 17);
         if (_importPending is not null)
         {
             _ui.Rect(0, 0, VirtualScreen.Width, VirtualScreen.Height, _ui["ink"] * 0.6f);
@@ -780,7 +855,7 @@ internal sealed partial class CommunityGame
                 FocusBar(layout, top);
             }
 
-            var ink = focused ? _ui["ink"] : _ui["cream"] * 0.92f;
+            var ink = focused ? FocusInk : _ui["cream"] * 0.92f;
             var textTop = top + ((layout.Spacing - 26) / 2);
             _ui.Text(Font.BodyBold, 21, SettingsMenu.Labels[row], new Vector2(layout.Left + 36, textTop), ink);
             if (!SettingsMenu.HasValue(row))
@@ -794,8 +869,8 @@ internal sealed partial class CommunityGame
             {
                 var level = row == 3 ? settings.MusicVolume : settings.SfxVolume;
                 var (barX, barY) = (right - 290, top + (layout.Spacing / 2) - 5);
-                _ui.Panel(barX, barY, 200, 10, focused ? _ui["ink"] * 0.35f : _ui["cream"] * 0.25f);
-                var fill = focused ? _ui["ink"] : settings.Mute ? _ui["cream"] * 0.5f : _ui["ember"];
+                _ui.Panel(barX, barY, 200, 10, focused ? FocusInk * 0.35f : _ui["cream"] * 0.25f);
+                var fill = focused ? FocusInk : settings.Mute ? _ui["cream"] * 0.5f : _ui["ember"];
                 _ui.Panel(barX, barY, Math.Max(10, 200 * level), 10, fill);
             }
 
@@ -811,7 +886,7 @@ internal sealed partial class CommunityGame
             _ui.Text(Font.Body, 16, "Auto plays the Classic theme when you have a classic pack (Classic Nocturne, below), and the Default theme otherwise.", new Vector2(640, 626), _ui["cream"] * 0.85f, 0.5f);
         }
 
-        _ui.Hints([("Up Down", "Choose"), ("Left Right", "Change"), ("Enter", "Select"), ("Esc", "Back")], 640, 660, _ui["cream"], 17);
+        _ui.Hints(MenuHints(("Up Down", "Choose"), ("Left Right", "Change"), ("Enter", "Select"), ("Esc", "Back")), 640, 660, _ui["cream"], 17);
         if (_confirmReset)
         {
             _ui.Rect(0, 0, VirtualScreen.Width, VirtualScreen.Height, _ui["ink"] * 0.6f);
@@ -847,6 +922,74 @@ internal sealed partial class CommunityGame
         Section("CLASSIC NOCTURNE THEME", ClassicCredit);
         DrawMenu(_backMenu, ["Back"], CreditsBack, 26);
         _ui.End();
+    }
+
+    /// <summary>
+    /// The Classic theme's pause: the original's □ menu where it stands, with Community's Settings, and a window under it
+    /// with what Community adds: the stage, its moves and its time. Help is the original's rules page (drawn with the
+    /// HUD), then a page of Community's controls. The original HUD's bar shows the menu's or help's keys.
+    /// </summary>
+    private void DrawClassicPaused()
+    {
+        if (_helpOpen)
+        {
+            if (_helpPage == 1)
+            {
+                DrawClassicControls();
+            }
+
+            // Bottom left, beside the original bar's Cancel.
+            _ui.Hints([("A D", $"Page {_helpPage + 1} of {ClassicHelpPages}")], 150, 658, _ui["cream"], 16);
+            return;
+        }
+
+        var labels = _classic!.Skin!.OriginalMenuLabels;
+        _ui.OriginalMenu([labels[0], labels[1], labels[2], "Settings", _playtest ? "Back to Editor" : labels[3]], _classicPauseMenu.Focus);
+        var session = _session!;
+        var (x, y, width) = (60f, 334f, 344f);
+        _ui.Panel(x, y, width, 112, _ui["ink"]);
+        var where = _playtest ? "PLAYTEST" : $"{_playPack!.Title.ToUpperInvariant()}  ·  STAGE {session.Index + 1} OF {session.Count}";
+        _ui.Text(Font.Title, 15, Shorten(where, 40), new Vector2(x + 18, y + 14), _ui["bandOnDark"], spacing: 1);
+        _ui.Text(Font.BodyBold, 24, Shorten(session.Stage.Title, 26), new Vector2(x + 18, y + 38), _ui["cream"]);
+        var moves = session.Moves == 1 ? "1 move" : $"{session.Moves} moves";
+        _ui.Text(Font.Body, 18, $"{moves}  ·  {FormatTime(session.ElapsedTicks / 30.0)[..^2]}", new Vector2(x + 18, y + 76), _ui["cream"] * 0.85f);
+    }
+
+    /// <summary>The Classic theme's second help page: every control, Community's included, with the original's key prompts.</summary>
+    private void DrawClassicControls()
+    {
+        _ui.Rect(0, 0, VirtualScreen.Width, VirtualScreen.Height, Color.Black * 0.5f);
+        _ui.Panel(150, 70, 980, 560, _ui["ink"]);
+        _ui.Text(Font.TitleBold, 34, "CONTROLS", new Vector2(640, 96), _ui["cream"], 0.5f);
+        (string Keys, string Pad, string Action)[] rows =
+        [
+            ("W A S D", "D-pad / stick", "Move (hold to keep walking); arrows too"),
+            ("Q E", "LB  RB", "Turn the view"),
+            ("V", "Y", "Overhead view"),
+            ("Tab", "R3", "Scroll the view"),
+            ("F", "Start", "Menu; Esc or P too"),
+            ("Z Backspace", "B", "Undo"),
+            ("R", "Back", "Restart"),
+            ("C", "X", "Switch character"),
+            ("Space", "A", "Confirm in menus; Enter too"),
+            ("Backspace", "B", "Cancel in menus; Esc too"),
+        ];
+        var y = 150f;
+        _ui.Text(Font.Title, 15, "KEYBOARD", new Vector2(200, y), _ui["ember"], spacing: 2);
+        _ui.Text(Font.Title, 15, "CONTROLLER", new Vector2(450, y), _ui["ember"], spacing: 2);
+        y += 30;
+        foreach (var (keys, pad, action) in rows)
+        {
+            var x = 200f;
+            foreach (var key in keys.Split(' '))
+            {
+                x += _ui.KeyCap(key, new Vector2(x, y - 4), 16) + 4;
+            }
+
+            _ui.Text(Font.BodyBold, 18, pad, new Vector2(450, y), _ui["cream"]);
+            _ui.Text(Font.Body, 18, action, new Vector2(640, y), _ui["cream"] * 0.85f);
+            y += 40;
+        }
     }
 
     private void DrawPaused()
@@ -914,9 +1057,39 @@ internal sealed partial class CommunityGame
         _ui.ShadowText(Font.TitleBold, 56, title, new Vector2(640, 52), _ui["cream"], _ui["pumpkinShade"], 0.5f, 2, 5);
     }
 
-    /// <summary>The ember bar behind a focused item whose row starts at <paramref name="top"/>.</summary>
+    /// <summary>The color of a focused item's text: dark on Community's ember bar, light beside a skin's cursor.</summary>
+    private Color FocusInk => _ui.Skin is null ? _ui["ink"] : _ui["cream"];
+
+    /// <summary>
+    /// <paramref name="hints"/> for a menu, with a skin as the original prompts them: W and S choose, A and D change, Space
+    /// confirms and Backspace goes back. Every one of those keys does that in Community's menus.
+    /// </summary>
+    private (string Keys, string Action)[] MenuHints(params (string Keys, string Action)[] hints) =>
+        _ui.Skin is null ? hints : [.. hints.Select(h => (OriginalPrompt(h.Keys), h.Action))];
+
+    /// <summary>The original's keys for a menu hint's <paramref name="keys"/>, as the Nocturne-styled menus show them.</summary>
+    internal static string OriginalPrompt(string keys) => keys switch
+    {
+        "Up Down" or "Arrows" => "W S",
+        "Left Right" => "A D",
+        "Enter" => "Space",
+        "Esc" => "Backspace",
+        _ => keys,
+    };
+
+    /// <summary>
+    /// The ember bar behind a focused item whose row starts at <paramref name="top"/>; with a skin, a window across the
+    /// row and its cursor at the row's left.
+    /// </summary>
     private void FocusBar(MenuLayout layout, float top)
     {
+        if (_ui.Skin is not null)
+        {
+            _ui.Panel(layout.Left - 6, top + 2, layout.Width + 12, layout.Spacing - 4, _ui["ink"] * 0.9f);
+            _ui.Cursor(layout.Left - 2, top + (layout.Spacing / 2), Math.Min(layout.Spacing, 44) * 0.75f);
+            return;
+        }
+
         var glow = 0.85f + (0.15f * MathF.Sin(Motion * 0.15f));
         _ui.Panel(layout.Left - 6, top + 4, layout.Width + 12, layout.Spacing - 8, _ui["pumpkinShade"] * glow);
         _ui.Panel(layout.Left, top + 4, layout.Width, layout.Spacing - 8, _ui["ember"]);
@@ -932,10 +1105,13 @@ internal sealed partial class CommunityGame
             if (focused)
             {
                 FocusBar(layout, top);
-                _ui.Rect(layout.Left + 14, top + (layout.Spacing / 2) - 5, 10, 10, _ui["ink"]);
+                if (_ui.Skin is null)
+                {
+                    _ui.Rect(layout.Left + 14, top + (layout.Spacing / 2) - 5, 10, 10, _ui["ink"]);
+                }
             }
 
-            var color = focused ? _ui["ink"] : _ui["cream"] * 0.9f;
+            var color = focused ? FocusInk : _ui["cream"] * 0.9f;
             _ui.Text(Font.BodyBold, size, labels[i], new Vector2(layout.Left + 36, top + ((layout.Spacing - (size * _ui.TextScale * 1.2f)) / 2)), color);
         }
     }
@@ -946,7 +1122,8 @@ internal sealed partial class CommunityGame
     /// </summary>
     private void DrawDrift(float strength)
     {
-        if (_save.Data.Settings.HighContrast)
+        // The Classic theme's backdrop is the original's, with nothing drifting over it.
+        if (_save.Data.Settings.HighContrast || _ui.Skin is not null)
         {
             return;
         }

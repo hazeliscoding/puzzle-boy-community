@@ -259,6 +259,21 @@ public class StandaloneTests
     }
 
     [Fact]
+    public void Only_loading_the_classic_theme_gives_the_interface_its_Nocturne_styled_skin()
+    {
+        // The title draws the Jack-o'-Lantern and the original's font only through Ui.Skin, which the walk above can't
+        // follow; so the Default theme's title stays clean as long as nothing but the classic theme's loading sets it,
+        // and that loading checks the setting first (ClassicUiTests).
+        var setters = Game.GetTypes().SelectMany(MethodsOf)
+            .Where(m => References(m).Any(r => r is MethodInfo { Name: "set_Skin" } set && set.DeclaringType == typeof(Ui)))
+            .Select(m => m.Name)
+            .Distinct()
+            .Order()
+            .ToList();
+        Assert.Equal(["ChooseTheme", "LoadSkin", "Presenter", "RequestSkin"], setters);
+    }
+
+    [Fact]
     public void The_reachability_walk_finds_classic_code_where_it_is_used()
     {
         // Positive controls: stage select reads the imported stages, and an import reads the install.

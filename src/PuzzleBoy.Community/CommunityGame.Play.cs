@@ -44,9 +44,17 @@ internal sealed partial class CommunityGame
             _save.Save();
         }
 
+        // Play's only cancel sound is an undo that took.
+        if (sounds.Contains(Sfx.Cancel))
+        {
+            _classic?.Clock.Undid();
+        }
+
         if (next == PlayNext.Pause)
         {
+            // The original's menu opens on Undo, Community's on Resume: each on its first item.
             _pauseMenu.Set(0);
+            _classicPauseMenu.Set(0);
             _helpOpen = false;
             _nav.Open(Screen.Paused);
         }
@@ -101,23 +109,65 @@ internal sealed partial class CommunityGame
             DrawDefaultBoard(session);
         }
 
+        // The Classic theme with a schema 2 pack: the original's HUD, and its rules page as help's first page.
+        var original = ClassicMenus;
+        var paused = _nav.Current == Screen.Paused;
+        if (original)
+        {
+            _classic!.DrawHud();
+            if (paused && _helpOpen && _helpPage == 0)
+            {
+                _classic.DrawHelp();
+            }
+        }
+
         _ui.Begin();
-        DrawHud(session);
+        if (!original)
+        {
+            DrawHud(session);
+        }
+
         if (session.Board.IsCleared && session.ClearTicks > 0)
         {
-            DrawCelebration(session);
+            if (original)
+            {
+                DrawClassicClear(session);
+            }
+            else
+            {
+                DrawCelebration(session);
+            }
         }
-        else if (session.Ticks < IntroTicks || ShowsHint(session))
+        else if ((session.Ticks < IntroTicks || ShowsHint(session)) && !(original && paused))
         {
             DrawIntro(session);
         }
 
-        if (_nav.Current == Screen.Paused)
+        if (paused)
         {
-            DrawPaused();
+            if (original)
+            {
+                DrawClassicPaused();
+            }
+            else
+            {
+                DrawPaused();
+            }
         }
 
         _ui.End();
+    }
+
+    /// <summary>
+    /// Under the original's COMPLETE!, what Community adds to a clear: the moves, the time, a new best and what's next, in
+    /// the original's font.
+    /// </summary>
+    private void DrawClassicClear(PlaySession session)
+    {
+        var moves = session.Moves == 1 ? "1 move" : $"{session.Moves} moves";
+        _ui.Text(Font.BodyBold, 28, $"{moves}  ·  {FormatTime(session.ElapsedTicks / 30.0)}{(_newBest ? "  ·  New best!" : "")}", new Vector2(640, 458), _ui["cream"], 0.5f);
+        var next = _playtest ? "Back to the editor" : session.HasNext ? $"Next: {session.StageAt(session.Index + 1).Title}" : "Pack complete!";
+        _ui.Text(Font.Body, 22, next, new Vector2(640, 496), _ui["bandOnDark"], 0.5f);
     }
 
     /// <summary>

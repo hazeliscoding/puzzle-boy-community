@@ -100,6 +100,7 @@ internal sealed partial class CommunityGame
             {
                 _classicStatus = ClassicStages.Remove(_save.Folder) ?? "Your classic pack was removed from your data folder. Your progress on the classic stages is kept.";
                 DescribeClassic();
+                RequestSkin();
             }
 
             _classicConfirmRemove = pick is null;
@@ -187,6 +188,7 @@ internal sealed partial class CommunityGame
             var result = folder is null ? ClassicImport.FromSteam(_save.Folder) : ClassicImport.FromFolder(folder, _save.Folder);
             _classicStatus = result.Message;
             DescribeClassic();
+            RequestSkin();
             _sounds.Play(result.Imported ? Sfx.Goal : Sfx.Buzz);
         });
 
@@ -210,7 +212,7 @@ internal sealed partial class CommunityGame
             _ui.Wrapped(Font.Body, 17, _classicStatus, new Vector2(x + 24, below + 12), width - 48, _ui["ember"]);
         }
 
-        _ui.Hints([("Up Down", "Choose"), ("Enter", "Select"), ("Esc", "Back")], 640, 660, _ui["cream"], 17);
+        _ui.Hints(MenuHints(("Up Down", "Choose"), ("Enter", "Select"), ("Esc", "Back")), 640, 660, _ui["cream"], 17);
         if (_classicPath is not null)
         {
             _ui.Rect(0, 0, VirtualScreen.Width, VirtualScreen.Height, _ui["ink"] * 0.6f);
