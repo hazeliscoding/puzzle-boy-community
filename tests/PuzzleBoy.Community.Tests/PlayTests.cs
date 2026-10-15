@@ -119,6 +119,29 @@ public class PlayTests
     }
 
     [Fact]
+    public void Undo_after_a_restart_brings_back_the_board_the_count_and_the_undo_history()
+    {
+        var session = At("first-steps/nudge");
+        Play(session, Direction.PlusX);
+        Play(session, Direction.PlusX);
+        Play(session, Direction.PlusX);
+        Assert.Equal((3, 2), (session.Moves, session.UndoAvailable));
+
+        session.Restart();
+        session.Restart();
+        Assert.Equal((0, 1), (session.Moves, session.UndoAvailable));
+        Play(session, Direction.PlusY);
+
+        Assert.True(session.Undo());
+        Assert.Equal((3, 2), (session.Moves, session.UndoAvailable));
+        Assert.Equal((10, 8), (session.Board.Active.X, session.Board.Active.Y));
+        Assert.True(session.Undo());
+        Assert.True(session.Undo());
+        Assert.False(session.Undo());
+        Assert.Equal((1, 0), (session.Moves, session.UndoAvailable));
+    }
+
+    [Fact]
     public void Switching_needs_more_than_one_visible_character() =>
         Assert.False(At("first-steps/nudge").Switch());
 

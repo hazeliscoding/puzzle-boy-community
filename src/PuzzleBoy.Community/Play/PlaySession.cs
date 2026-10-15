@@ -37,6 +37,9 @@ internal sealed class PlaySession
     // The move count at each push or turn the board can still undo, oldest first, mirroring the engine's history.
     private readonly List<int> _undoMoves = [];
 
+    // The play a restart threw away, which an undo with nothing left since brings back; null when there's none.
+    private (Board Board, int Moves, int[] UndoMoves, int ElapsedTicks, Direction?[] Facings)? _beforeRestart;
+
     /// <summary>Starts stage <paramref name="index"/> of <paramref name="stages"/>.</summary>
     public PlaySession(IReadOnlyList<PackStage> stages, int index)
     {
@@ -67,8 +70,8 @@ internal sealed class PlaySession
     /// <summary>Steps taken since the stage started; an undo returns it to what it was before the undone push or turn.</summary>
     public int Moves { get; private set; }
 
-    /// <summary>How many pushes and turns can still be undone, at most 30.</summary>
-    public int UndoAvailable => _undoMoves.Count;
+    /// <summary>How many pushes and turns can still be undone, at most 30, plus one for a restart that can be.</summary>
+    public int UndoAvailable => _undoMoves.Count + (_beforeRestart is null ? 0 : 1);
 
     /// <summary>Ticks since the stage started or restarted.</summary>
     public int Ticks { get; private set; }
@@ -133,16 +136,35 @@ internal sealed class PlaySession
         return result;
     }
 
-    /// <summary>Takes back the last push or turn and any walking since. False when there's nothing to undo.</summary>
+    /// <summary>
+    /// Takes back the last push or turn and any walking since, or, with none left since a restart, the restart itself.
+    /// False when there's nothing to undo.
+    /// </summary>
     public bool Undo()
     {
-        if (Board.IsCleared || !Board.Undo())
+        if (Board.IsCleared)
         {
             return false;
         }
 
-        Moves = _undoMoves[^1];
-        _undoMoves.RemoveAt(_undoMoves.Count - 1);
+        if (Board.Undo())
+        {
+            Moves = _undoMoves[^1];
+            _undoMoves.RemoveAt(_undoMoves.Count - 1);
+        }
+        else if (_beforeRestart is { } before)
+        {
+            // The old board keeps its own history, so undo goes on from there. The clock counts both stretches.
+            (Board, Moves, ElapsedTicks, Facings) = (before.Board, before.Moves, before.ElapsedTicks + ElapsedTicks, before.Facings);
+            _undoMoves.Clear();
+            _undoMoves.AddRange(before.UndoMoves);
+            _beforeRestart = null;
+        }
+        else
+        {
+            return false;
+        }
+
         Animation = null;
         return true;
     }
@@ -150,10 +172,18 @@ internal sealed class PlaySession
     /// <summary>Hands control to the next visible character. False, changing nothing, unless <see cref="CanSwitch"/>.</summary>
     public bool Switch() => CanSwitch && Animation is null && Board.Switch();
 
-    /// <summary>Starts the stage again.</summary>
+    /// <summary>
+    /// Starts the stage again. Restart sits a key away from the turn keys, so <see cref="Undo"/> can take it back; a
+    /// restart with no step since keeps the earlier one undoable.
+    /// </summary>
     public void Restart()
     {
-        Board.Retry();
+        if (Moves > 0)
+        {
+            _beforeRestart = (Board, Moves, [.. _undoMoves], ElapsedTicks, Facings);
+        }
+
+        Board = new Board(Stage.Stage);
         Reset();
     }
 
@@ -167,6 +197,7 @@ internal sealed class PlaySession
 
         Index++;
         Board = new Board(Stage.Stage);
+        _beforeRestart = null;
         Reset();
         return true;
     }

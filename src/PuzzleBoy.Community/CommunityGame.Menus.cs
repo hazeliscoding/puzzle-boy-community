@@ -585,7 +585,7 @@ internal sealed partial class CommunityGame
     {
         _ui.Panel(200, 56, 880, 604, _ui["hat"] * 0.97f);
         _ui.Text(Font.TitleBold, 36, "HOW TO PLAY", new Vector2(640, 80), _ui["cream"], 0.5f, 2);
-        var height = _ui.Wrapped(Font.Body, 20, "Lead Pixel Jack to the glowing goal. Walk into a block to push it; it moves only if all of it can. Push a block entirely over holes and it drops in, making floor. Push a swivel's arm and it turns around its center. Undo takes back your last push or turn.", new Vector2(250, 134), 780, _ui["cream"]);
+        var height = _ui.Wrapped(Font.Body, 20, "Lead Pixel Jack to the glowing goal. Walk into a block to push it; it moves only if all of it can. Push a block entirely over holes and it drops in, making floor. Push a swivel's arm and it turns around its center. Undo takes back your last push or turn, or a restart.", new Vector2(250, 134), 780, _ui["cream"]);
         (string Keys, string Pad, string Action)[] rows =
         [
             ("Arrows / WASD", "D-pad / stick", "Move (hold to keep walking)"),
