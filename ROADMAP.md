@@ -85,7 +85,7 @@ The handoff's M7.
 
 - [ ] Self-contained archives for win-x64, linux-x64, osx-arm64 and osx-x64, with `content/` inside.
 - [ ] CI unpacks each archive and runs the smoke checks; Windows and Linux start the real window.
-- [ ] Changelog, credits, troubleshooting and the signing status.
+- [ ] Changelog, credits, troubleshooting and the signing status. `THIRD_PARTY_NOTICES.txt` (each shipped library's license, with OpenAL Soft's LGPL and its exact source) and `LICENSE` are copied beside the game on every build and publish, and a test fails when a package the game ships isn't in it. Still to do: put the OpenAL Soft source link in each release's notes, as the LGPL asks.
 
 **Done when** a tagged release publishes only after the 12-stage minimum, the editor, provenance, smoke tests and archive checks pass.
 

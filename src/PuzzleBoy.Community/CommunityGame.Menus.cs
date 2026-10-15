@@ -548,6 +548,7 @@ internal sealed partial class CommunityGame
         Section("PUZZLE BOY COMMUNITY EDITION", "Game, stages, Pixel Jack, music and sound by the Puzzle Boy Community authors. Code and original content under the Apache License 2.0.");
         Section("FONTS", "Atkinson Hyperlegible by the Braille Institute of America (Elliott Scott, Megan Eiswerth, Linus Boman, Theodore Petrosky).\nSilkscreen by Jason Kottke. Both under the SIL Open Font License 1.1.");
         Section("COLORS", "Block colors from the Okabe-Ito colorblind-safe palette.");
+        Section("LIBRARIES", "MonoGame (Ms-PL), SDL2 and FontStashSharp (zlib), OpenAL Soft (LGPL 2), StbTrueTypeSharp and StbImageSharp (public domain), NVorbis and Cyotek.Drawing.BitmapFont (MIT). Their notices are in THIRD_PARTY_NOTICES.txt beside the game.");
         Section("INSPIRATION", Notice);
         DrawMenu(_backMenu, ["Back"], CreditsBack, 26);
         _ui.End();

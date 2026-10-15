@@ -15,6 +15,7 @@ These are the working rules for agents in this repo. Puzzle Boy Community Editio
 - **Content holds only `.json`, `.md`, `.txt`, `.ttf`, `.png`, `.wav` and `.ogg` files,** and no links. The tests and `scripts/check-content.sh` both enforce it.
 - `scripts/known-atlus-layouts.txt` holds irreversible SHA-256 fingerprints of the 50 Nocturne stage layouts (`LayoutFingerprint`, a full and a terrain-only one each), used only to reject copies: the tests fail if a bundled stage matches one, even rotated, mirrored, moved or regrouped. It can't be turned back into a layout. Never change the fingerprint algorithm without regenerating it, which needs the game's files and so happens outside this repo.
 - **The default game must start with nothing but this repo's build.** No Nocturne, Steam, network or dev checkout on the startup path.
+- **Every package the game ships is in `THIRD_PARTY_NOTICES.txt`** with its license text; it and `LICENSE` are copied beside the game, and a test fails for a package missing from it. Add the notice with any new dependency.
 - **No secrets or private paths** in committed files.
 
 ## Commands
