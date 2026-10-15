@@ -452,11 +452,11 @@ internal static partial class PackArchive
     }
 
     /// <summary>True for what macOS's Compress adds to a zip: a <c>__MACOSX/</c> folder and <c>.DS_Store</c> files.</summary>
-    private static bool IsFinderData(string name) =>
+    internal static bool IsFinderData(string name) =>
         name.StartsWith("__MACOSX/", StringComparison.Ordinal) || name == ".DS_Store" || name.EndsWith("/.DS_Store", StringComparison.Ordinal);
 
     /// <summary>Why an entry name can't be in a pack, or null when it's a plain relative path.</summary>
-    private static string? CheckName(string name) =>
+    internal static string? CheckName(string name) =>
         name.Length == 0 ? "has no name."
         : name.StartsWith("//", StringComparison.Ordinal) || name.StartsWith(@"\\", StringComparison.Ordinal) ? "is a network (UNC) path."
         : name.Contains('\\') ? "uses backslashes; a pack's paths use /."

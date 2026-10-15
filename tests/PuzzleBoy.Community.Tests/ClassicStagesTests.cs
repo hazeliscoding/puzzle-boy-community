@@ -16,14 +16,15 @@ public class ClassicStagesTests
         "....",
         "2...");
 
-    /// <summary>A fake import of every classic file, each a handmade stage, stored the way a real import stores it.</summary>
+    /// <summary>A classic pack whose every stage file is a handmade stage, imported the way the game imports one.</summary>
     private static TempFolder Imported(Stage? stage = null)
     {
         var temp = new TempFolder();
-        var files = ClassicStages.Original.Concat(ClassicStages.Bonus).ToDictionary(f => f, _ => (stage ?? Small).ToFile());
-        Assert.Null(ClassicStages.Store(temp.Path, "handmade", files));
+        ClassicFixture.ImportPack(temp.Path, stage ?? Small);
         return temp;
     }
+
+    private static List<StagePack> Load(string dataDir, List<string>? problems = null) => ClassicStages.Load(dataDir, problems ?? [], ClassicFixture.Open);
 
     [Fact]
     public void The_original_order_is_exactly_the_twenty_documented_files() =>
@@ -47,7 +48,7 @@ public class ClassicStagesTests
     {
         using var temp = new TempFolder();
         var problems = new List<string>();
-        Assert.Empty(ClassicStages.Load(temp.Path, problems));
+        Assert.Empty(Load(temp.Path, problems));
         Assert.Empty(problems);
         Assert.Empty(Directory.EnumerateFileSystemEntries(temp.Path));
     }
@@ -57,29 +58,28 @@ public class ClassicStagesTests
     {
         using var temp = Imported();
         var problems = new List<string>();
-        var packs = ClassicStages.Load(temp.Path, problems);
+        var packs = Load(temp.Path, problems);
         Assert.Empty(problems);
         Assert.Equal([ClassicStages.OriginalTitle, ClassicStages.BonusTitle], packs.Select(p => p.Title));
         Assert.Equal(ClassicStages.Original.Select(f => $"classic/original/{f:D2}"), packs[0].Stages.Select(s => s.Id));
         Assert.Equal(ClassicStages.Bonus.Select(f => $"classic/bonus/{f:D2}"), packs[1].Stages.Select(s => s.Id));
         Assert.Equal(["Stage 1", "Stage 20"], new[] { packs[0].Stages[0].Title, packs[0].Stages[^1].Title });
         Assert.Equal(Small.ToFile(), packs[1].Stages[0].Stage.ToFile());
-        Assert.Equal(828, new FileInfo(Path.Combine(ClassicStages.Folder(temp.Path), "stages", "pbMap02.map")).Length);
     }
 
     [Fact]
-    public void A_missing_changed_or_unreadable_classic_file_is_left_out_with_a_notice_and_the_rest_still_load()
+    public void A_missing_changed_or_unreadable_file_of_an_earlier_stage_only_import_is_left_out_and_the_rest_still_load()
     {
         using var temp = new TempFolder();
         var files = ClassicStages.Original.Concat(ClassicStages.Bonus).ToDictionary(f => f, _ => Small.ToFile());
         files[32] = "not a stage"u8.ToArray();
-        Assert.Null(ClassicStages.Store(temp.Path, "handmade", files));
+        ClassicFixture.StoreLegacy(temp.Path, files);
         var stages = Path.Combine(ClassicStages.Folder(temp.Path), "stages");
         File.Delete(Path.Combine(stages, "pbMap02.map"));
         File.WriteAllBytes(Path.Combine(stages, "pbMap01.map"), Pair.ToFile());
 
         var problems = new List<string>();
-        var packs = ClassicStages.Load(temp.Path, problems);
+        var packs = Load(temp.Path, problems);
         Assert.Equal(3, problems.Count);
         Assert.Contains(problems, p => p.Contains("pbMap02.map: the file is missing", StringComparison.Ordinal));
         Assert.Contains(problems, p => p.Contains("pbMap01.map: the file changed since the import", StringComparison.Ordinal));
@@ -88,6 +88,27 @@ public class ClassicStagesTests
         Assert.Equal("classic/original/04", packs[0].Stages[0].Id);
         Assert.Equal(22, packs[1].Stages.Count);
         Assert.Equal("classic/bonus/30", packs[1].Stages[0].Id);
+    }
+
+    [Fact]
+    public void A_stage_missing_from_the_packs_bundle_or_unreadable_is_left_out_and_the_rest_still_load()
+    {
+        using var temp = new TempFolder();
+        var files = ClassicFixture.AllStages(Small);
+        files.Remove(2);
+        files[32] = "not a stage"u8.ToArray();
+        var source = ClassicFixture.GameFolder(temp.Path, files);
+        var data = Path.Combine(temp.Path, "data");
+        var result = ClassicImport.FromFolder(source, data, ClassicFixture.Open);
+        Assert.Equal((18, 23), (result.Original, result.Bonus));
+        Assert.Contains("Left out: classic/stages/pbMap02.map: it isn't in the pazzleboy bundle.", result.Message);
+
+        var problems = new List<string>();
+        var packs = Load(data, problems);
+        Assert.Equal(2, problems.Count);
+        Assert.Contains(problems, p => p.Contains("pbMap32.map: it can't be read as a stage", StringComparison.Ordinal));
+        Assert.Equal("classic/original/04", packs[0].Stages[0].Id);
+        Assert.Equal(23, packs[1].Stages.Count);
     }
 
     [Fact]
@@ -101,7 +122,7 @@ public class ClassicStagesTests
 
         Assert.Null(ClassicStages.Remove(temp.Path));
         Assert.False(Directory.Exists(ClassicStages.Folder(temp.Path)));
-        Assert.Empty(ClassicStages.Load(temp.Path, []));
+        Assert.Empty(Load(temp.Path));
         Assert.True(SaveStore.Load(temp.Path).Data.IsCompleted("classic/original/02"));
         Assert.Single(CustomStages.List(temp.Path));
     }
@@ -110,7 +131,7 @@ public class ClassicStagesTests
     public void A_classic_stage_is_never_one_of_the_players_stages_and_a_copy_of_one_is_refused_in_a_pack()
     {
         using var temp = Imported();
-        var classic = ClassicStages.Load(temp.Path, [])[0].Stages[0].Stage;
+        var classic = Load(temp.Path)[0].Stages[0].Stage;
         Assert.Empty(CustomStages.List(temp.Path));
 
         // The real known-layout list holds every Nocturne stage file's fingerprints; a scratch one holds this stage's.
@@ -125,7 +146,7 @@ public class ClassicStagesTests
     public void The_switch_hands_control_over_on_a_multi_character_classic_stage()
     {
         using var temp = Imported(Pair);
-        var bonus = ClassicStages.Load(temp.Path, [])[1];
+        var bonus = Load(temp.Path)[1];
         var session = new PlaySession(bonus.Stages, 0);
         var first = session.Board.Active;
         Assert.True(session.CanSwitch);

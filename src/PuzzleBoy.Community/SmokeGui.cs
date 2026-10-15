@@ -550,7 +550,7 @@ internal sealed class SmokeGui(string titlePng, string? screensDir = null)
     }
 
     /// <summary>
-    /// On the settings screen with Display focused, opens Import Classic, saves it and goes back to settings. It never
+    /// On the settings screen with Display focused, opens Classic Nocturne, saves it and goes back to settings. It never
     /// chooses an import.
     /// </summary>
     private IEnumerable<Keys[]> ImportClassic(CommunityGame game)
@@ -562,7 +562,7 @@ internal sealed class SmokeGui(string titlePng, string? screensDir = null)
 
         if (game.CurrentScreen != Screen.ImportClassic)
         {
-            Fail(game, $"settings' Import Classic Content opened {game.CurrentScreen}");
+            Fail(game, $"settings' Classic Nocturne opened {game.CurrentScreen}");
             yield break;
         }
 

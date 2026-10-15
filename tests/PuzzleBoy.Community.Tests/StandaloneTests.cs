@@ -170,15 +170,19 @@ public class StandaloneTests
         Assert.DoesNotContain(Reachable(Method(typeof(ClassicStages), "Load")), m => m.DeclaringType == typeof(ClassicSource) || m.DeclaringType == typeof(ClassicImport));
 
     [Fact]
-    public void Only_the_import_screen_and_its_command_start_an_import()
+    public void Only_the_classic_screen_and_its_commands_import_or_export_a_classic_pack()
     {
         var callers = Game.GetTypes().SelectMany(MethodsOf)
             .Where(m => m.DeclaringType?.Namespace != ClassicNamespace && References(m).Any(r => Owner(r) == typeof(ClassicImport)))
-            // A local function compiles to <Main>$g__Name|0_1; its own name is what matters.
-            .Select(m => $"{m.DeclaringType!.Name}.{(System.Text.RegularExpressions.Regex.Match(m.Name, @"^<.*>g__(\w+)\|").Groups[1] is { Success: true } local ? local.Value : m.Name)}")
+            // A local function compiles to <Main>$g__Name|0_1 and a lambda to <Name>b__12_0, in a closure class nested in
+            // its method's type; the method's own name and outer type are what matter.
+            .Select(m => $"{Outermost(m.DeclaringType!).Name}.{(System.Text.RegularExpressions.Regex.Match(m.Name, @"^<.*>g__(\w+)\||^<(\w+)>b__") is { Success: true } match ? match.Groups[1].Value + match.Groups[2].Value : m.Name)}")
+            .Distinct()
             .Order()
             .ToList();
-        Assert.Equal(["CommunityGame.RunClassicImport", "Program.ImportClassic"], callers);
+        Assert.Equal(["CommunityGame.RunClassicImport", "CommunityGame.UpdateImportClassic", "Program.ExportClassic", "Program.ImportClassic"], callers);
+
+        static Type Outermost(Type type) => type.DeclaringType is { } outer ? Outermost(outer) : type;
     }
 
     [Fact]

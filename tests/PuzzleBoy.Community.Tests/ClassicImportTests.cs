@@ -21,7 +21,7 @@ public class ClassicImportTests
         using var temp = new TempFolder();
         var data = Path.Combine(temp.Path, "data");
         var result = ClassicImport.Import(ClassicSource.Find([temp.Path, Path.Combine(temp.Path, "steamapps", "common", "smt3hd")]), data, folder: null);
-        Assert.Equal("Couldn't find Shin Megami Tensei III Nocturne HD Remaster beside this game or in your Steam libraries. Choose Enter Folder Path and type the folder that holds smt3hd.exe.", result.Message);
+        Assert.Equal("Couldn't find Shin Megami Tensei III Nocturne HD Remaster beside this game or in your Steam libraries. Choose Import from a Folder or Zip and type the folder that holds smt3hd.exe.", result.Message);
         NothingImported(result, data);
     }
 
@@ -35,7 +35,7 @@ public class ClassicImportTests
         using var temp = new TempFolder();
         var data = Path.Combine(temp.Path, "data");
         var result = ClassicImport.FromFolder(typed, data);
-        Assert.Equal("Type the folder that holds smt3hd.exe.", result.Message);
+        Assert.Equal("Type the folder that holds smt3hd.exe, or the path of a classic pack.", result.Message);
         NothingImported(result, data);
     }
 
@@ -70,13 +70,14 @@ public class ClassicImportTests
     {
         using var temp = new TempFolder();
         var data = Path.Combine(temp.Path, "data");
+        ClassicFixture.WriteBundles(Path.GetDirectoryName(Path.Combine(temp.Path, file))!, ClassicFixture.AllStages(SolverTests.Draw("1.b.G")));
         temp.Write(file, "This is not a Unity bundle, just text with the bundle's name.");
         var install = ClassicSource.At(Path.Combine(temp.Path, folder));
         Assert.NotNull(install);
         Assert.Equal(Path.GetFullPath(Path.Combine(temp.Path, file)), install.BundlePath);
 
-        var result = ClassicImport.FromFolder(Path.Combine(temp.Path, folder), data);
-        Assert.StartsWith($"The Puzzle Boy bundle at {install.BundlePath} can't be read (", result.Message);
+        var result = ClassicImport.FromFolder(Path.Combine(temp.Path, folder), data, ClassicFixture.Open);
+        Assert.StartsWith($"The pazzleboy bundle at {install.BundlePath} can't be read (it isn't a UnityFS bundle)", result.Message);
         Assert.EndsWith("so nothing was imported. In Steam, verify the game's files (Properties, Installed Files), then try again.", result.Message);
         NothingImported(result, data);
 
@@ -89,8 +90,9 @@ public class ClassicImportTests
     {
         using var temp = new TempFolder();
         var data = Path.Combine(temp.Path, "data");
+        ClassicFixture.WriteBundles(Path.Combine(temp.Path, "bundles"), ClassicFixture.AllStages(SolverTests.Draw("1.b.G")));
         temp.Write("bundles/pazzleboy", "");
-        var result = ClassicImport.FromFolder(Path.Combine(temp.Path, "bundles"), data);
+        var result = ClassicImport.FromFolder(Path.Combine(temp.Path, "bundles"), data, ClassicFixture.Open);
         Assert.Contains("can't be read", result.Message);
         NothingImported(result, data);
     }
@@ -126,27 +128,43 @@ public class ClassicImportTests
         using var temp = new TempFolder();
         var data = Path.Combine(temp.Path, "data");
         var bundle = Path.Combine(temp.Path, "bundles", "pazzleboy");
-        Directory.CreateDirectory(Path.GetDirectoryName(bundle)!);
+        ClassicFixture.WriteBundles(Path.GetDirectoryName(bundle)!, ClassicFixture.AllStages(SolverTests.Draw("1.b.G")));
         File.WriteAllBytes(bundle, HeaderDeclaringHugeSizes(flags));
 
-        var result = ClassicImport.FromFolder(Path.Combine(temp.Path, "bundles"), data);
-        Assert.StartsWith($"The Puzzle Boy bundle at {bundle} can't be read (", result.Message);
+        var result = ClassicImport.FromFolder(Path.Combine(temp.Path, "bundles"), data, ClassicFixture.Open);
+        Assert.StartsWith($"The pazzleboy bundle at {bundle} can't be read (its header declares sizes", result.Message);
         NothingImported(result, data);
         File.Delete(bundle);
     }
 
     [Fact]
-    public void A_failed_import_leaves_an_earlier_import_as_it_was()
+    public void A_failed_import_leaves_an_earlier_stage_only_import_as_it_was()
     {
         using var temp = new TempFolder();
         var stage = SolverTests.Draw("1.b.G").ToFile();
-        Assert.Null(ClassicStages.Store(temp.Path, "handmade", ClassicStages.Original.ToDictionary(f => f, _ => stage)));
+        ClassicFixture.StoreLegacy(temp.Path, ClassicStages.Original.ToDictionary(f => f, _ => stage));
         var index = File.ReadAllText(Path.Combine(ClassicStages.Folder(temp.Path), "index.json"));
-        temp.Write("bundles/pazzleboy", "garbage");
+        ClassicFixture.WriteBundles(Path.Combine(temp.Path, "bundles"), ClassicFixture.AllStages(SolverTests.Draw("1.b.G")));
+        temp.Write("bundles/common", "garbage");
 
-        Assert.False(ClassicImport.FromFolder(Path.Combine(temp.Path, "bundles"), temp.Path).Imported);
+        Assert.False(ClassicImport.FromFolder(Path.Combine(temp.Path, "bundles"), temp.Path, ClassicFixture.Open).Imported);
         Assert.Equal(index, File.ReadAllText(Path.Combine(ClassicStages.Folder(temp.Path), "index.json")));
         Assert.Equal(20, ClassicStages.Load(temp.Path, [])[0].Stages.Count);
+        Assert.Equal(["classic"], Directory.EnumerateFileSystemEntries(temp.Path).Select(Path.GetFileName).Where(n => n!.StartsWith("classic", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public void A_folder_with_the_stages_but_not_every_bundle_the_theme_needs_names_the_missing_one()
+    {
+        using var temp = new TempFolder();
+        var data = Path.Combine(temp.Path, "data");
+        var game = ClassicFixture.GameFolder(temp.Path, ClassicFixture.AllStages(SolverTests.Draw("1.b.G")));
+        var common = Path.Combine(game, "smt3hd_Data", "StreamingAssets", "PC", "common");
+        File.Delete(common);
+
+        var result = ClassicImport.FromFolder(game, data, ClassicFixture.Open);
+        Assert.Equal($"{game} has the Puzzle Boy stages but not the common bundle the Classic theme needs ({Path.GetFullPath(common)}). In Steam, verify the game's files (Properties, Installed Files), then try again.", result.Message);
+        NothingImported(result, data);
     }
 
     [Fact]

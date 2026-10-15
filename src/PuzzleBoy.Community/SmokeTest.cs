@@ -60,6 +60,7 @@ internal static class SmokeTest
         if (dataDir is not null && problems.Count == 0)
         {
             var classic = ClassicStages.Load(dataDir, problems);
+            CheckClassicTheme(dataDir, output, problems);
             var known = PackArchive.ReadKnown() ?? [];
             if (classic.Count == 0 && problems.Count == 0)
             {
@@ -83,6 +84,37 @@ internal static class SmokeTest
 
         output.WriteLine(problems.Count == 0 ? "smoke test passed" : "smoke test failed");
         return problems.Count == 0 ? 0 : 1;
+    }
+
+    /// <summary>
+    /// Checks the classic pack in <paramref name="dataDir"/>, if there is one, against its manifest and decodes the Classic
+    /// theme's assets from it, as the first classic stage played would.
+    /// </summary>
+    private static void CheckClassicTheme(string dataDir, TextWriter output, List<string> problems)
+    {
+        var folder = ClassicStages.Folder(dataDir);
+        if (!ClassicPack.IsIn(folder))
+        {
+            return;
+        }
+
+        if (ClassicPack.Open(folder, checkHashes: true, out var problem) is not { } pack)
+        {
+            problems.Add($"classic pack: {problem}");
+            return;
+        }
+
+        try
+        {
+            var assets = ClassicAssetCache.Load(pack);
+            output.WriteLine($"classic pack: {pack.Origin}, {pack.Files.Count} files, {pack.Size:N0} bytes, every SHA-256 matches");
+            output.WriteLine($"classic theme: {assets.Summary}");
+        }
+        catch (Exception e)
+        {
+            // The bundle reader throws all sorts for a damaged bundle.
+            problems.Add($"classic theme: its assets can't be decoded ({e.GetType().Name}: {e.Message})");
+        }
     }
 
     /// <summary>Takes the first step that isn't refused on a fresh board of <paramref name="stage"/> and reports it.</summary>

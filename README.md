@@ -20,11 +20,11 @@ Guide Pixel Jack, a pumpkin in a witch's hat, to the goal by pushing blocks, tur
 
 It plays on [puzzle-boy-engine](https://github.com/hazeliscoding/puzzle-boy-engine), the rules shared with [puzzle-boy](https://github.com/hazeliscoding/puzzle-boy), a preservation port that reads the original stages from your own copy of Nocturne. The engine isn't published yet.
 
-## Optional: play the classic stages from your own copy
+## Optional: the Classic Nocturne theme from your own copy
 
-If you own *Shin Megami Tensei III Nocturne HD Remaster*, Settings → Import Classic Content can copy its Puzzle Boy stage files into your data folder. Stage select then adds Classic: Original 20, the original's stages in its order, and Classic: Bonus, 23 unused stages from the game that a solution clears. You never need this: the game starts and plays without it, and never looks for Nocturne unless you ask.
+If you own *Shin Megami Tensei III Nocturne HD Remaster*, Settings → Classic Nocturne → Import from My Steam Install (or a folder you type) copies the three bundles the Classic theme reads into a classic pack in your data folder. Stage select then adds Classic: Original 20, the original's stages in its order, and Classic: Bonus, 23 unused stages from the game that a solution clears. You never need this: the game starts and plays without it, and never looks for Nocturne unless you ask.
 
-Nothing from Nocturne ships with this game or is downloaded. The import reads only your own install (found through Steam, or a folder you type), keeps the stage files in your data folder, and never puts them in an exported pack. Remove Classic Stages deletes them again. From a command line, `--import-classic <game folder>` does the same import.
+Nothing from Nocturne ships with this game or is downloaded. Export My Classic Pack writes a zip you can import on your other computers; it's made from your own copy, so don't share it. Remove Classic Pack deletes it again. From a command line, `--import-classic <game folder or pack zip>` and `--export-classic` do the same.
 
 ## Build
 

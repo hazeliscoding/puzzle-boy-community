@@ -210,7 +210,7 @@ public class AppTests
         Assert.Equal("1728 × 972", SettingsMenu.Value(settings, 1, (1920, 1080)));
         Assert.Equal("110%", SettingsMenu.Value(settings, 2));
         Assert.Equal("Windowed", SettingsMenu.Value(settings, 0));
-        Assert.Equal(["Import Classic Content", "Reset to defaults", "Back"], SettingsMenu.Labels[SettingsMenu.ImportRow..]);
+        Assert.Equal(["Classic Nocturne", "Reset to defaults", "Back"], SettingsMenu.Labels[SettingsMenu.ImportRow..]);
         Assert.Equal("", SettingsMenu.Value(settings, SettingsMenu.ResetRow));
         Assert.False(SettingsMenu.HasValue(SettingsMenu.BackRow));
     }

@@ -9,7 +9,7 @@ namespace PuzzleBoy.Community.App;
 /// </summary>
 internal static class SettingsMenu
 {
-    /// <summary>The row that opens the optional classic import.</summary>
+    /// <summary>The row that opens the optional Classic Nocturne screen: import, export and remove the classic pack.</summary>
     public const int ImportRow = 8;
 
     /// <summary>The row that resets every setting, after a confirmation.</summary>
@@ -22,7 +22,7 @@ internal static class SettingsMenu
     public static readonly string[] Labels =
     [
         "Display", "Window size", "UI scale", "Music volume", "Sound volume", "Mute", "Reduce motion", "High contrast",
-        "Import Classic Content", "Reset to defaults", "Back",
+        "Classic Nocturne", "Reset to defaults", "Back",
     ];
 
     // Volumes in tenths, 0 to 1.

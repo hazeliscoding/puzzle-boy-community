@@ -63,11 +63,16 @@ if (Array.IndexOf(args, "--import-classic") is var classicAt and >= 0)
 {
     if (classicAt + 1 >= args.Length)
     {
-        Console.Error.WriteLine("--import-classic needs the game's folder, the one that holds smt3hd.exe.");
+        Console.Error.WriteLine("--import-classic needs the game's folder (the one that holds smt3hd.exe), or a classic pack's zip or folder.");
         return 2;
     }
 
     return ImportClassic(args[classicAt + 1], dataDir);
+}
+
+if (args.Contains("--export-classic"))
+{
+    return ExportClassic(dataDir);
 }
 
 var problems = new List<string>();
@@ -134,11 +139,19 @@ int Run(bool multisampling)
     return game.ExitCode;
 }
 
-// The only way a launch reaches the classic import: the player asked for it by name.
+// The only ways a launch reaches the classic import or export: the player asked for it by name.
 static int ImportClassic(string folder, string dataDir)
 {
     Console.OutputEncoding = System.Text.Encoding.UTF8;
     var result = ClassicImport.FromFolder(folder, dataDir);
     Console.WriteLine(result.Message);
     return result.Imported ? 0 : 1;
+}
+
+static int ExportClassic(string dataDir)
+{
+    Console.OutputEncoding = System.Text.Encoding.UTF8;
+    var zip = ClassicImport.Export(dataDir, out var message);
+    Console.WriteLine(message);
+    return zip is null ? 1 : 0;
 }
