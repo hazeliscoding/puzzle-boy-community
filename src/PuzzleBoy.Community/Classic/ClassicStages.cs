@@ -49,20 +49,44 @@ internal static class ClassicStages
     /// <summary>The classic folder in <paramref name="dataDir"/>, which holds the classic pack.</summary>
     public static string Folder(string dataDir) => Path.Combine(dataDir, "classic");
 
+    /// <summary>The folder beside the executable where a personal build may carry its owner's classic pack.</summary>
+    public const string BesideName = "classic-pack";
+
+    /// <summary>
+    /// The classic pack the game uses: the one imported into <paramref name="dataDir"/> when there is one, else one in a
+    /// <see cref="BesideName"/> folder beside the executable (<paramref name="besideExe"/>, by default the game's own
+    /// folder), else the data folder's, which then holds none. A pack beside the executable is only ever read: it's
+    /// checked like an imported one, and never copied or written to.
+    /// </summary>
+    public static string PackFolder(string dataDir, string? besideExe = null)
+    {
+        var imported = Folder(dataDir);
+        if (ClassicPack.IsIn(imported))
+        {
+            return imported;
+        }
+
+        var beside = Path.Combine(besideExe ?? AppContext.BaseDirectory, BesideName);
+        return ClassicPack.IsIn(beside) ? beside : imported;
+    }
+
     /// <summary>
     /// The imported campaigns, <see cref="OriginalTitle"/> then <see cref="BonusTitle"/>, each in its documented order:
-    /// none when nothing was imported. A classic pack is checked against its manifest first. A stage that's missing,
+    /// none when nothing was imported. The classic pack <see cref="PackFolder"/> finds (beside <paramref name="besideExe"/>
+    /// when the data folder has none) is checked against its manifest first. A stage that's missing,
     /// changed since a stage-only import or unreadable is left out, with a sentence in <paramref name="problems"/>; the rest
     /// still load. A campaign with no stage is left out. <paramref name="open"/> reads a pack's folder; the default is
     /// the engine's reader.
     /// </summary>
-    public static List<StagePack> Load(string dataDir, List<string> problems, Func<string, IClassicAssetSource>? open = null)
+    public static List<StagePack> Load(string dataDir, List<string> problems, Func<string, IClassicAssetSource>? open = null, string? besideExe = null)
     {
-        var folder = Folder(dataDir);
-        if (ClassicPack.IsIn(folder))
+        var pack = PackFolder(dataDir, besideExe);
+        if (ClassicPack.IsIn(pack))
         {
-            return FromPack(folder, problems, open ?? (f => new ClassicPackSource(f, ui: false)));
+            return FromPack(pack, problems, open ?? (f => new ClassicPackSource(f, ui: false)));
         }
+
+        var folder = Folder(dataDir);
 
         // A stage-only import from an earlier version still plays, with the same stage ids, until a pack replaces it.
         var indexPath = Path.Combine(folder, "index.json");

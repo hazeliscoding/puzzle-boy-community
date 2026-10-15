@@ -235,7 +235,7 @@ internal static class ClassicImport
     /// </summary>
     public static string? Export(string dataDir, out string message)
     {
-        var folder = ClassicStages.Folder(dataDir);
+        var folder = ClassicStages.PackFolder(dataDir);
         if (!ClassicPack.IsIn(folder))
         {
             message = "There's no classic pack to export yet. Import one from your Nocturne install first.";

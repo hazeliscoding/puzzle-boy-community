@@ -381,7 +381,7 @@ internal sealed partial class CommunityGame : Game
         (_playPack, _playtest, _newBest) = (pack, false, false);
         _session = new PlaySession(pack.Stages, index);
         (_classic, _themePending, _themeShown) = (null, false, false);
-        if (_save.Data.Settings.Theme != Themes.Default && ClassicPack.IsIn(ClassicStages.Folder(_save.Folder)))
+        if (_save.Data.Settings.Theme != Themes.Default && ClassicPack.IsIn(ClassicStages.PackFolder(_save.Folder)))
         {
             _themePending = true;
         }
@@ -401,7 +401,7 @@ internal sealed partial class CommunityGame : Game
     {
         _classic = null;
         var setting = _save.Data.Settings.Theme;
-        var folder = ClassicStages.Folder(_save.Folder);
+        var folder = ClassicStages.PackFolder(_save.Folder);
         var present = ClassicPack.IsIn(folder);
         string? problem = null;
         var pack = setting != Themes.Default && present ? ClassicPack.Open(folder, checkHashes: true, out problem) : null;

@@ -52,7 +52,8 @@ else:
 for name, (mode, member) in files.items():
     if name.lower().endswith(".map"):
         problems.append(f"{name}: stage file")
-    if posixpath.basename(name).lower() == "classic-pack.json" or "smt3hd_data/" in name.lower():
+    # A classic pack beside the executable (classic-pack/) is how a personal build carries the owner's own; never a release.
+    if posixpath.basename(name).lower() == "classic-pack.json" or "smt3hd_data/" in name.lower() or "classic-pack" in name.lower().split("/")[:-1]:
         problems.append(f"{name}: part of a classic pack, which is the player's own and never ships")
     head = read(member, 12)
     if head.startswith(b"UnityFS"):

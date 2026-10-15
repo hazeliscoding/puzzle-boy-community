@@ -42,11 +42,15 @@ internal sealed partial class CommunityGame
         _nav.Open(Screen.ImportClassic);
     }
 
-    /// <summary>Says what classic pack the data folder holds, from its manifest; the files are checked when they're used.</summary>
+    /// <summary>
+    /// Says what classic pack the game uses, from its manifest: the data folder's, or one beside the game. The files are
+    /// checked when they're used.
+    /// </summary>
     private void DescribeClassic()
     {
-        var folder = ClassicStages.Folder(_save.Folder);
-        _classicHasPack = Directory.Exists(folder);
+        var folder = ClassicStages.PackFolder(_save.Folder);
+        var beside = folder != ClassicStages.Folder(_save.Folder);
+        _classicHasPack = Directory.Exists(ClassicStages.Folder(_save.Folder));
         if (!ClassicPack.IsIn(folder))
         {
             var legacy = ClassicStages.Load(_save.Folder, []).Sum(p => p.Stages.Count);
@@ -56,9 +60,10 @@ internal sealed partial class CommunityGame
             return;
         }
 
+        var place = beside ? $"The classic pack beside the game, in {folder}, is used read-only; importing one puts it in your data folder instead. " : "";
         if (ClassicPack.Open(folder, checkHashes: false, out var problem) is not { } pack)
         {
-            _classicSummary = $"Your classic pack can't be used. {problem}";
+            _classicSummary = $"{place}Your classic pack can't be used. {problem}";
             return;
         }
 
@@ -66,7 +71,7 @@ internal sealed partial class CommunityGame
         var where = pack.Origin == ClassicPack.Licensed
             ? $"Licensed pack from {pack.Licensor}, under {pack.License}{made}."
             : $"Made from your own copy{made}{(pack.CreatedFrom is { } from ? $", from {from}" : "")}.";
-        _classicSummary = $"{where} {pack.Size / 1e6:0.0} MB.{(pack.HasUi ? "" : $" {ReimportNotice}")}";
+        _classicSummary = $"{place}{where} {pack.Size / 1e6:0.0} MB.{(pack.HasUi ? "" : $" {ReimportNotice}")}";
     }
 
     private void UpdateImportClassic(Controls controls)
@@ -125,7 +130,9 @@ internal sealed partial class CommunityGame
                 });
                 break;
             case 3 when !_classicHasPack:
-                _classicStatus = "There's no classic pack to remove.";
+                _classicStatus = ClassicPack.IsIn(ClassicStages.PackFolder(_save.Folder))
+                    ? "The classic pack beside the game is never changed from here. Delete its classic-pack folder yourself to stop using it."
+                    : "There's no classic pack to remove.";
                 _sounds.Play(Sfx.Buzz);
                 break;
             case 3:

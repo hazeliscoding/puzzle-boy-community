@@ -87,12 +87,12 @@ internal static class SmokeTest
     }
 
     /// <summary>
-    /// Checks the classic pack in <paramref name="dataDir"/>, if there is one, against its manifest and decodes the Classic
-    /// theme's assets from it, as the first classic stage played would.
+    /// Checks the classic pack the game uses with <paramref name="dataDir"/> (its own, or one beside the game), if there is
+    /// one, against its manifest and decodes the Classic theme's assets from it, as the first classic stage played would.
     /// </summary>
     private static void CheckClassicTheme(string dataDir, TextWriter output, List<string> problems)
     {
-        var folder = ClassicStages.Folder(dataDir);
+        var folder = ClassicStages.PackFolder(dataDir);
         if (!ClassicPack.IsIn(folder))
         {
             return;

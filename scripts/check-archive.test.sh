@@ -47,6 +47,8 @@ if fault == "classic pack bundle":
     files["classic/smt3hd_Data/StreamingAssets/PC/common"] = b"UnityFS\0\0\0\0\6"
 if fault == "classic pack layout":
     files["classic/smt3hd_Data/StreamingAssets/PC/notes.txt"] = b"x"
+if fault == "classic pack beside the executable":
+    files["classic-pack/README.txt"] = b"x"
 if fault == "parent path":
     files["../evil.txt"] = b"x"
 if fault == "absolute path":
@@ -99,6 +101,8 @@ expect fail "classic pack manifest" tar.gz
 expect fail "classic pack bundle" zip
 expect fail "classic pack bundle" tar.gz
 expect fail "classic pack layout" tar.gz
+expect fail "classic pack beside the executable" zip
+expect fail "classic pack beside the executable" tar.gz
 expect fail "parent path" zip
 expect fail "parent path" tar.gz
 expect fail "absolute path" tar.gz
