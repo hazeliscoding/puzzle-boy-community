@@ -61,7 +61,11 @@ internal readonly record struct Controls(KeyboardState Keys, KeyboardState Previ
 {
     private const float StickThreshold = 0.5f;
 
-    /// <summary>The keys for each command. Esc and Backspace mean Back in menus, and Pause and Undo in play.</summary>
+    /// <summary>
+    /// The keys for each command. Esc and Backspace mean Back in menus, and Pause and Undo in play. The original's PC keys
+    /// work in both themes: F opens the menu (□), Enter or Space confirms, Backspace cancels, Tab scrolls (△), V switches
+    /// the view (○) and Q and E turn it (L1 and R1).
+    /// </summary>
     public static readonly IReadOnlyDictionary<Command, Keys[]> KeyMap = new Dictionary<Command, Keys[]>
     {
         [Command.Up] = [Microsoft.Xna.Framework.Input.Keys.Up, Microsoft.Xna.Framework.Input.Keys.W],
@@ -76,7 +80,7 @@ internal readonly record struct Controls(KeyboardState Keys, KeyboardState Previ
         [Command.Switch] = [Microsoft.Xna.Framework.Input.Keys.C],
         [Command.Undo] = [Microsoft.Xna.Framework.Input.Keys.Z, Microsoft.Xna.Framework.Input.Keys.Back],
         [Command.Restart] = [Microsoft.Xna.Framework.Input.Keys.R],
-        [Command.Pause] = [Microsoft.Xna.Framework.Input.Keys.Escape, Microsoft.Xna.Framework.Input.Keys.P],
+        [Command.Pause] = [Microsoft.Xna.Framework.Input.Keys.Escape, Microsoft.Xna.Framework.Input.Keys.P, Microsoft.Xna.Framework.Input.Keys.F],
         [Command.Scroll] = [Microsoft.Xna.Framework.Input.Keys.Tab],
     };
 

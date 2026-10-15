@@ -221,4 +221,42 @@ public class ThemeSwitchTests
         // turn of 12 ticks per quarter, ends well after.
         Assert.True(yaws.FindIndex(y => y == -360f) + 1 > lastLeft + 7);
     }
+
+    [Theory]
+    [InlineData(Keys.F, true)]
+    [InlineData(Keys.Escape, true)]
+    [InlineData(Keys.P, true)]
+    [InlineData(Keys.Tab, false)]
+    [InlineData(Keys.Back, false)]
+    public void The_originals_keys_and_communitys_do_the_same_in_both_themes(Keys key, bool pauses)
+    {
+        (PlayNext Next, bool Scroll, int Moves, List<Sfx> Sounds) Press(bool classic)
+        {
+            var session = new PlaySession([new PackStage("t/keys", "Keys", SolverTests.Draw("1b..G"))], 0);
+            var camera = new CameraRig();
+            var view = classic ? new ClassicStageView(ClassicFixture.Character) : null;
+            var sounds = new List<Sfx>();
+            var next = PlayNext.Play;
+            for (var tick = 0; tick < 40; tick++)
+            {
+                // A push first, so Backspace has something to undo; then the key, once the step has played.
+                Keys[] held = tick == 5 ? [Keys.Right] : tick == 30 ? [key] : [];
+                camera.Tick();
+                next = PlayTick.Run(session, camera, view, Controls.FromKeys(held), playtest: false, null, sounds, [], out _);
+                if (next != PlayNext.Play)
+                {
+                    break;
+                }
+            }
+
+            return (next, session.Scroll is not null, session.Moves, sounds);
+        }
+
+        var (standard, classic) = (Press(classic: false), Press(classic: true));
+        Assert.Equal(pauses ? PlayNext.Pause : PlayNext.Play, standard.Next);
+        Assert.Equal((standard.Next, standard.Scroll, standard.Moves), (classic.Next, classic.Scroll, classic.Moves));
+        Assert.Equal(standard.Sounds, classic.Sounds);
+        Assert.Equal(key == Keys.Tab, standard.Scroll);
+        Assert.Equal(key == Keys.Back ? 0 : 1, standard.Moves);
+    }
 }

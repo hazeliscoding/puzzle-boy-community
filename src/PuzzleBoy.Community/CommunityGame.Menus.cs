@@ -258,7 +258,7 @@ internal sealed partial class CommunityGame
     {
         if (_helpOpen)
         {
-            if (Cancelled(controls) || controls.Pressed(Command.Confirm) || _clicked)
+            if (Cancelled(controls) || controls.Pressed(Command.Confirm) || controls.Pressed(Command.Pause) || _clicked)
             {
                 _helpOpen = false;
                 Sound(Sfx.Cancel);
@@ -885,7 +885,7 @@ internal sealed partial class CommunityGame
             ("Z / Backspace", "B", "Undo"),
             ("R", "Back", "Restart"),
             ("C", "X", "Switch character"),
-            ("Esc / P", "Start", "Pause"),
+            ("Esc / P / F", "Start", "Pause"),
             ("Enter  Esc", "A  B", "Choose and go back in menus"),
         ];
         var y = 134 + height + 8;
