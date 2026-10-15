@@ -15,7 +15,7 @@ Push blocks, turn swivels and fill holes to reach the goal, with the minigame's 
 - Level packs: export your stages as a `.zip` to share, and import other players' packs, each checked before it's added. See [docs/packs.md](docs/packs.md).
 - Progress and settings saved on your computer, with a backup if the file is ever damaged. No account, no network.
 - Settings for fullscreen, window size, UI scale, music and sound volume, mute, reduced motion and high contrast.
-- Keyboard, mouse and controller. Undo, restart, a turning camera and an overhead view.
+- Keyboard, mouse and controller. Undo, restart, a turning camera, an overhead view and the original's scroll mode.
 - The Default theme's graphics are drawn and its music synthesized in code: nothing to download after you unpack it.
 - The Classic Nocturne theme, from your own copy, for every stage: the campaign, your own, imported packs, and the original's 20 stages and 23 unused bonus stages.
 
