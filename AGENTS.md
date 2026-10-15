@@ -23,7 +23,8 @@ These are the working rules for agents in this repo. Puzzle Boy Community Editio
 - `dotnet build PuzzleBoy.Community.slnx` builds everything. Warnings are errors.
 - `dotnet test --solution PuzzleBoy.Community.slnx` runs the tests. They never need Nocturne.
 - `dotnet format PuzzleBoy.Community.slnx --verify-no-changes` checks the style CI will enforce.
-- `dotnet run --project src/PuzzleBoy.Community` starts the game.
+- `dotnet run --project src/PuzzleBoy.Community` starts the game. Arrows or WASD move (hold to keep walking), Q and E turn the view, V switches to overhead, C switches character on stages with more than one, Z or Backspace undoes, R restarts, Esc or P pauses. Menus take arrows, Enter or Space, Esc or Backspace for Back, and the mouse. A gamepad works too: d-pad or stick, A, B (Back in menus, undo in play), LB/RB, Y, X, Start.
+- `dotnet run --project src/PuzzleBoy.Community -- --smoke-gui <png>` opens the real window, saves the title to `<png>`, starts stage 1 through the Play menu item, takes one step and saves the stage beside it with a `-stage` suffix. It exits 0 only if both were saved and the step moved the character. Look at both pictures after a visual change.
 - `dotnet run --project src/PuzzleBoy.Community -- --smoke-test` checks, with no window, the `content/` beside the built game: provenance, manifest, packs, fonts, and a step on the first stage. It exits 0 or 1 with a short report (on Windows the report shows only when output is redirected).
 - `dotnet run --project tools/PuzzleBoy.StageCheck -- <stage.json | pack folder> [--cap N] [--known <list>]` validates each stage, finds a shortest solution (at most N states, default 2,000,000; "search limit reached" never means unsolvable) and checks its fingerprints against `scripts/known-atlus-layouts.txt`, a copy of which sits beside the tool. It exits 1 for an invalid, unsolvable or known stage. Run it on every new stage.
 - `scripts/check-content.sh` fails if a tracked file holds Atlus data or decompiler output. `scripts/check-content.test.sh` is its positive control: it plants each kind in a scratch repo and expects a failure. When you add a new kind, add both a check and a planted case.
@@ -32,6 +33,10 @@ These are the working rules for agents in this repo. Puzzle Boy Community Editio
 ## Code layout
 
 - `src/PuzzleBoy.Community`: the MonoGame (DesktopGL) game, assembly `PuzzleBoyCommunity`. No content pipeline.
+  - `App/`: the screens (`Navigator`), menu focus (`MenuList`), input as commands (`Controls`) and the 1280×720 virtual screen. Plain classes, tested without a graphics device.
+  - `Play/`: a stage in play (`PlaySession`, around the engine's `Board`), step animations and the camera, whose quarter turns turn the controls with the view as in the original.
+  - `Graphics/` and `Audio/`: everything drawn and heard, made in code: lit boxes from one generated texture, Pixel Jack as voxels from the theme's mark, text through FontStashSharp, and chiptune sound rendered at startup. No audio device means silence.
+  - `CommunityGame*.cs`: the window, split into the screen loop, the menus and play.
   - `Content/`: reading `content/` safely. `ContentManifest` reads `manifest.json` and its packs, `StagePack` a pack's `pack.json` and stages (through the engine's `StageDocument`), `Provenance` checks `provenance.json`, `LayoutFingerprint` and `KnownLayouts` catch copies of Nocturne layouts. Every path stays inside its folder, nothing follows a link, every file has a size cap, and bad input becomes a list of problems, never an exception.
 - `content/`: the built-in content, copied beside the executable on build and publish. `manifest.json` lists the theme, the fonts and the packs; each pack is a folder with a `pack.json` and engine stage JSON files.
 - `tools/PuzzleBoy.StageCheck`: the stage tool. It compiles the game's `Content/` sources in, so it carries no MonoGame. `Solver` searches breadth-first with the engine's `Board` making every move.
