@@ -8,12 +8,13 @@ namespace PuzzleBoy.Community;
 /// <summary>
 /// <c>--smoke-gui &lt;png&gt;</c>: drives the real window from the title into stage 1 through the same menu and play code a
 /// player uses, and saves what it drew. It proves a build opens a window, renders and plays. With a screens folder
-/// (<c>--smoke-gui-screens</c>) it also visits stage select, settings (turning fullscreen on and off there), the pause
-/// menu and help on the way and saves each.
+/// (<c>--smoke-gui-screens</c>) it also visits stage select, settings (turning fullscreen on and off there), credits, the
+/// pause menu and help on the way and saves each.
 /// </summary>
 /// <param name="titlePng">Where to write the title screenshot; the stage one goes beside it with a <c>-stage</c> suffix.</param>
 /// <param name="screensDir">
-/// A folder for <c>title.png</c>, <c>stage-select.png</c>, <c>settings.png</c>, <c>playing.png</c>, <c>pause.png</c> and <c>help.png</c>, or
+/// A folder for <c>title.png</c>, <c>stage-select.png</c>, <c>settings.png</c>, <c>credits.png</c>, <c>playing.png</c>,
+/// <c>pause.png</c> and <c>help.png</c>, or
 /// null to save only the two screenshots.
 /// </param>
 internal sealed class SmokeGui(string titlePng, string? screensDir = null)
@@ -99,7 +100,7 @@ internal sealed class SmokeGui(string titlePng, string? screensDir = null)
 
         if (ScreensDir is not null)
         {
-            // Title focus starts on Play. Down once is Stage Select; Back keeps the focus; two more is Settings.
+            // Title focus starts on Play. Down once is Stage Select; Back keeps the focus; two more is Settings, one more Credits.
             foreach (var tick in Visit(game, [Keys.Down], Screen.StageSelect, "stage-select.png"))
             {
                 yield return tick;
@@ -110,7 +111,12 @@ internal sealed class SmokeGui(string titlePng, string? screensDir = null)
                 yield return tick;
             }
 
-            foreach (var tick in Press(Keys.Up, Keys.Up, Keys.Up))
+            foreach (var tick in Visit(game, [Keys.Down], Screen.Credits, "credits.png"))
+            {
+                yield return tick;
+            }
+
+            foreach (var tick in Press(Keys.Up, Keys.Up, Keys.Up, Keys.Up))
             {
                 yield return tick;
             }

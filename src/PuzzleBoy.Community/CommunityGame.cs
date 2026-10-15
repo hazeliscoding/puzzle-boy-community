@@ -183,7 +183,7 @@ internal sealed partial class CommunityGame : Game
                 break;
             default:
                 // Credits and the placeholders hold a single Back.
-                if (RunMenu(_backMenu, controls, BackButton) is not null || Cancelled(controls))
+                if (RunMenu(_backMenu, controls, _nav.Current == Screen.Credits ? CreditsBack : BackButton) is not null || Cancelled(controls))
                 {
                     GoBack();
                 }

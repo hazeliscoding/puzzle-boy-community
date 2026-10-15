@@ -44,6 +44,9 @@ internal sealed partial class CommunityGame
     private static readonly MenuLayout SelectMenu = new(72, 150, 580, 50);
     private static readonly MenuLayout BackButton = new(540, 600, 200, 54);
 
+    // Credits run nearly to the bottom, so their Back sits lower.
+    private static readonly MenuLayout CreditsBack = new(540, 652, 200, 54);
+
     /// <summary>Where stage <paramref name="index"/> of <paramref name="stages"/> stands in the player's progress.</summary>
     internal static StageStatus StatusOf(SaveData data, IReadOnlyList<Content.PackStage> stages, int index) =>
         data.IsCompleted(stages[index].Id) ? StageStatus.Cleared : data.IsUnlocked(stages, index) ? StageStatus.Open : StageStatus.Locked;
@@ -532,20 +535,21 @@ internal sealed partial class CommunityGame
         DrawDrift(0.4f);
         _ui.Begin();
         Heading("CREDITS");
-        var (x, width) = (220f, 840f);
-        var y = 170f;
+        // Wide lines and tight sections leave room for UI scale 120% above Back.
+        var (x, width) = (120f, 1040f);
+        var y = 140f;
         void Section(string title, string text)
         {
-            _ui.Text(Font.Title, 18, title, new Vector2(x, y), _ui["ember"], spacing: 2);
-            y += 30;
-            y += _ui.Wrapped(Font.Body, 21, text, new Vector2(x, y), width, _ui["cream"]) + 16;
+            _ui.Text(Font.Title, 16, title, new Vector2(x, y), _ui["ember"], spacing: 2);
+            y += 24;
+            y += _ui.Wrapped(Font.Body, 19, text, new Vector2(x, y), width, _ui["cream"], 1.3f) + 10;
         }
 
         Section("PUZZLE BOY COMMUNITY EDITION", "Game, stages, Pixel Jack, music and sound by the Puzzle Boy Community authors. Code and original content under the Apache License 2.0.");
         Section("FONTS", "Atkinson Hyperlegible by the Braille Institute of America (Elliott Scott, Megan Eiswerth, Linus Boman, Theodore Petrosky).\nSilkscreen by Jason Kottke. Both under the SIL Open Font License 1.1.");
         Section("COLORS", "Block colors from the Okabe-Ito colorblind-safe palette.");
         Section("INSPIRATION", Notice);
-        DrawMenu(_backMenu, ["Back"], BackButton, 26);
+        DrawMenu(_backMenu, ["Back"], CreditsBack, 26);
         _ui.End();
     }
 
