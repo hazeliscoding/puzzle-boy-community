@@ -51,7 +51,7 @@ The handoff's M3.
 
 The handoff's M4.
 
-- [x] At least 12 original stages (aim for 20), covering walking, blocks, holes, swivels, combinations and a character-switch tutorial. 20 stages: StageCheck found every one valid, solved (7 to 161 inputs, no search limit reached) and not a known layout; `SolutionTests` replay all 20; `--smoke-gui` played the first three and Make Way (2026.10.15).
+- [x] At least 12 original stages (aim for 20), covering walking, blocks, holes, swivels, combinations and a character-switch tutorial. 20 stages: StageCheck found every one valid, solved (7 to 161 inputs, no search limit reached) and not a known layout; `SolutionTests` replay all 20; `--smoke-gui` opened the first three and Make Way in the real window and took a step on each (2026.10.15); no stage has been cleared by hand yet.
 - [x] Stage select with locked and completed states, best moves and time. Each state has an icon and a word, and the focused stage shows a preview of how it starts. `--smoke-gui-screens` on a fresh profile and on one with stage 1 cleared showed both, and Play resumed at stage 2 (2026.10.15).
 - [x] Progress and settings saved locally and atomically, with recovery from a damaged file. `SaveTests` cover a relaunch, the backup, a crash before the replace, a stale temp file, a corrupted save, a schema 0 migration, a newer schema and an unwritable folder.
 - [x] Pause, help and settings; keyboard, mouse and controller. Menus read the same commands from keys, the d-pad and stick, and the mouse and wheel. Only the keyboard path has run in the real window (the smoke tour); the mouse and a real gamepad haven't been tried by hand.

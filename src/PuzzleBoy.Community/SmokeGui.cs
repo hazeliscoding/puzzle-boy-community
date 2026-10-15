@@ -6,8 +6,9 @@ using PuzzleBoy.Rules;
 namespace PuzzleBoy.Community;
 
 /// <summary>
-/// <c>--smoke-gui &lt;png&gt;</c>: drives the real window from the title into stage 1 through the same menu and play code a
-/// player uses, and saves what it drew. It proves a build opens a window, renders and plays. With a screens folder
+/// <c>--smoke-gui &lt;png&gt;</c>: drives the real window from the title into the stage Play picks (stage 1 on a fresh
+/// profile) through the same menu and play code a player uses, takes one step and saves what it drew. It proves a build
+/// opens a window, renders and takes input; it never plays a stage through. With a screens folder
 /// (<c>--smoke-gui-screens</c>) it also visits stage select, settings (turning fullscreen on and off there), credits, the
 /// pause menu and help on the way and saves each.
 /// </summary>

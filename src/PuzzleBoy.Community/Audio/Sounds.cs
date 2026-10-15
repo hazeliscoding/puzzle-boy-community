@@ -31,7 +31,7 @@ internal sealed class Sounds : IDisposable
         }
         catch (Exception e) when (e is NoAudioHardwareException or InvalidOperationException or DllNotFoundException or TypeInitializationException)
         {
-            // shortcut: silence with no message when there's no audio device; settings (C2) can say so.
+            // No audio device: play silently; the settings screen says so.
             Silent = true;
         }
     }
