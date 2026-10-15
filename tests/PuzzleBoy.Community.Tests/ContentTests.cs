@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using PuzzleBoy.Community.Content;
+using PuzzleBoy.Community.Graphics;
 using PuzzleBoy.Rules;
 
 namespace PuzzleBoy.Community.Tests;
@@ -33,6 +34,21 @@ public class ContentTests
     [Fact]
     public void The_built_in_campaign_has_at_least_twelve_stages() =>
         Assert.True(BundledPacks([]).Sum(p => p.Stages.Count) >= 12, "C2 and the C5 release gate need at least 12 bundled stages.");
+
+    [Fact]
+    public void No_two_groups_in_a_bundled_stage_share_a_pattern()
+    {
+        foreach (var stage in BundledPacks([]).SelectMany(p => p.Stages))
+        {
+            var board = new Board(stage.Stage);
+            var groups = (from y in Enumerable.Range(0, Stage.Height)
+                          from x in Enumerable.Range(0, Stage.Width)
+                          let value = board[x, y]
+                          where Cell.KindOf(value) is CellKind.Block or CellKind.SwivelArm
+                          select Cell.GroupOf(value)).Distinct().ToList();
+            Assert.True(groups.Count == groups.Select(BoardRenderer.GroupPattern).Distinct().Count(), $"{stage.Id}: groups {string.Join(", ", groups.Order())} share a pattern.");
+        }
+    }
 
     [Fact]
     public void No_bundled_stage_copies_a_known_Nocturne_layout() => Assert.Empty(BundledCopiesOf(Repo.KnownLayouts));

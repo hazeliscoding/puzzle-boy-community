@@ -15,26 +15,29 @@ internal static class Atlas
     /// <summary>The first of <see cref="PatternCount"/> block patterns.</summary>
     public const int FirstPattern = 1;
 
-    /// <summary>How many block patterns there are.</summary>
-    public const int PatternCount = 6;
+    /// <summary>
+    /// How many block patterns there are: as many as the most groups in a bundled stage, so no two groups of one stage
+    /// share a pattern (a content test checks). None is a quarter turn of another, since the view turns.
+    /// </summary>
+    public const int PatternCount = 8;
 
     /// <summary>A swivel center's top: concentric rings around a pin.</summary>
-    public const int Pivot = 7;
+    public const int Pivot = 9;
 
     /// <summary>Plain white, no frame.</summary>
-    public const int White = 8;
+    public const int White = 10;
 
-    /// <summary>A soft ring, transparent inside and out, for the active character's marker.</summary>
-    public const int Ring = 9;
+    /// <summary>A soft ring, transparent inside and out, for the goal and the active character's marker.</summary>
+    public const int Ring = 11;
 
     /// <summary>A soft round glow fading to transparent at the edge.</summary>
-    public const int Glow = 10;
+    public const int Glow = 12;
 
     /// <summary>The side of a tile in pixels.</summary>
     public const int TileSize = 32;
 
     /// <summary>How many tiles the texture holds.</summary>
-    public const int TileCount = 11;
+    public const int TileCount = 13;
 
     /// <summary>The texture coordinates of tile <paramref name="tile"/>: left, top, right, bottom, kept half a texel in.</summary>
     public static Vector4 Uv(int tile)
@@ -78,6 +81,8 @@ internal static class Atlas
             FirstPattern + 3 => y % 8 < 3,
             FirstPattern + 4 => Math.Abs(cx) < 3 || Math.Abs(cy) < 3,
             FirstPattern + 5 => MathF.Abs(MathF.Abs(cx) + MathF.Abs(cy) - 9) < 2.5f,
+            FirstPattern + 6 => Math.Max(MathF.Abs(cx), MathF.Abs(cy)) is >= 5 and < 8,
+            FirstPattern + 7 => radius < 6.5f,
             Pivot => MathF.Abs(radius - 10) < 1.5f || radius < 4,
             _ => false,
         };

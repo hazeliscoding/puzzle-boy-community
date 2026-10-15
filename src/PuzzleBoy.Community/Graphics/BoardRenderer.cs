@@ -166,7 +166,10 @@ internal sealed class BoardRenderer : IDisposable
     /// <summary>The color of block group <paramref name="group"/>.</summary>
     public Color GroupColor(int group) => _theme.GroupColors[(group - 1) % _theme.GroupColors.Count];
 
-    /// <summary>The top pattern of block group <paramref name="group"/>. Six patterns against seven colors give 42 distinct pairs.</summary>
+    /// <summary>
+    /// The top pattern of block group <paramref name="group"/>. Groups 1 to 8 each have their own, so within a bundled
+    /// stage the pattern alone tells groups apart and color is never the only cue.
+    /// </summary>
     public static int GroupPattern(int group) => Atlas.FirstPattern + ((group - 1) % Atlas.PatternCount);
 
     /// <inheritdoc />
