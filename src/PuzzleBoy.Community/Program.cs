@@ -1,3 +1,4 @@
+using Microsoft.Xna.Framework.Graphics;
 using PuzzleBoy.Community;
 using PuzzleBoy.Community.Content;
 using PuzzleBoy.Community.Save;
@@ -69,6 +70,31 @@ if (manifest is null || !manifest.Packs.Any(p => p.Stages.Count > 0))
     return 1;
 }
 
-using var game = new CommunityGame(manifest, SaveStore.Load(dataDir), smoke);
-game.Run();
-return game.ExitCode;
+var save = SaveStore.Load(dataDir);
+
+// Some GL drivers (Mesa under WSLg, for one) offer no multisampled context, and MonoGame then can't create a device at
+// all. The game looks a little rougher without it but plays the same.
+try
+{
+    return Run(multisampling: true);
+}
+catch (NoSuitableGraphicsDeviceException)
+{
+    Console.Error.WriteLine("The graphics driver offers no antialiasing, so the game starts without it.");
+    try
+    {
+        return Run(multisampling: false);
+    }
+    catch (NoSuitableGraphicsDeviceException e)
+    {
+        Console.Error.WriteLine($"Puzzle Boy Community Edition can't start: no graphics device works here ({e.Message}).");
+        return 1;
+    }
+}
+
+int Run(bool multisampling)
+{
+    using var game = new CommunityGame(manifest, save, smoke, multisampling);
+    game.Run();
+    return game.ExitCode;
+}

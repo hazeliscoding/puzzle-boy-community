@@ -64,7 +64,11 @@ internal sealed partial class CommunityGame : Game
     /// <param name="manifest">The loaded content; it must hold at least one stage.</param>
     /// <param name="save">The player's settings and progress; clears are recorded and written to it.</param>
     /// <param name="smoke">The <c>--smoke-gui</c> run to drive, or null to play normally.</param>
-    public CommunityGame(ContentManifest manifest, SaveStore save, SmokeGui? smoke = null)
+    /// <param name="multisampling">
+    /// False asks for no antialiased back buffer, for a driver that offers none; <see cref="Game.Run()"/> throws
+    /// <see cref="NoSuitableGraphicsDeviceException"/> when the device can't be made.
+    /// </param>
+    public CommunityGame(ContentManifest manifest, SaveStore save, SmokeGui? smoke = null, bool multisampling = true)
     {
         _manifest = manifest;
         _save = save;
@@ -75,7 +79,7 @@ internal sealed partial class CommunityGame : Game
         {
             PreferredBackBufferWidth = VirtualScreen.Width,
             PreferredBackBufferHeight = VirtualScreen.Height,
-            PreferMultiSampling = true,
+            PreferMultiSampling = multisampling,
             GraphicsProfile = GraphicsProfile.HiDef,
         };
         Window.Title = "Puzzle Boy Community Edition";
