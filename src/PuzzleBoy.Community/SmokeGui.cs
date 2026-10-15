@@ -11,14 +11,16 @@ namespace PuzzleBoy.Community;
 /// profile) through the same menu and play code a player uses, takes one step and saves what it drew. It proves a build
 /// opens a window, renders and takes input; it never plays a stage through. With a screens folder
 /// (<c>--smoke-gui-screens</c>) it also visits stage select, settings (turning fullscreen on and off there), credits, the
-/// level editor (its list, a sample stage with a problem, a playtest and Solve), stage select's My Stages, the pause menu
-/// and help on the way and saves each.
+/// level editor (its list, a sample stage with a problem, a playtest, Solve and an export of the sample as a pack), stage
+/// select's My Stages, its Import tab (importing that pack and starting its stage), the pause menu and help on the way and
+/// saves each.
 /// </summary>
 /// <param name="titlePng">Where to write the title screenshot; the stage one goes beside it with a <c>-stage</c> suffix.</param>
 /// <param name="screensDir">
 /// A folder for <c>title.png</c>, <c>stage-select.png</c>, <c>settings.png</c>, <c>credits.png</c>,
-/// <c>editor-list.png</c>, <c>editor.png</c>, <c>playtest.png</c>, <c>editor-solve.png</c>, <c>my-stages.png</c>,
-/// <c>playing.png</c>, <c>pause.png</c> and <c>help.png</c>, or
+/// <c>editor-list.png</c>, <c>editor.png</c>, <c>playtest.png</c>, <c>editor-solve.png</c>, <c>export.png</c>,
+/// <c>my-stages.png</c>, <c>import.png</c> (and <c>import-conflict.png</c> when the pack is already there),
+/// <c>imported.png</c>, <c>imported-play.png</c>, <c>playing.png</c>, <c>pause.png</c> and <c>help.png</c>, or
 /// null to save only the two screenshots.
 /// </param>
 internal sealed class SmokeGui(string titlePng, string? screensDir = null)
@@ -126,10 +128,18 @@ internal sealed class SmokeGui(string titlePng, string? screensDir = null)
                 yield return tick;
             }
 
-            // Right is the My Stages tab, which holds the sample the editor visit saved.
-            foreach (var tick in Press(Keys.Up, Keys.Enter, Keys.Right))
+            // My Stages, which holds the sample the editor visit saved, is right of the bundled and imported packs.
+            foreach (var tick in Press(Keys.Up, Keys.Enter))
             {
                 yield return tick;
+            }
+
+            for (var tab = 0; tab < 16 && game.SelectPack is { PackId: not "custom" }; tab++)
+            {
+                foreach (var tick in Press(Keys.Right))
+                {
+                    yield return tick;
+                }
             }
 
             if (game.CurrentScreen != Screen.StageSelect || game.SelectPack is not { PackId: "custom", Stages: [{ Id: "custom/sample" }] })
@@ -138,7 +148,7 @@ internal sealed class SmokeGui(string titlePng, string? screensDir = null)
                 yield break;
             }
 
-            foreach (var tick in Shot(null, "my-stages.png").Concat(Press(Keys.Escape, Keys.Up)))
+            foreach (var tick in Shot(null, "my-stages.png").Concat(Import(game)).Concat(Press(Keys.Up)))
             {
                 yield return tick;
             }
@@ -351,9 +361,91 @@ internal sealed class SmokeGui(string titlePng, string? screensDir = null)
             yield break;
         }
 
-        foreach (var tick in Press(Keys.Escape))
+        // The list keeps the sample focused. Export as Pack is its third action; the panel opens on Export.
+        var zip = Path.Combine(Path.GetFullPath(Community.Save.PackArchive.ExportsFolder(game.Save.Folder)), "shared-stages.zip");
+        foreach (var tick in Press(Keys.Enter, Keys.Down, Keys.Down, Keys.Enter, Keys.Enter))
         {
             yield return tick;
+        }
+
+        if (!File.Exists(zip))
+        {
+            Fail(game, $"Export as Pack didn't write {zip}");
+            yield break;
+        }
+
+        foreach (var tick in Shot(null, "export.png").Concat(Press(Keys.Escape, Keys.Escape)))
+        {
+            yield return tick;
+        }
+    }
+
+    /// <summary>
+    /// On stage select's My Stages tab: puts the pack the editor visit exported in the imports folder, opens the Import
+    /// tab, imports it (keeping both if a pack of that id is already there), and starts its first stage. It ends back on
+    /// the title, with Stage Select focused.
+    /// </summary>
+    private IEnumerable<Keys[]> Import(CommunityGame game)
+    {
+        var imports = Community.Save.PackArchive.ImportsFolder(game.Save.Folder);
+        Directory.CreateDirectory(imports);
+        File.Copy(Path.Combine(Community.Save.PackArchive.ExportsFolder(game.Save.Folder), "shared-stages.zip"), Path.Combine(imports, "shared-stages.zip"), overwrite: true);
+        foreach (var tick in Press(Keys.Right))
+        {
+            yield return tick;
+        }
+
+        if (!game.ImportTabOpen)
+        {
+            Fail(game, "Right from My Stages didn't open the Import tab");
+            yield break;
+        }
+
+        var before = game.ImportedPacks.Count;
+        foreach (var tick in Shot(null, "import.png").Concat(Press(Keys.Enter)))
+        {
+            yield return tick;
+        }
+
+        if (game.ImportConflict)
+        {
+            foreach (var tick in Shot(null, "import-conflict.png").Concat(Press(Keys.Down, Keys.Enter)))
+            {
+                yield return tick;
+            }
+        }
+
+        if (game.ImportedPacks.Count != before + 1 || game.SelectPack is not { } pack || !game.ImportedPacks.Contains(pack))
+        {
+            Fail(game, "importing the exported pack didn't add its tab");
+            yield break;
+        }
+
+        foreach (var tick in Shot(null, "imported.png").Concat(Press(Keys.Enter)))
+        {
+            yield return tick;
+        }
+
+        if (game.CurrentScreen != Screen.Playing || game.Session is not { } session || session.Stage.Id != pack.Stages[0].Id)
+        {
+            Fail(game, "the imported pack's first stage didn't start");
+            yield break;
+        }
+
+        while (session.Ticks <= CommunityGame.StartLock)
+        {
+            yield return [];
+        }
+
+        // Up from Resume wraps to Quit to Title.
+        foreach (var tick in Shot(null, "imported-play.png").Concat(Press(Keys.Escape, Keys.Up, Keys.Enter)))
+        {
+            yield return tick;
+        }
+
+        if (game.CurrentScreen != Screen.Title)
+        {
+            Fail(game, "Quit to Title from the imported stage didn't reach the title");
         }
     }
 
