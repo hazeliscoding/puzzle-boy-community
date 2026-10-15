@@ -15,6 +15,9 @@ trap 'rm -rf "$work"' EXIT
 
 dotnet publish "$repo/src/PuzzleBoy.Community" --configuration Release --runtime "$rid" --self-contained --output "$work/app"
 
+# Debug symbols and API docs are for developers; the game needs neither.
+find "$work/app" -maxdepth 1 \( -name '*.pdb' -o -name '*.xml' \) -delete
+
 case "$rid" in
     win-*)
         name=puzzle-boy-community-$rid.zip
