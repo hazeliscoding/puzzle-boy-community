@@ -6,6 +6,15 @@ Guide Pixel Jack, a pumpkin in a witch's hat, to the goal by pushing blocks, tur
 
 > **Status:** early development, with nothing to download yet. See [ROADMAP.md](ROADMAP.md).
 
+## Features
+
+- Push blocks, turn swivels and fill holes with the same rules as the original, from puzzle-boy-engine.
+- Stage select with cleared, new and locked stages, your best moves and time, and a preview of each stage.
+- Progress and settings saved on your computer, with a backup if the file is ever damaged. No account, no network.
+- Settings for fullscreen, window size, UI scale, music and sound volume, mute, reduced motion and high contrast.
+- Keyboard, mouse and controller. Undo, restart, a turning camera and an overhead view.
+- Graphics drawn and music synthesized in code: nothing to download after you unpack it.
+
 It plays on [puzzle-boy-engine](https://github.com/hazeliscoding/puzzle-boy-engine), the rules shared with [puzzle-boy](https://github.com/hazeliscoding/puzzle-boy), a preservation port that reads the original stages from your own copy of Nocturne. The engine isn't published yet.
 
 ## Build

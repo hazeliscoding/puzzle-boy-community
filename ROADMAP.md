@@ -26,6 +26,11 @@ Puzzle Boy Community Edition is a standalone puzzle game on the Puzzle Boy rules
 - **Input follows the view,** as in the original: direction = (screen direction - view turns) mod 4, the preservation port's formula. A step waits for the last one's animation (4 ticks a walk, 5 a push or turn, 9 with a fall) and for a turn of the view to land.
 - **`--smoke-gui` runs by hand for now.** It needs a display, so CI doesn't run it until C5 adds one. Run it after a visual change and look at both pictures.
 - **The starter pack is a placeholder.** `first-steps` has three tiny stages (walk, first push, first hole) so the loader and the tests have real content. C2 replaces it with the campaign.
+- **Saves are one JSON file, `save.json`,** in `%APPDATA%\PuzzleBoyCommunity`, `~/Library/Application Support/PuzzleBoyCommunity` or `$XDG_DATA_HOME/puzzle-boy-community` (`~/.local/share/puzzle-boy-community` without it), or in the folder `--data-dir` names. Smoke runs use a fresh temp folder, never the player's. A write goes to `save.json.tmp`, is flushed, then replaces `save.json` with `File.Replace`, which keeps the old one as `save.json.bak`. A damaged save is copied to `save.json.damaged` and the backup loads, else defaults; either way a notice shows over the game for a few seconds and play goes on. A save from a newer schema is left untouched and this version doesn't write.
+- **Save schema 1** holds `settings` and `stages`, a map from stage id to `completed`, `bestMoves` and `bestTime` (seconds, from the stage starting to the clear, pauses excluded). Schema 0 is the legacy shape with no `schemaVersion`, `{ "cleared": [ids], "volume": 0..1 }`; it migrates to completed stages with no best, and one volume for music and sound. Values out of range are brought back in on load.
+- **A pack unlocks in order:** its first stage, every cleared stage and the stage after each cleared one. Play starts the first unlocked stage not yet cleared, in pack order, or the last stage once all are cleared.
+- **Settings apply at once and save on each change.** Fullscreen is borderless at the desktop's size. Window size is 75% to 200% of 1280×720, shrunk to fit the display. UI scale (90% to 120%) enlarges body text; the titles and the layout stay put. Reduce motion stops the drifting blocks, the title bob, the stars, the menu glow, the confetti and camera easing; steps still slide. High contrast draws text and panels opaque, hides the drifting blocks, and gives the board a flat lighter floor, ink walls and black pits.
+- **`--smoke-gui-screens <dir>`** walks the title, stage select, settings, play, pause and help through the real menus and saves each as a PNG, for checking a visual change and for the README.
 
 ## C1: Instant play
 
@@ -44,9 +49,9 @@ The handoff's M3.
 The handoff's M4.
 
 - [ ] At least 12 original stages (aim for 20), covering walking, blocks, holes, swivels, combinations and a character-switch tutorial.
-- [ ] Stage select with locked and completed states, best moves and time.
-- [ ] Progress and settings saved locally and atomically, with recovery from a damaged file.
-- [ ] Pause, help and settings; keyboard, mouse and controller.
+- [x] Stage select with locked and completed states, best moves and time. Each state has an icon and a word, and the focused stage shows a preview of how it starts. `--smoke-gui-screens` on a fresh profile and on one with stage 1 cleared showed both, and Play resumed at stage 2 (2026.10.15).
+- [x] Progress and settings saved locally and atomically, with recovery from a damaged file. `SaveTests` cover a relaunch, the backup, a crash before the replace, a stale temp file, a corrupted save, a schema 0 migration, a newer schema and an unwritable folder.
+- [x] Pause, help and settings; keyboard, mouse and controller. Menus read the same commands from keys, the d-pad and stick, and the mouse and wheel. Only the keyboard path has run in the real window (the smoke tour); the mouse and a real gamepad haven't been tried by hand.
 - [ ] Graphics and sound polish.
 
 **Done when** every bundled stage has a replay that clears it, a fresh profile works, saving and relaunching resumes progress, and every title option works.
@@ -83,7 +88,7 @@ The handoff's M7.
 
 ## Later
 
-- Controller remapping.
+- Key and controller remapping.
 - Hints built on the stage tool's solver.
 - More built-in packs.
 
