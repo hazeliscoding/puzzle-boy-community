@@ -48,7 +48,7 @@ If `save.json` is ever damaged, the game copies it to `save.json.damaged`, loads
 
 It needs your own copy of *Shin Megami Tensei III Nocturne HD Remaster*. Nothing from Nocturne comes with this game or is downloaded.
 
-- **Import:** Settings → Classic Nocturne → Import from My Steam Install. It looks beside the game and in your Steam libraries, and copies the three bundles the theme reads (about 86 MB) into `classic/`. If your copy is somewhere else, choose Import from a Folder or Zip and type the folder that holds `smt3hd.exe`.
+- **Import:** Settings → Classic Nocturne → Import from My Steam Install. It looks beside the game and in your Steam libraries, and copies the eight bundles the theme reads (about 120 MB) into `classic/`. A pack imported by version 0.1.0 has only three: it plays with Community's menus until you import again. If your copy is somewhere else, choose Import from a Folder or Zip and type the folder that holds `smt3hd.exe`.
 - **Export:** Export My Classic Pack writes `exports/puzzle-boy-classic-pack.zip`. Import that zip on your other computers, including a Mac, which has no Nocturne of its own. It's made from your own copy, for your own computers: don't share it.
 - **Theme:** Settings → Theme. Auto plays Classic when you have a pack and Default when you don't.
 - From a command line: `--import-classic <game folder, pack folder or zip>` and `--export-classic`.

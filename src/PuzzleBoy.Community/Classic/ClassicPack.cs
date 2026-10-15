@@ -26,11 +26,15 @@ internal sealed record ClassicPackFile(string Path, long Size, string Sha256);
 /// <param name="Licensor">Who licensed a licensed pack; null for a local import.</param>
 /// <param name="License">A licensed pack's license; null for a local import.</param>
 /// <param name="Evidence">A URL or text showing a licensed pack's rights; null for a local import.</param>
-/// <param name="Files">The bundles, one per name in <see cref="Bundles"/>.</param>
+/// <param name="Files">The bundles, one per name in <see cref="BundlesFor"/> its schema.</param>
+/// <param name="SchemaVersion">1, the board, Jack-o'-Lantern and sound only, or 2, which adds the UI and text bundles.</param>
 internal sealed record ClassicPack(
     string Folder, string Origin, string? CreatedFrom, string? Created, string? Licensor, string? License, string? Evidence,
-    IReadOnlyList<ClassicPackFile> Files)
+    IReadOnlyList<ClassicPackFile> Files, int SchemaVersion)
 {
+    /// <summary>The schema a new pack is written with.</summary>
+    public const int Schema = 2;
+
     /// <summary>The manifest's <c>format</c>.</summary>
     public const string Format = "puzzle-boy-classic-pack";
 
@@ -49,20 +53,36 @@ internal sealed record ClassicPack(
     /// <summary>The largest bundle a pack may hold; <c>common</c>, the largest, is 79 MB.</summary>
     public const long MaxBundleBytes = 128L * 1024 * 1024;
 
-    /// <summary>The most a pack may hold in all; the three bundles are about 86 MB.</summary>
+    /// <summary>The most a pack may hold in all; the eight bundles are about 120 MB.</summary>
     public const long MaxPackBytes = 160L * 1024 * 1024;
 
     private const string Again = "Import your classic pack again, from your Nocturne install or the pack you exported.";
 
-    // The last pack whose hashes were checked, so a session hashes its 86 MB once. A reference, so threads never see half of one.
+    // The last pack whose hashes were checked, so a session hashes its 120 MB once. A reference, so threads never see half of one.
     private static Tuple<string, ClassicPack>? _verified;
 
     /// <summary>
-    /// The bundles the Classic theme reads: <c>pazzleboy</c> (stages, board atlas, effects and music), <c>common</c>
-    /// (backdrop and toon ramp) and <c>dvl0x150</c> (Jack-o'-Lantern). No text bundle: the Manikin Kid's dialogue is in
-    /// <c>pazzleboy_en</c>, which no pack holds.
+    /// The bundles a schema 1 pack holds: <c>pazzleboy</c> (stages, board atlas, effects and music), <c>common</c>
+    /// (backdrop, toon ramp and the minigame's UI sheet) and <c>dvl0x150</c> (Jack-o'-Lantern).
     /// </summary>
-    public static IReadOnlyList<string> Bundles { get; } = ["pazzleboy", "common", "dvl0x150"];
+    public static IReadOnlyList<string> BoardBundles { get; } = ["pazzleboy", "common", "dvl0x150"];
+
+    /// <summary>
+    /// The bundles schema 2 adds for the Nocturne-styled interface: <c>ui_tex_en</c> (STAGE, COMPLETE! and UNDO),
+    /// <c>ui_tex_keyboard_en</c> (key prompts), <c>font-en</c> (the font), <c>pazzleboy_en</c> (help and menu text) and
+    /// <c>common_en</c> (the controls bar's words). <c>pazzleboy_en</c> also holds the Manikin Kid's lines, which the game
+    /// never shows.
+    /// </summary>
+    public static IReadOnlyList<string> UiBundles { get; } = ["ui_tex_en", "ui_tex_keyboard_en", "font-en", "pazzleboy_en", "common_en"];
+
+    /// <summary>The bundles a new pack holds: every one in <see cref="BoardBundles"/> and <see cref="UiBundles"/>.</summary>
+    public static IReadOnlyList<string> Bundles { get; } = [.. BoardBundles, .. UiBundles];
+
+    /// <summary>True when the pack has the UI and text bundles the Nocturne-styled interface reads.</summary>
+    public bool HasUi => SchemaVersion >= 2;
+
+    /// <summary>The bundles a pack of schema <paramref name="schema"/> holds.</summary>
+    public static IReadOnlyList<string> BundlesFor(int schema) => schema >= 2 ? Bundles : BoardBundles;
 
     /// <summary>All the files' sizes, in bytes.</summary>
     public long Size => Files.Sum(f => f.Size);
@@ -123,7 +143,7 @@ internal sealed record ClassicPack(
         var manifest = new JsonObject
         {
             ["format"] = Format,
-            ["schemaVersion"] = 1,
+            ["schemaVersion"] = Schema,
             ["origin"] = LocalImport,
             ["createdFrom"] = createdFrom,
             ["created"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture),
@@ -168,11 +188,11 @@ internal sealed record ClassicPack(
 
         if (!root.TryGetProperty("schemaVersion", out var version) || version.ValueKind != JsonValueKind.Number || !version.TryGetInt32(out var schema) || schema < 1)
         {
-            problem = $"{ManifestName} has no valid \"schemaVersion\"; it should be 1. {Again}";
+            problem = $"{ManifestName} has no valid \"schemaVersion\"; it should be {Schema}. {Again}";
             return null;
         }
 
-        if (schema > 1)
+        if (schema > Schema)
         {
             problem = $"This classic pack was made by a newer version of Puzzle Boy Community Edition (schema version {schema}). Update the game, or import from your own Nocturne install again.";
             return null;
@@ -199,14 +219,14 @@ internal sealed record ClassicPack(
             return null;
         }
 
-        var allowed = Bundles.Select(PathOf).ToList();
+        var allowed = BundlesFor(schema).Select(PathOf).ToList();
         var files = new List<ClassicPackFile>();
         foreach (var entry in list.EnumerateArray())
         {
             var path = ContentFile.String(entry, "path");
             if (path is null || !allowed.Contains(path))
             {
-                problem = $"{ManifestName} lists {(path is null ? "a file with no path" : $"\"{path}\"")}, which isn't one of the files a classic pack holds ({string.Join(", ", Bundles)} under smt3hd_Data/StreamingAssets/PC/). {Again}";
+                problem = $"{ManifestName} lists {(path is null ? "a file with no path" : $"\"{path}\"")}, which isn't one of the files a schema {schema} classic pack holds ({string.Join(", ", BundlesFor(schema))} under smt3hd_Data/StreamingAssets/PC/). {Again}";
                 return null;
             }
 
@@ -255,7 +275,7 @@ internal sealed record ClassicPack(
             }
         }
 
-        return new ClassicPack(folder, origin, ContentFile.String(root, "createdFrom"), ContentFile.String(root, "created"), licensor, license, evidence, files);
+        return new ClassicPack(folder, origin, ContentFile.String(root, "createdFrom"), ContentFile.String(root, "created"), licensor, license, evidence, files, schema);
     }
 
     // What makes a checked pack the same pack: its folder, its manifest and each file's size and time.

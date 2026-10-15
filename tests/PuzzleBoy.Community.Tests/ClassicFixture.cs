@@ -50,23 +50,29 @@ internal static class ClassicFixture
         ClassicStages.Original.Concat(ClassicStages.Bonus).ToDictionary(f => f, _ => stage.ToFile());
 
     /// <summary>
-    /// Writes the three bundles into <paramref name="bundleFolder"/>: <c>pazzleboy</c> with <paramref name="stages"/>, and
-    /// stand-ins for <c>common</c> and <c>dvl0x150</c>. Returns the folder.
+    /// Writes the bundles into <paramref name="bundleFolder"/>: <c>pazzleboy</c> with <paramref name="stages"/>, and
+    /// stand-ins for the rest; only those of a schema 1 pack when <paramref name="schema1"/>. Returns the folder.
     /// </summary>
-    public static string WriteBundles(string bundleFolder, IReadOnlyDictionary<int, byte[]> stages)
+    public static string WriteBundles(string bundleFolder, IReadOnlyDictionary<int, byte[]> stages, bool schema1 = false)
     {
         Directory.CreateDirectory(bundleFolder);
         File.WriteAllBytes(Path.Combine(bundleFolder, "pazzleboy"), Pazzleboy(stages));
-        File.WriteAllBytes(Path.Combine(bundleFolder, "common"), Bundle("{\"common\": \"\"}"));
-        File.WriteAllBytes(Path.Combine(bundleFolder, "dvl0x150"), Bundle("{\"dvl0x150\": \"\"}"));
+        foreach (var bundle in (schema1 ? ClassicPack.BoardBundles : ClassicPack.Bundles).Where(b => b != "pazzleboy"))
+        {
+            File.WriteAllBytes(Path.Combine(bundleFolder, bundle), Bundle($"{{\"{bundle}\": \"\"}}"));
+        }
+
         return bundleFolder;
     }
 
-    /// <summary>A game folder under <paramref name="root"/>, laid out as the install is. Returns the game folder.</summary>
-    public static string GameFolder(string root, IReadOnlyDictionary<int, byte[]> stages)
+    /// <summary>
+    /// A game folder under <paramref name="root"/>, laid out as the install is, with only a schema 1 pack's bundles when
+    /// <paramref name="schema1"/>. Returns the game folder.
+    /// </summary>
+    public static string GameFolder(string root, IReadOnlyDictionary<int, byte[]> stages, bool schema1 = false)
     {
         var game = Path.Combine(root, "game");
-        WriteBundles(Path.Combine(game, "smt3hd_Data", "StreamingAssets", "PC"), stages);
+        WriteBundles(Path.Combine(game, "smt3hd_Data", "StreamingAssets", "PC"), stages, schema1);
         File.WriteAllText(Path.Combine(game, "smt3hd.exe"), "");
         return game;
     }
@@ -111,6 +117,16 @@ internal static class ClassicFixture
     /// <summary>A character with no nodes or meshes, which poses and draws nothing.</summary>
     public static CharacterData Character { get; } = new([], 0, 0, [], new Dictionary<string, TextureData>(), AnimationCurves.Parse([], 0, 0, []), [], 1, Pixel);
 
+    /// <summary>A handmade font with only the glyphs <c>A</c> to <c>Z</c> and a space, each 40 units wide, on a blank atlas.</summary>
+    public static FontData Font { get; } = new(85, 74.8f, -10.2f,
+        " ABCDEFGHIJKLMNOPQRSTUVWXYZ".ToDictionary(c => c, c => new FontGlyph(c == ' ' ? 0 : 36, 60, 2, 60, 40, new Microsoft.Xna.Framework.Rectangle(0, 0, c == ' ' ? 0 : 1, 1))),
+        1, 1, [0]);
+
+    /// <summary>The interface a stand-in schema 2 pack decodes to: blank sheets, <see cref="Font"/> and two strings.</summary>
+    public static ClassicUi Ui { get; } = new(
+        new PuzzleBoy.Rendering.UiSheets(Pixel, Pixel, Pixel, Pixel, ClassicUi.Blank, ClassicUi.Blank),
+        new TextData(Font, new Dictionary<string, TextMaterial>(), new Dictionary<string, string> { ["PBHELP_L0046"] = "UNDO", ["GUIDE_L0012"] = "MOVE" }));
+
     /// <summary>Reads a pack of stand-in bundles, as the engine reads real ones.</summary>
     public static IClassicAssetSource Open(string folder) => new Source(folder);
 
@@ -125,16 +141,24 @@ internal static class ClassicFixture
 
         public ClassicAssets ReadAssets()
         {
-            // Each bundle must be there and look like one, as the engine's reader would insist.
-            foreach (var bundle in ClassicPack.Bundles)
+            // Each bundle must be there and look like one, as the engine's reader would insist. A broken board bundle
+            // throws; a broken interface bundle leaves the interface out with the reason, as the real reader does.
+            bool Bundle(string bundle) => File.Exists(Path.Combine(folder, ClassicSource.GameBundleFolder, bundle))
+                && File.ReadAllBytes(Path.Combine(folder, ClassicSource.GameBundleFolder, bundle)).AsSpan().StartsWith("UnityFS\0"u8);
+            if (ClassicPack.BoardBundles.FirstOrDefault(b => !Bundle(b)) is { } board)
             {
-                if (!File.ReadAllBytes(Path.Combine(folder, ClassicSource.GameBundleFolder, bundle)).AsSpan().StartsWith("UnityFS\0"u8))
-                {
-                    throw new InvalidDataException($"{bundle} isn't a bundle");
-                }
+                throw new InvalidDataException($"{board} isn't a bundle");
             }
 
-            return new ClassicAssets(Pixel, Pixel, new Dictionary<string, SoundData>(), Character);
+            var assets = new ClassicAssets(Pixel, Pixel, new Dictionary<string, SoundData>(), Character);
+            if (!ClassicPack.UiBundles.Any(b => File.Exists(Path.Combine(folder, ClassicSource.GameBundleFolder, b))))
+            {
+                return assets;
+            }
+
+            return ClassicPack.UiBundles.FirstOrDefault(b => !Bundle(b)) is { } broken
+                ? assets with { UiProblem = $"InvalidDataException: {broken} isn't a bundle" }
+                : assets with { Ui = Ui };
         }
     }
 }

@@ -112,8 +112,20 @@ public class StandaloneTests
     private static List<MethodBase> ClassicMethods() =>
         [.. Game.GetTypes().Where(t => (t.Namespace ?? t.DeclaringType?.Namespace) == ClassicNamespace).SelectMany(MethodsOf)];
 
-    // What only the Manikin Kid's dialogue uses: the message tables and their bundle, the talk window, and the text reader.
-    private static readonly string[] DialogueMarks = ["PBMESSAGE", "pbmsg", "talkUI", "pazzleboy_en", "Dialogue", "font-en", "common_en"];
+    // What only the Manikin Kid's dialogue uses: his message table and ids, the talk window and its advance icon.
+    private static readonly string[] DialogueMarks = ["PBMESSAGE", "pbmsg", "talkUI", "buttonUI01_en_common"];
+
+    /// <summary>Every method of the game, compiler-generated ones (lambdas, iterators) included.</summary>
+    private static List<MethodBase> GameMethods() => [.. Game.GetTypes().SelectMany(MethodsOf)];
+
+    /// <summary>The members and types in <paramref name="methods"/>' IL, and the game's fields, that belong to the dialogue.</summary>
+    private static List<string> DialogueUses(IEnumerable<MethodBase> methods) =>
+        [.. methods.SelectMany(References).Where(m => m.Name == "DrawDialogue" || Owner(m)?.Name == "Dialogue").Select(m => $"{Owner(m)?.Name}.{m.Name}")
+            .Concat(Game.GetTypes().SelectMany(t => t.GetFields(Declared)).Where(f => f.FieldType.Name == "Dialogue").Select(f => $"field {f.Name}"))];
+
+    /// <summary>String ids of the game's text tables, such as <c>PBHELP_L0046</c>, that <paramref name="methods"/> name.</summary>
+    private static List<string> TextIds(IEnumerable<MethodBase> methods) =>
+        [.. methods.SelectMany(Strings).Where(s => System.Text.RegularExpressions.Regex.IsMatch(s, @"^[A-Z]+_L\d{4}$"))];
 
     /// <summary>
     /// Every method of the game that <paramref name="roots"/> can reach through direct calls, lambdas and the state
@@ -186,22 +198,29 @@ public class StandaloneTests
     }
 
     [Fact]
-    public void The_classic_theme_never_reads_dialogue_or_the_Manikin_Kids_text()
+    public void The_game_never_draws_dialogue_or_names_the_Manikin_Kids_lines()
     {
-        var methods = ClassicMethods();
-        Assert.True(methods.Count > 50, $"the scan found only {methods.Count} classic methods");
+        var methods = GameMethods();
+        Assert.True(methods.Count > 500, $"the scan found only {methods.Count} methods");
+        Assert.Empty(DialogueUses(methods));
         Assert.DoesNotContain(methods.SelectMany(Strings), s => DialogueMarks.Any(mark => s.Contains(mark, StringComparison.OrdinalIgnoreCase)));
-        Assert.DoesNotContain(methods.SelectMany(References), m => m.Name is "ReadText" or "TextData" || Owner(m)?.Name is "TextData" or "FontData");
+
+        // The text the interface reads: help and menu lines (PBHELP) and the controls bar's words (GUIDE), never PBMESSAGE.
+        Assert.All(TextIds(methods), id => Assert.Matches("^(PBHELP|GUIDE)_", id));
     }
 
     [Fact]
-    public void The_dialogue_scan_finds_the_bundle_names_the_classic_theme_does_read()
+    public void The_dialogue_scan_finds_what_the_classic_theme_does_read_and_a_planted_dialogue()
     {
-        // Positive controls: the same scan sees the textures and readers the theme uses, and a planted dialogue id.
+        // Positive controls: the same scan sees the textures, readers and text ids the theme uses, and planted dialogue.
         var methods = ClassicMethods();
         Assert.Contains("BG_pzl", methods.SelectMany(Strings));
+        Assert.Contains("pzlUI01", methods.SelectMany(Strings));
         Assert.Contains(methods.SelectMany(References), m => m.Name == "ReadTextures");
-        Assert.Contains("PBMESSAGE_L0007", Strings(typeof(StandaloneTests).GetMethod(nameof(Planted), Declared)!));
+        Assert.Contains(methods.SelectMany(References), m => m.Name == "ReadText");
+        var planted = MethodsOf(typeof(Planting)).ToList();
+        Assert.Contains("PBMESSAGE_L0007", TextIds(planted));
+        Assert.Equal(["Dialogue..ctor", "Hud.DrawDialogue"], DialogueUses(planted).Order());
     }
 
     [Fact]
@@ -216,7 +235,13 @@ public class StandaloneTests
         Assert.Contains(Reachable(Method(typeof(ClassicPresenter), "Draw")), TouchesBundleLibraries);
     }
 
-    private static string Planted() => "PBMESSAGE_L0007";
+    /// <summary>What the dialogue scan must catch: a dialogue made and drawn, and a Manikin Kid line named.</summary>
+    private static class Planting
+    {
+        public static string Line() => "PBMESSAGE_L0007";
+
+        public static void Talk(PuzzleBoy.Rendering.Hud hud) => hud.DrawDialogue(new PuzzleBoy.Rendering.Dialogue(["Hee ho"]));
+    }
 
     [Fact]
     public void The_title_and_content_loading_never_reach_the_classic_module()

@@ -26,7 +26,7 @@ internal static class ClassicImport
     /// <summary>The name of an exported pack, in <c>&lt;data dir&gt;/exports</c>.</summary>
     public const string ExportName = "puzzle-boy-classic-pack.zip";
 
-    /// <summary>The most entries a pack zip may hold: the manifest, the note, three bundles and their folders.</summary>
+    /// <summary>The most entries a pack zip may hold: the manifest, the note, eight bundles and their three folders.</summary>
     public const int MaxZipEntries = 16;
 
     private const string Verify = "In Steam, verify the game's files (Properties, Installed Files), then try again.";
@@ -314,9 +314,15 @@ internal static class ClassicImport
             ClassicAssets assets;
             try
             {
-                var source = (open ?? (f => new ClassicPackSource(f)))(temp);
+                // A schema 1 pack (from a folder or zip) has no interface bundles; anything else must decode them too.
+                var ui = ClassicPack.UiBundles.All(b => File.Exists(Path.Combine(temp, ClassicPack.PathOf(b))));
+                var source = (open ?? (f => new ClassicPackSource(f, ui)))(temp);
                 campaigns = ClassicStages.FromTextAssets(source.ReadTextAssets(), problems);
                 assets = source.ReadAssets();
+                if (assets.UiProblem is { } broken)
+                {
+                    return Fail(Cleanup($"The interface bundles {from} can't be read ({broken}), so nothing was imported. {Verify}"));
+                }
             }
             catch (Exception e)
             {

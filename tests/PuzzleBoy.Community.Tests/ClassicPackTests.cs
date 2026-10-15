@@ -73,7 +73,7 @@ public class ClassicPackTests
 
         var manifest = Manifest(Pack(data));
         Assert.Equal(ClassicPack.Format, (string?)manifest["format"]);
-        Assert.Equal(1, (int?)manifest["schemaVersion"]);
+        Assert.Equal(2, (int?)manifest["schemaVersion"]);
         Assert.Equal(ClassicPack.LocalImport, (string?)manifest["origin"]);
         Assert.Equal(game, (string?)manifest["createdFrom"]);
         Assert.Matches(@"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$", (string?)manifest["created"]);
@@ -108,10 +108,12 @@ public class ClassicPackTests
     public static TheoryData<string, string> BrokenPacks => new()
     {
         { "format", "classic-pack.json isn't a Puzzle Boy classic pack manifest: its \"format\" should be \"puzzle-boy-classic-pack\". Import your classic pack again, from your Nocturne install or the pack you exported." },
-        { "newer", "This classic pack was made by a newer version of Puzzle Boy Community Edition (schema version 2). Update the game, or import from your own Nocturne install again." },
+        { "newer", "This classic pack was made by a newer version of Puzzle Boy Community Edition (schema version 3). Update the game, or import from your own Nocturne install again." },
         { "origin", "classic-pack.json's \"origin\" is \"downloaded\"; it must be \"local-import\" or \"licensed\"." },
-        { "escape", "classic-pack.json lists \"../../save.json\", which isn't one of the files a classic pack holds (pazzleboy, common, dvl0x150 under smt3hd_Data/StreamingAssets/PC/)." },
-        { "extra", "classic-pack.json lists \"smt3hd_Data/StreamingAssets/PC/pazzleboy_en\", which isn't one of the files a classic pack holds" },
+        { "escape", "classic-pack.json lists \"../../save.json\", which isn't one of the files a schema 2 classic pack holds (pazzleboy, common, dvl0x150, ui_tex_en, ui_tex_keyboard_en, font-en, pazzleboy_en, common_en under smt3hd_Data/StreamingAssets/PC/)." },
+        { "extra", "classic-pack.json lists \"smt3hd_Data/StreamingAssets/PC/font-ja\", which isn't one of the files a schema 2 classic pack holds" },
+        { "noui", "classic-pack.json doesn't list smt3hd_Data/StreamingAssets/PC/font-en, which the Classic theme needs." },
+        { "v1ui", "classic-pack.json lists \"smt3hd_Data/StreamingAssets/PC/ui_tex_en\", which isn't one of the files a schema 1 classic pack holds (pazzleboy, common, dvl0x150 under" },
         { "unlisted", "classic-pack.json doesn't list smt3hd_Data/StreamingAssets/PC/common, which the Classic theme needs." },
         { "missing", "The classic pack is missing smt3hd_Data/StreamingAssets/PC/common. Import your classic pack again" },
         { "size", "smt3hd_Data/StreamingAssets/PC/dvl0x150 is 63 bytes, but classic-pack.json says 62: the file is damaged or was changed." },
@@ -135,7 +137,7 @@ public class ClassicPackTests
                 manifest["format"] = "puzzle-boy-pack";
                 break;
             case "newer":
-                manifest["schemaVersion"] = 2;
+                manifest["schemaVersion"] = 3;
                 break;
             case "origin":
                 manifest["origin"] = "downloaded";
@@ -144,7 +146,13 @@ public class ClassicPackTests
                 files[0]!["path"] = "../../save.json";
                 break;
             case "extra":
-                files.Add(new JsonObject { ["path"] = ClassicPack.PathOf("pazzleboy_en"), ["size"] = 1, ["sha256"] = new string('0', 64) });
+                files.Add(new JsonObject { ["path"] = ClassicPack.PathOf("font-ja"), ["size"] = 1, ["sha256"] = new string('0', 64) });
+                break;
+            case "noui":
+                files.Remove(files.Single(f => (string?)f!["path"] == ClassicPack.PathOf("font-en")));
+                break;
+            case "v1ui":
+                manifest["schemaVersion"] = 1;
                 break;
             case "unlisted":
                 files.RemoveAt(1);
@@ -236,7 +244,7 @@ public class ClassicPackTests
     [InlineData("/etc/evil", "\"/etc/evil\" is an absolute path.")]
     [InlineData("C:/evil", "\"C:/evil\" names a drive.")]
     [InlineData(@"smt3hd_Data\StreamingAssets\PC\common", "uses backslashes; a pack's paths use /.")]
-    [InlineData("smt3hd_Data/StreamingAssets/PC/GameAssembly.dll", "\"smt3hd_Data/StreamingAssets/PC/GameAssembly.dll\" isn't part of a classic pack, which holds only classic-pack.json, README.txt and the pazzleboy, common, dvl0x150 bundles under smt3hd_Data/StreamingAssets/PC/.")]
+    [InlineData("smt3hd_Data/StreamingAssets/PC/GameAssembly.dll", "\"smt3hd_Data/StreamingAssets/PC/GameAssembly.dll\" isn't part of a classic pack, which holds only classic-pack.json, README.txt and the pazzleboy, common, dvl0x150, ui_tex_en, ui_tex_keyboard_en, font-en, pazzleboy_en, common_en bundles under smt3hd_Data/StreamingAssets/PC/.")]
     [InlineData("README.TXT", "\"README.TXT\" is in the zip twice (names are compared ignoring case).")]
     [InlineData("link", "\"smt3hd_Data/StreamingAssets/PC/common\" is a link, which a classic pack can't hold.")]
     public void A_zip_with_an_entry_a_pack_cant_hold_is_refused_before_anything_is_written(string entry, string message)
@@ -262,7 +270,7 @@ public class ClassicPackTests
     {
         using var temp = new TempFolder();
         var entries = ExportedEntries(temp);
-        var crowded = Zip(Path.Combine(temp.Path, "crowded.zip"), entries.Concat(Enumerable.Range(0, 12).Select(i => ($"smt3hd_Data/{i}/", Array.Empty<byte>()))));
+        var crowded = Zip(Path.Combine(temp.Path, "crowded.zip"), entries.Concat(Enumerable.Range(0, ClassicImport.MaxZipEntries + 1 - entries.Count).Select(i => ($"smt3hd_Data/{i}/", Array.Empty<byte>()))));
         Assert.Equal($"Nothing was imported: {crowded} holds 17 entries; a classic pack holds at most 16.", ClassicImport.FromFolder(crowded, temp.Path, ClassicFixture.Open).Message);
 
         var bare = Zip(Path.Combine(temp.Path, "bare.zip"), entries.Where(e => e.Name != ClassicPack.ManifestName));
@@ -347,5 +355,80 @@ public class ClassicPackTests
         ClassicFixture.ImportPack(temp.Path, Small);
         Assert.Equal("That's the classic pack you already have.", ClassicImport.FromFolder(Pack(temp.Path), temp.Path, ClassicFixture.Open).Message);
         Assert.NotNull(ClassicPack.Open(Pack(temp.Path), checkHashes: true, out _));
+    }
+
+    [Fact]
+    public void A_schema_1_pack_still_plays_its_stages_and_board_without_the_interface_and_carries_over_as_it_is()
+    {
+        using var temp = new TempFolder();
+        var data = Path.Combine(temp.Path, "data");
+        ClassicFixture.ImportPack(data, Small);
+        var folder = Pack(data);
+        var manifest = Manifest(folder);
+        manifest["schemaVersion"] = 1;
+        var files = manifest["files"]!.AsArray();
+        foreach (var bundle in ClassicPack.UiBundles)
+        {
+            files.Remove(files.Single(f => (string?)f!["path"] == ClassicPack.PathOf(bundle)));
+            File.Delete(Path.Combine(folder, ClassicPack.PathOf(bundle)));
+        }
+
+        WriteManifest(folder, manifest);
+        var pack = ClassicPack.Open(folder, checkHashes: true, out var problem);
+        Assert.Null(problem);
+        Assert.Equal((1, false), (pack!.SchemaVersion, pack.HasUi));
+        Assert.Equal(43, ClassicStages.Load(data, [], ClassicFixture.Open).Sum(p => p.Stages.Count));
+        var assets = ClassicAssetCache.Load(pack, ClassicFixture.Open);
+        Assert.Equal((null, null), (assets.Ui, assets.UiProblem));
+
+        // Exported and imported elsewhere it stays a schema 1 pack: re-importing from the install is what upgrades it.
+        var zip = ClassicImport.Export(data, out _)!;
+        var other = Path.Combine(temp.Path, "other");
+        Assert.True(ClassicImport.FromFolder(zip, other, ClassicFixture.Open).Imported);
+        Assert.Equal(1, ClassicPack.Open(Pack(other), checkHashes: true, out _)!.SchemaVersion);
+    }
+
+    [Fact]
+    public void A_new_pack_decodes_the_interface_with_the_board()
+    {
+        using var temp = new TempFolder();
+        ClassicFixture.ImportPack(temp.Path, Small);
+        var pack = ClassicPack.Open(Pack(temp.Path), checkHashes: true, out _)!;
+        Assert.True(pack.HasUi);
+        Assert.Equal(BundlePaths, pack.Files.Select(f => f.Path));
+        Assert.Same(ClassicFixture.Ui, ClassicAssetCache.Load(pack, ClassicFixture.Open).Ui);
+    }
+
+    [Fact]
+    public void An_install_without_an_interface_bundle_names_it_and_imports_nothing()
+    {
+        using var temp = new TempFolder();
+        var game = ClassicFixture.GameFolder(temp.Path, ClassicFixture.AllStages(Small));
+        File.Delete(Path.Combine(game, "smt3hd_Data", "StreamingAssets", "PC", "font-en"));
+        var data = Path.Combine(temp.Path, "data");
+        var result = ClassicImport.FromFolder(game, data, ClassicFixture.Open);
+        Assert.False(result.Imported);
+        Assert.StartsWith($"{game} has the Puzzle Boy stages but not the font-en bundle the Classic theme needs (", result.Message);
+        Assert.False(Directory.Exists(data));
+    }
+
+    [Fact]
+    public void An_install_whose_interface_doesnt_decode_imports_nothing_and_says_why()
+    {
+        using var temp = new TempFolder();
+        var game = ClassicFixture.GameFolder(temp.Path, ClassicFixture.AllStages(Small));
+        var data = Path.Combine(temp.Path, "data");
+        var result = ClassicImport.FromFolder(game, data, f => new BrokenInterface(ClassicFixture.Open(f)));
+        Assert.False(result.Imported);
+        Assert.Equal($"The interface bundles from {game} can't be read (InvalidDataException: There's no font), so nothing was imported. In Steam, verify the game's files (Properties, Installed Files), then try again.", result.Message);
+        Assert.False(Directory.Exists(data));
+    }
+
+    /// <summary>A source whose interface never decodes, as a damaged <c>font-en</c> would leave it.</summary>
+    private sealed class BrokenInterface(IClassicAssetSource inner) : IClassicAssetSource
+    {
+        public IReadOnlyDictionary<string, byte[]> ReadTextAssets() => inner.ReadTextAssets();
+
+        public ClassicAssets ReadAssets() => inner.ReadAssets() with { Ui = null, UiProblem = "InvalidDataException: There's no font" };
     }
 }

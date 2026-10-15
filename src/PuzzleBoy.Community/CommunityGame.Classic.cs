@@ -16,6 +16,9 @@ internal sealed partial class CommunityGame
     /// <summary>The Classic Nocturne menu, in order.</summary>
     internal static readonly string[] ClassicItems = ["Import from My Steam Install", "Import from a Folder or Zip", "Export My Classic Pack", "Remove Classic Pack", "Back"];
 
+    /// <summary>What a schema 1 pack's owner is told, once a session in play and on this screen.</summary>
+    internal const string ReimportNotice = "Re-import your classic pack to get the Nocturne-styled menus.";
+
     // A typed path can be long, but not unbounded.
     private const int MaxClassicPath = 400;
 
@@ -63,7 +66,7 @@ internal sealed partial class CommunityGame
         var where = pack.Origin == ClassicPack.Licensed
             ? $"Licensed pack from {pack.Licensor}, under {pack.License}{made}."
             : $"Made from your own copy{made}{(pack.CreatedFrom is { } from ? $", from {from}" : "")}.";
-        _classicSummary = $"{where} {pack.Size / 1e6:0.0} MB.";
+        _classicSummary = $"{where} {pack.Size / 1e6:0.0} MB.{(pack.HasUi ? "" : $" {ReimportNotice}")}";
     }
 
     private void UpdateImportClassic(Controls controls)
@@ -172,7 +175,7 @@ internal sealed partial class CommunityGame
     /// shortcut: it runs on the game's thread, a few seconds' pause behind that frame; move it to a task if it ever grows.
     /// </summary>
     private void RunClassicImport(string? folder) =>
-        Working("Importing… copying and checking about 86 MB takes a few seconds.", () =>
+        Working("Importing… copying and checking about 120 MB takes a few seconds.", () =>
         {
             var result = folder is null ? ClassicImport.FromSteam(_save.Folder) : ClassicImport.FromFolder(folder, _save.Folder);
             _classicStatus = result.Message;
@@ -193,7 +196,7 @@ internal sealed partial class CommunityGame
         var (x, y, width) = (600f, 150f, 610f);
         _ui.Panel(x, y, width, 460, _ui["ink"] * 0.78f);
         _ui.Text(Font.Title, 16, "OPTIONAL  ·  YOUR OWN COPY", new Vector2(x + 24, y + 18), _ui["bandOnDark"], spacing: 1);
-        var below = y + 48 + _ui.Wrapped(Font.Body, 18, "The Classic theme plays every stage in the original minigame's look and sound. It needs your own copy of Shin Megami Tensei III Nocturne HD Remaster: import once, and the game copies the three bundles it reads into your data folder, with the original's 20 stages and 23 unused bonus stages. Export makes a zip to carry to your other computers. Nothing from Nocturne ships with Community Edition; don't share your pack.", new Vector2(x + 24, y + 44), width - 48, _ui["cream"]);
+        var below = y + 48 + _ui.Wrapped(Font.Body, 18, "The Classic theme plays every stage in the original minigame's look and sound. It needs your own copy of Shin Megami Tensei III Nocturne HD Remaster: import once, and the game copies the bundles it reads into your data folder, with the original's 20 stages and 23 unused bonus stages. Export makes a zip to carry to your other computers. Nothing from Nocturne ships with Community Edition; don't share your pack.", new Vector2(x + 24, y + 44), width - 48, _ui["cream"]);
         below += 8 + _ui.Wrapped(Font.BodyBold, 18, _classicSummary, new Vector2(x + 24, below), width - 48, _ui["cream"]);
         if (_classicStatus is not null)
         {

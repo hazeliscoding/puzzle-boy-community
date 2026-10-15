@@ -61,7 +61,7 @@ internal static class ClassicStages
         var folder = Folder(dataDir);
         if (ClassicPack.IsIn(folder))
         {
-            return FromPack(folder, problems, open ?? (f => new ClassicPackSource(f)));
+            return FromPack(folder, problems, open ?? (f => new ClassicPackSource(f, ui: false)));
         }
 
         // A stage-only import from an earlier version still plays, with the same stage ids, until a pack replaces it.
