@@ -41,7 +41,13 @@ internal sealed partial class CommunityGame
     /// <summary>
     /// The trademark and affiliation notice, as the credits show it. A shorter form sits on the title screen.
     /// </summary>
-    internal const string Notice = "Inspired by Puzzle Boy (Atlus) and its 3D version in Shin Megami Tensei III: Nocturne. Puzzle Boy, Shin Megami Tensei and Nocturne are trademarks of ATLUS and SEGA. This is an independent fan project, not affiliated with or endorsed by either company. It contains no ATLUS or SEGA assets.";
+    internal const string Notice = "Inspired by Puzzle Boy (Atlus) and its 3D version in Shin Megami Tensei III: Nocturne. Puzzle Boy, Shin Megami Tensei and Nocturne are trademarks of ATLUS and SEGA. This is an independent fan project, not affiliated with or endorsed by either company. This download contains no ATLUS or SEGA assets.";
+
+    /// <summary>The credit for the Classic theme's works, which the player imports from their own copy.</summary>
+    internal const string ClassicCredit = "Classic theme: board, Jack-o'-Lantern, backdrop, music and sound effects © ATLUS / SEGA, read from your own copy of Shin Megami Tensei III Nocturne HD Remaster; not included with this game.";
+
+    /// <summary>Every library the game ships, by package, with its license; THIRD_PARTY_NOTICES.txt has the texts.</summary>
+    internal const string Libraries = "MonoGame.Framework.DesktopGL (Ms-PL), SDL2 from MonoGame.Library.SDL and FontStashSharp.MonoGame, FontStashSharp.Base and FontStashSharp.Rasterizers.StbTrueTypeSharp (zlib), OpenAL Soft from MonoGame.Library.OpenAL (LGPL 2.0 or later), StbTrueTypeSharp and StbImageSharp (public domain), and NVorbis, Cyotek.Drawing.BitmapFont, AssetsTools.NET, Fmod5Sharp, NAudio.Core, OggVorbisEncoder, IndexRange and Microsoft.Bcl.Memory (MIT). Their notices are in THIRD_PARTY_NOTICES.txt.";
 
     /// <summary>
     /// The game's version and the commit it was built from, such as <c>0.1.0+f7dab35</c>; just the version when the build
@@ -824,21 +830,21 @@ internal sealed partial class CommunityGame
         DrawDrift(0.4f);
         _ui.Begin();
         Heading("CREDITS");
-        // Wide lines and tight sections leave room for UI scale 120% above Back.
-        var (x, width) = (120f, 1040f);
-        var y = 140f;
+        // Wide lines, 17 px text and tight sections leave room for UI scale 120% above Back.
+        var (x, width) = (100f, 1080f);
+        var y = 132f;
         void Section(string title, string text)
         {
             _ui.Text(Font.Title, 16, title, new Vector2(x, y), _ui["ember"], spacing: 2);
             y += 24;
-            y += _ui.Wrapped(Font.Body, 19, text, new Vector2(x, y), width, _ui["cream"], 1.3f) + 10;
+            y += _ui.Wrapped(Font.Body, 17, text, new Vector2(x, y), width, _ui["cream"], 1.25f) + 8;
         }
 
-        Section($"PUZZLE BOY COMMUNITY EDITION {Version}", "Game, stages, Pixel Jack, music and sound by the Puzzle Boy Community authors. Code and original content under the Apache License 2.0.");
+        Section($"PUZZLE BOY COMMUNITY EDITION {Version}", "Game, stages, Pixel Jack, music and sound by the Puzzle Boy Community authors, with block colors from the Okabe-Ito colorblind-safe palette. Code and original content under the Apache License 2.0.");
         Section("FONTS", "Atkinson Hyperlegible by the Braille Institute of America (Elliott Scott, Megan Eiswerth, Linus Boman, Theodore Petrosky).\nSilkscreen by Jason Kottke. Both under the SIL Open Font License 1.1.");
-        Section("COLORS", "Block colors from the Okabe-Ito colorblind-safe palette.");
-        Section("LIBRARIES", "MonoGame (Ms-PL), SDL2 and FontStashSharp (zlib), OpenAL Soft (LGPL 2), StbTrueTypeSharp and StbImageSharp (public domain), NVorbis, Cyotek.Drawing.BitmapFont and AssetsTools.NET (MIT). Their notices are in THIRD_PARTY_NOTICES.txt beside the game.");
+        Section("LIBRARIES", Libraries);
         Section("INSPIRATION", Notice);
+        Section("CLASSIC NOCTURNE THEME", ClassicCredit);
         DrawMenu(_backMenu, ["Back"], CreditsBack, 26);
         _ui.End();
     }

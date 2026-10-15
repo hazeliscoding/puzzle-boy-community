@@ -174,8 +174,12 @@ public class AppTests
     {
         Assert.Contains("Puzzle Boy, Shin Megami Tensei and Nocturne are trademarks of ATLUS and SEGA.", CommunityGame.Notice);
         Assert.Contains("not affiliated with or endorsed by either company", CommunityGame.Notice);
-        Assert.Contains("It contains no ATLUS or SEGA assets.", CommunityGame.Notice);
+        Assert.Contains("This download contains no ATLUS or SEGA assets.", CommunityGame.Notice);
     }
+
+    [Fact]
+    public void The_credits_credit_the_classic_themes_works_to_ATLUS_and_SEGA_as_read_from_the_players_own_copy() =>
+        Assert.Equal("Classic theme: board, Jack-o'-Lantern, backdrop, music and sound effects © ATLUS / SEGA, read from your own copy of Shin Megami Tensei III Nocturne HD Remaster; not included with this game.", CommunityGame.ClassicCredit);
 
     [Fact]
     public void Volumes_step_by_ten_percent_and_hold_at_the_ends_unless_confirm_wraps_them()

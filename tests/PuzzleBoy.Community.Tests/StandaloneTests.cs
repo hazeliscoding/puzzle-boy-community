@@ -262,7 +262,7 @@ public class StandaloneTests
     }
 
     [Fact]
-    public void The_third_party_notices_sit_beside_the_game_and_name_every_package_it_ships()
+    public void The_third_party_notices_and_the_credits_name_every_package_the_game_ships()
     {
         var notices = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "THIRD_PARTY_NOTICES.txt"));
         Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory, "LICENSE")));
@@ -273,6 +273,7 @@ public class StandaloneTests
             .ToList();
         Assert.NotEmpty(packages);
         Assert.All(packages, p => Assert.Contains(p, notices));
+        Assert.All(packages, p => Assert.Contains(p.Split(' ')[0], CommunityGame.Libraries));
     }
 
     [Fact]
