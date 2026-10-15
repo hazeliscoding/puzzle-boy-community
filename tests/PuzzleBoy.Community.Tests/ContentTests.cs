@@ -31,6 +31,10 @@ public class ContentTests
     }
 
     [Fact]
+    public void The_built_in_campaign_has_at_least_twelve_stages() =>
+        Assert.True(BundledPacks([]).Sum(p => p.Stages.Count) >= 12, "C2 and the C5 release gate need at least 12 bundled stages.");
+
+    [Fact]
     public void No_bundled_stage_copies_a_known_Nocturne_layout() => Assert.Empty(BundledCopiesOf(Repo.KnownLayouts));
 
     [Fact]
