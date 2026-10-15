@@ -115,6 +115,36 @@ public class SaveTests
         Assert.Null(SaveStore.Load(temp.Path).Notice);
     }
 
+    [Fact]
+    public void A_save_another_program_holds_loads_the_backup_without_ever_replacing_the_save()
+    {
+        // Only Windows refuses a read of a file another handle opened with FileShare.None.
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Needs Windows file sharing.");
+        using var temp = new TempFolder();
+        var store = SaveStore.Load(temp.Path);
+        store.Data.Record(Id(0), 9, 5);
+        store.Save();
+        store.Data.Record(Id(1), 12, 8);
+        store.Save();
+
+        SaveStore held;
+        using (new FileStream(store.MainPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            held = SaveStore.Load(temp.Path);
+        }
+
+        Assert.True(held.Data.IsCompleted(Id(0)));
+        Assert.False(held.Data.IsCompleted(Id(1)));
+        Assert.True(held.ReadOnly);
+        Assert.Contains("left as it was", held.Notice);
+        Assert.DoesNotContain(".damaged", held.Notice);
+        Assert.False(File.Exists(store.MainPath + ".damaged"));
+
+        held.Data.Record(Id(2), 1, 1);
+        Assert.False(held.Save());
+        Assert.True(SaveStore.Load(temp.Path).Data.IsCompleted(Id(1)));
+    }
+
     [Theory]
     [InlineData("{ not json")]
     [InlineData("[1, 2]")]

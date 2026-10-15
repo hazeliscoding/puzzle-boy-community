@@ -49,8 +49,8 @@ internal sealed class SaveStore
     public string? Notice { get; private set; }
 
     /// <summary>
-    /// True when the save came from a newer version of the game. Writes are skipped so this version never overwrites
-    /// it.
+    /// True when the save came from a newer version of the game or couldn't be read at all, such as while another
+    /// program held it. Writes are skipped so this run never overwrites it.
     /// </summary>
     public bool ReadOnly { get; private set; }
 
@@ -94,7 +94,7 @@ internal sealed class SaveStore
     public static SaveStore Load(string folder)
     {
         var store = new SaveStore(System.IO.Path.GetFullPath(folder));
-        var (main, mainError) = store.Read(store.MainPath);
+        var (main, mainError, unreadable) = store.Read(store.MainPath);
         if (main is not null)
         {
             store.Data = main;
@@ -104,22 +104,33 @@ internal sealed class SaveStore
         if (mainError is null)
         {
             // No save yet: a fresh profile. A backup without a save only happens if someone deleted the save.
-            var (fresh, _) = store.Read(store.BackupPath);
+            var (fresh, _, _) = store.Read(store.BackupPath);
             store.Data = fresh ?? new SaveData();
             return store;
         }
 
-        store._mainDamaged = true;
-        store.KeepDamaged();
-        var (backup, backupError) = store.Read(store.BackupPath);
-        if (backup is not null)
+        if (unreadable)
         {
-            store.Data = backup;
-            store.Notice = $"Your save was damaged ({mainError}), so the backup was loaded. The damaged file was kept as {FileName}.damaged.";
+            // Antivirus, backup or sync software can hold the file for a moment. It isn't damaged, so this run mustn't
+            // replace it with older progress.
+            store.ReadOnly = true;
+            var (old, _, _) = store.Read(store.BackupPath);
+            store.Data = old ?? new SaveData();
+            store.Notice = $"Your save couldn't be read ({mainError}), so {(old is null ? "the game starts fresh" : "the backup was loaded")} and nothing is saved until you restart. The file itself is left as it was.";
             return store;
         }
 
-        store.Notice = $"Your save was damaged ({mainError}) and {(backupError is null ? "there was no backup" : "so was the backup")}, so the game starts fresh. The damaged file was kept as {FileName}.damaged.";
+        store._mainDamaged = true;
+        var kept = store.KeepDamaged() ? $" The damaged file was kept as {FileName}.damaged." : "";
+        var (backup, backupError, _) = store.Read(store.BackupPath);
+        if (backup is not null)
+        {
+            store.Data = backup;
+            store.Notice = $"Your save was damaged ({mainError}), so the backup was loaded.{kept}";
+            return store;
+        }
+
+        store.Notice = $"Your save was damaged ({mainError}) and {(backupError is null ? "there was no backup" : "so was the backup")}, so the game starts fresh.{kept}";
         return store;
     }
 
@@ -170,9 +181,10 @@ internal sealed class SaveStore
 
     /// <summary>
     /// Reads one save file. Returns the data, or null with null for a missing file, or null with a short reason for a
-    /// damaged one. A file from a newer version loads defaults and makes the store <see cref="ReadOnly"/>.
+    /// damaged one, or for one that couldn't be read at all, which <c>Unreadable</c> marks. A file from a newer version
+    /// loads defaults and makes the store <see cref="ReadOnly"/>.
     /// </summary>
-    private (SaveData? Data, string? Error) Read(string path)
+    private (SaveData? Data, string? Error, bool Unreadable) Read(string path)
     {
         JsonNode? root;
         try
@@ -180,12 +192,12 @@ internal sealed class SaveStore
             var info = new FileInfo(path);
             if (!info.Exists)
             {
-                return (null, null);
+                return (null, null, false);
             }
 
             if (info.Length > MaxBytes)
             {
-                return (null, "it's too big");
+                return (null, "it's too big", false);
             }
 
             // An editor may add a byte order mark when a player saves the file by hand.
@@ -200,16 +212,16 @@ internal sealed class SaveStore
         }
         catch (JsonException)
         {
-            return (null, "it isn't valid JSON");
+            return (null, "it isn't valid JSON", false);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            return (null, $"it couldn't be read: {e.Message}");
+            return (null, e.Message, true);
         }
 
         if (root is not JsonObject obj)
         {
-            return (null, "it isn't a save");
+            return (null, "it isn't a save", false);
         }
 
         try
@@ -234,15 +246,15 @@ internal sealed class SaveStore
 
             if (data is null)
             {
-                return (null, "it isn't a save");
+                return (null, "it isn't a save", false);
             }
 
             data.Normalize();
-            return (data, null);
+            return (data, null, false);
         }
         catch (Exception e) when (e is JsonException or InvalidOperationException or FormatException)
         {
-            return (null, "it isn't a save");
+            return (null, "it isn't a save", false);
         }
     }
 
@@ -269,16 +281,18 @@ internal sealed class SaveStore
         return data;
     }
 
-    // A copy of a damaged save for the player, since the next write replaces it.
-    private void KeepDamaged()
+    // A copy of a damaged save for the player, since the next write replaces it. False when it couldn't be made.
+    private bool KeepDamaged()
     {
         try
         {
             File.Copy(MainPath, MainPath + ".damaged", overwrite: true);
+            return true;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             // Keeping a copy is a courtesy; the game goes on without it.
+            return false;
         }
     }
 }
