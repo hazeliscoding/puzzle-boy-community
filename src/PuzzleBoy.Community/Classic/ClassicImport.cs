@@ -70,9 +70,11 @@ internal static class ClassicImport
         {
             assets = install.ReadTextAssets();
         }
-        catch (Exception e) when (e is not OutOfMemoryException)
+        catch (Exception e)
         {
             // AssetsTools.NET throws all sorts for a file that isn't a bundle; any of them means the same to the player.
+            // That includes OutOfMemoryException: it allocates what a damaged header declares, and the failed allocation
+            // leaves nothing behind.
             return Fail($"The Puzzle Boy bundle at {install.BundlePath} can't be read ({e.GetType().Name}), so nothing was imported. {Verify}");
         }
 

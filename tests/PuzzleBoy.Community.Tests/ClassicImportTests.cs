@@ -95,6 +95,46 @@ public class ClassicImportTests
         NothingImported(result, data);
     }
 
+    /// <summary>
+    /// A 115-byte UnityFS header that declares a 128 TiB bundle with a 2 GiB block list. Handed to AssetsTools.NET as is,
+    /// it threw OutOfMemoryException and took the game down.
+    /// </summary>
+    private static byte[] HeaderDeclaringHugeSizes(uint flags)
+    {
+        var bytes = new List<byte>();
+        bytes.AddRange("UnityFS\0"u8.ToArray());
+        bytes.AddRange(BigEndian(6, 4));
+        bytes.AddRange("5.x.x\0"u8.ToArray());
+        bytes.AddRange("2019.4.40f1\0"u8.ToArray());
+        bytes.AddRange(BigEndian(0x7fffffffffff, 8));
+        bytes.AddRange(BigEndian(0x7fffffff, 4));
+        bytes.AddRange(BigEndian(0x7fffffff, 4));
+        bytes.AddRange(BigEndian(flags, 4));
+        bytes.AddRange(new byte[115 - bytes.Count]);
+        return [.. bytes];
+
+        static IEnumerable<byte> BigEndian(ulong value, int size) => Enumerable.Range(0, size).Select(i => (byte)(value >> (8 * (size - 1 - i))));
+    }
+
+    [Theory]
+    [InlineData(0x00u)]
+    [InlineData(0x40u)]
+    [InlineData(0x80u)]
+    [InlineData(0xC3u)]
+    public void A_bundle_header_declaring_impossible_sizes_is_reported_as_damaged_instead_of_running_out_of_memory(uint flags)
+    {
+        using var temp = new TempFolder();
+        var data = Path.Combine(temp.Path, "data");
+        var bundle = Path.Combine(temp.Path, "bundles", "pazzleboy");
+        Directory.CreateDirectory(Path.GetDirectoryName(bundle)!);
+        File.WriteAllBytes(bundle, HeaderDeclaringHugeSizes(flags));
+
+        var result = ClassicImport.FromFolder(Path.Combine(temp.Path, "bundles"), data);
+        Assert.StartsWith($"The Puzzle Boy bundle at {bundle} can't be read (", result.Message);
+        NothingImported(result, data);
+        File.Delete(bundle);
+    }
+
     [Fact]
     public void A_failed_import_leaves_an_earlier_import_as_it_was()
     {

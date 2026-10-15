@@ -19,6 +19,10 @@ internal sealed partial class ClassicInstall
 
     // Where the bundle can be under a folder the player names: the game's own folder, a copy of smt3hd_Data, or a
     // folder the bundles were copied into.
+    // shortcut: the real bundle's size wasn't measured (it also holds Puzzle Boy's music and sounds, and the eight bundles
+    // puzzle-boy reads total about 115 MB), so the cap is generous; tighten it once the size is recorded.
+    private const long MaxBundleBytes = 256L * 1024 * 1024;
+
     private static readonly string[] BundleFolders = [Path.Combine("smt3hd_Data", "StreamingAssets", "PC"), Path.Combine("StreamingAssets", "PC"), ""];
 
     private ClassicInstall(string folder, string bundlePath) => (Folder, BundlePath) = (folder, bundlePath);
@@ -59,6 +63,7 @@ internal sealed partial class ClassicInstall
         // The stream is ours: when AssetsTools.NET throws on a damaged file, UnloadAll doesn't close it, and the game's
         // own file would stay locked until this game quits.
         using var stream = new FileStream(BundlePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        CheckHeader(stream);
         var manager = new AssetsManager();
         try
         {
@@ -71,6 +76,55 @@ internal sealed partial class ClassicInstall
         finally
         {
             manager.UnloadAll();
+        }
+    }
+
+    /// <summary>
+    /// Throws <see cref="InvalidDataException"/> unless <paramref name="stream"/> is a plausibly sized UnityFS bundle whose
+    /// header sizes fit the file, then rewinds it. AssetsTools.NET allocates whatever the header declares, so a damaged
+    /// header would otherwise ask for gigabytes.
+    /// </summary>
+    private static void CheckHeader(Stream stream)
+    {
+        if (stream.Length > MaxBundleBytes)
+        {
+            throw new InvalidDataException($"it's {stream.Length} bytes, far more than a Puzzle Boy bundle");
+        }
+
+        var reader = new BinaryReader(stream);
+        if (ReadString(reader) != "UnityFS")
+        {
+            throw new InvalidDataException("it isn't a UnityFS bundle");
+        }
+
+        reader.ReadBytes(4); // format version
+        ReadString(reader); // generation
+        ReadString(reader); // engine version
+        var size = System.Buffers.Binary.BinaryPrimitives.ReadInt64BigEndian(reader.ReadBytes(8));
+        var packedInfo = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(reader.ReadBytes(4));
+        var info = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(reader.ReadBytes(4));
+        if (size != stream.Length || packedInfo > stream.Length || info > MaxBundleBytes)
+        {
+            throw new InvalidDataException($"its header declares sizes ({size}, {packedInfo}, {info}) that don't fit its {stream.Length} bytes");
+        }
+
+        stream.Position = 0;
+
+        // Reads a NUL-terminated ASCII string of at most 64 characters; anything longer isn't a bundle header.
+        static string ReadString(BinaryReader reader)
+        {
+            var text = new System.Text.StringBuilder();
+            for (var b = reader.ReadByte(); b != 0; b = reader.ReadByte())
+            {
+                if (text.Length == 64)
+                {
+                    throw new InvalidDataException("it isn't a UnityFS bundle");
+                }
+
+                text.Append((char)b);
+            }
+
+            return text.ToString();
         }
     }
 
