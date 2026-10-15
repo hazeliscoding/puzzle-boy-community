@@ -118,7 +118,7 @@ internal sealed class BoardRenderer : IDisposable
         }
 
         AddGoal(board.Goal, ticks, board.IsCleared);
-        AddCharacters(session, ticks);
+        AddCharacters(session, ticks, LeanBack(view));
 
         _effect.View = view;
         _effect.Projection = projection;
@@ -258,7 +258,21 @@ internal sealed class BoardRenderer : IDisposable
         _glow.AddFlat(gx, height, gz, 1.3f, ember * 0.35f, Atlas.Glow);
     }
 
-    private void AddCharacters(PlaySession session, int ticks)
+    /// <summary>
+    /// A tilt that leans a figure back, away from the camera of <paramref name="view"/>, so the camera above sees its
+    /// face under the hat's brim. It's along the line of sight, so it never reads as a lean, and fades out overhead.
+    /// </summary>
+    private static Matrix LeanBack(Matrix view)
+    {
+        var toCamera = Matrix.Invert(view).Backward;
+        var level = new Vector3(toCamera.X, 0, toCamera.Z);
+        var length = level.Length();
+
+        // 0.53 is the play view's usual cos(58°); overhead it falls to 0.
+        return length < 0.01f ? Matrix.Identity : Matrix.CreateFromAxisAngle(Vector3.Cross(level / length, Vector3.Up), 0.3f * Math.Min(1, length / 0.53f));
+    }
+
+    private void AddCharacters(PlaySession session, int ticks, Matrix lean)
     {
         var board = session.Board;
         var several = board.Characters.Count > 1;
@@ -275,7 +289,7 @@ internal sealed class BoardRenderer : IDisposable
             var cheer = board.IsCleared ? MathF.Abs(MathF.Sin(session.ClearTicks * 0.22f)) * 0.35f : 0;
             var yaw = Facing(session.Facings[i]) + (board.IsCleared ? session.ClearTicks * 0.19f : idle * 0.05f);
             var squash = 1 + (idle * 0.025f);
-            var world = Matrix.CreateScale(1 / squash, squash, 1 / squash) * Matrix.CreateRotationY(yaw) * Matrix.CreateTranslation(x, hop + cheer, -y);
+            var world = Matrix.CreateScale(1 / squash, squash, 1 / squash) * Matrix.CreateRotationY(yaw) * lean * Matrix.CreateTranslation(x, hop + cheer, -y);
 
             // Waiting characters are dimmer, so the one in control stands out.
             var tint = !several || active ? Color.White : new Color(0.55f, 0.55f, 0.6f);
