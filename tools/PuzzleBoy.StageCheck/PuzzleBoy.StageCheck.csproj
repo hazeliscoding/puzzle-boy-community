@@ -6,9 +6,10 @@
     <RootNamespace>PuzzleBoy.StageCheck</RootNamespace>
   </PropertyGroup>
 
-  <!-- The game's content readers, compiled in rather than referenced, so the tool doesn't carry MonoGame. -->
+  <!-- The game's content readers and solver, compiled in rather than referenced, so the tool doesn't carry MonoGame. -->
   <ItemGroup>
     <Compile Include="..\..\src\PuzzleBoy.Community\Content\*.cs" Link="Content\%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\PuzzleBoy.Community\Play\Solver.cs" Link="Play\Solver.cs" />
   </ItemGroup>
 
   <!-- The fingerprint list travels with the tool, so a published copy checks stages anywhere. -->

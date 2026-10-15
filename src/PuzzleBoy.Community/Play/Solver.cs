@@ -2,10 +2,10 @@ using System.Buffers.Binary;
 using System.Security.Cryptography;
 using PuzzleBoy.Rules;
 
-namespace PuzzleBoy.StageCheck;
+namespace PuzzleBoy.Community.Play;
 
 /// <summary>How a search ended.</summary>
-public enum SolveOutcome
+internal enum SolveOutcome
 {
     /// <summary>A shortest solution was found.</summary>
     Solved,
@@ -24,13 +24,13 @@ public enum SolveOutcome
 /// Null otherwise.
 /// </param>
 /// <param name="States">How many distinct states the search visited.</param>
-public sealed record SolveResult(SolveOutcome Outcome, string? Moves, int States);
+internal sealed record SolveResult(SolveOutcome Outcome, string? Moves, int States);
 
 /// <summary>
 /// A breadth-first search over a stage's states with the engine's <see cref="Board"/> making every move, so a solution
 /// is exactly what the game accepts. Each input, a step or a switch, costs one, so a solution has the fewest inputs.
 /// </summary>
-public static class Solver
+internal static class Solver
 {
     /// <summary>The default cap on visited states.</summary>
     public const int DefaultCap = 2_000_000;

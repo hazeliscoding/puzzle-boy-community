@@ -43,7 +43,7 @@ These are the working rules for agents in this repo. Puzzle Boy Community Editio
   - `CommunityGame*.cs`: the window, split into the screen loop, the menus and play.
   - `Content/`: reading `content/` safely. `ContentManifest` reads `manifest.json` and its packs, `StagePack` a pack's `pack.json` and stages (through the engine's `StageDocument`), `Provenance` checks `provenance.json`, `LayoutFingerprint` and `KnownLayouts` catch copies of Nocturne layouts. Every path stays inside its folder, nothing follows a link, every file has a size cap, and bad input becomes a list of problems, never an exception.
 - `content/`: the built-in content, copied beside the executable on build and publish. `manifest.json` lists the theme, the fonts and the packs; each pack is a folder with a `pack.json` and engine stage JSON files.
-- `tools/PuzzleBoy.StageCheck`: the stage tool. It compiles the game's `Content/` sources in, so it carries no MonoGame. `Solver` searches breadth-first with the engine's `Board` making every move.
+- `tools/PuzzleBoy.StageCheck`: the stage tool. It compiles the game's `Content/` sources and `Play/Solver.cs` in, so it carries no MonoGame. `Solver` searches breadth-first with the engine's `Board` making every move.
 - `tests/PuzzleBoy.Community.Tests`: xunit.v3 on Microsoft Testing Platform. Test names read as sentences. `ContentTests` check the real `content/` and plant each kind of violation in a scratch copy.
   - `Solutions/<pack>/<stage>.txt`: one line of moves per bundled stage (`R` +x, `L` −x, `D` +y, `U` −y, `S` switch). `SolutionTests` replay each on a fresh board and fail for a stage without one. Take a new stage's line from StageCheck.
 - `external/puzzle-boy-engine`: the rules, as a submodule. Change them there, never here.
