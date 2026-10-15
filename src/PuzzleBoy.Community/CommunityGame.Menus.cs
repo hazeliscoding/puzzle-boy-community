@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework;
 using PuzzleBoy.Community.App;
 using PuzzleBoy.Community.Audio;
+using PuzzleBoy.Community.Classic;
 using PuzzleBoy.Community.Editor;
 using PuzzleBoy.Community.Graphics;
 using PuzzleBoy.Community.Save;
@@ -106,13 +107,16 @@ internal sealed partial class CommunityGame
     }
 
     /// <summary>
-    /// Stage select's tabs: each bundled pack, the imported packs, then the player's own stages, all read afresh from the
-    /// data folder. The Import tab comes after them, at <see cref="ImportTab"/>.
+    /// Stage select's tabs: each bundled pack, the imported packs, the classic campaigns when the player imported them,
+    /// then the player's own stages, all read afresh from the data folder. The Import tab comes after them, at
+    /// <see cref="ImportTab"/>.
     /// </summary>
     private void LoadSelectPacks()
     {
         _importedPacks = PackArchive.LoadImported(_save.Folder, PackArchive.Reserved(_manifest.Packs), []);
-        _selectPacks = [.. _manifest.Packs.Where(p => p.Stages.Count > 0), .. _importedPacks.Where(p => p.Stages.Count > 0), CustomStages.AsPack(CustomStages.List(_save.Folder))];
+        _classicProblems.Clear();
+        var classic = ClassicStages.Load(_save.Folder, _classicProblems);
+        _selectPacks = [.. _manifest.Packs.Where(p => p.Stages.Count > 0), .. _importedPacks.Where(p => p.Stages.Count > 0), .. classic, CustomStages.AsPack(CustomStages.List(_save.Folder))];
     }
 
     /// <summary>Shows tab <paramref name="tab"/> of stage select with stage <paramref name="focus"/> focused.</summary>
@@ -411,6 +415,11 @@ internal sealed partial class CommunityGame
         {
             _ui.Text(Font.Body, 17, _importStatus, new Vector2(640, 628), _ui["ember"], 0.5f);
         }
+        else if (IsClassic(SelectPack) && _classicProblems.Count > 0)
+        {
+            // The rest of the classic stages still play; this says which ones didn't load.
+            _ui.Text(Font.Body, 17, Shorten($"Left out: {string.Join(" ", _classicProblems)}", 120), new Vector2(640, 628), _ui["ember"], 0.5f);
+        }
 
         if (_selectable.Count == 0)
         {
@@ -522,7 +531,14 @@ internal sealed partial class CommunityGame
         {
             _ui.Text(Font.Body, 16, Shorten($"Imported pack by {pack.Creator}  ·  {pack.License}", 60), new Vector2(x + 24, y + 434), _ui["cream"] * 0.8f);
         }
+        else if (IsClassic(pack))
+        {
+            _ui.Text(Font.Body, 16, "From your own copy of Nocturne  ·  never shared or exported", new Vector2(x + 24, y + 434), _ui["cream"] * 0.8f);
+        }
     }
+
+    /// <summary>True for a classic campaign imported from the player's own copy of Nocturne.</summary>
+    private static bool IsClassic(Content.StagePack? pack) => pack?.PackId is ClassicStages.OriginalPackId or ClassicStages.BonusPackId;
 
     /// <summary>The Import tab: the archives in the imports folder, where that folder is, and what the last import did.</summary>
     private void DrawImportTab()

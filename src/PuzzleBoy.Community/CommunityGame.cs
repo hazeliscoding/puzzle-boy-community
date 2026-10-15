@@ -59,6 +59,7 @@ internal sealed partial class CommunityGame : Game
     private MenuList _selectMenu = new(1);
     private int _selectTab;
     private List<StagePack> _importedPacks = [];
+    private readonly List<string> _classicProblems = [];
     private List<string> _importZips = [];
     private string? _importPending;
     private string? _importStatus;

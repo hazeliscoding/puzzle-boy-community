@@ -1,17 +1,23 @@
 using FontStashSharp;
+using PuzzleBoy.Community.Classic;
 using PuzzleBoy.Community.Content;
+using PuzzleBoy.Community.Save;
 using PuzzleBoy.Rules;
 
 namespace PuzzleBoy.Community;
 
 /// <summary>
 /// <c>--smoke-test</c>: checks, with no window, that the content beside the game is complete and that the first stage
-/// plays. It proves an unpacked build has everything it needs, without a graphics device.
+/// plays. It proves an unpacked build has everything it needs, without a graphics device. Given a data folder, it also
+/// checks the classic stages imported there.
 /// </summary>
 internal static class SmokeTest
 {
-    /// <summary>Runs the checks on <paramref name="contentFolder"/>, writes a short report and returns 0 on success, 1 on failure.</summary>
-    public static int Run(string contentFolder, TextWriter output)
+    /// <summary>
+    /// Runs the checks on <paramref name="contentFolder"/>, and on the classic stages in <paramref name="dataDir"/> when
+    /// it's given, writes a short report and returns 0 on success, 1 on failure.
+    /// </summary>
+    public static int Run(string contentFolder, TextWriter output, string? dataDir = null)
     {
         output.WriteLine($"Puzzle Boy Community Edition smoke test: {contentFolder}");
         var problems = Provenance.Check(contentFolder);
@@ -48,17 +54,25 @@ internal static class SmokeTest
         if (problems.Count == 0)
         {
             output.WriteLine($"content: {manifest!.Packs.Count} pack(s), {stages.Count} stage(s), {manifest.Fonts.Count} fonts");
-            var first = stages[0];
-            var board = new Board(first.Stage);
-            var before = board.Active;
-            var step = Enum.GetValues<Direction>().Select(d => (Direction: d, Result: board.Step(d))).FirstOrDefault(s => s.Result != StepResult.Refused);
-            if (step.Result == StepResult.Refused || board.Active == before)
+            TakeStep(stages[0], output, problems);
+        }
+
+        if (dataDir is not null && problems.Count == 0)
+        {
+            var classic = ClassicStages.Load(dataDir, problems);
+            var known = PackArchive.ReadKnown() ?? [];
+            if (classic.Count == 0 && problems.Count == 0)
             {
-                problems.Add($"stage {first.Id}: no step moves the character.");
+                output.WriteLine($"classic: nothing imported in {dataDir}");
             }
-            else
+
+            foreach (var pack in classic)
             {
-                output.WriteLine($"stage {first.Id}: {step.Direction} {step.Result.ToString().ToLowerInvariant()} from ({before.X}, {before.Y}) to ({board.Active.X}, {board.Active.Y})");
+                // Every Nocturne stage is in the known-layout list, which is what keeps it out of an exported pack.
+                var unknown = pack.Stages.Where(s => !KnownLayouts.Matches(known, s.Stage).Any()).Select(s => s.Id).ToList();
+                output.WriteLine($"classic: {pack.Title}, {pack.Stages.Count} stage(s), {pack.Stages.Count - unknown.Count} of them known layouts that a pack export refuses");
+                problems.AddRange(unknown.Select(id => $"classic stage {id}: not in the known-layout list, so a pack export wouldn't refuse it."));
+                TakeStep(pack.Stages[0], output, problems);
             }
         }
 
@@ -69,5 +83,21 @@ internal static class SmokeTest
 
         output.WriteLine(problems.Count == 0 ? "smoke test passed" : "smoke test failed");
         return problems.Count == 0 ? 0 : 1;
+    }
+
+    /// <summary>Takes the first step that isn't refused on a fresh board of <paramref name="stage"/> and reports it.</summary>
+    private static void TakeStep(PackStage stage, TextWriter output, List<string> problems)
+    {
+        var board = new Board(stage.Stage);
+        var before = board.Active;
+        var step = Enum.GetValues<Direction>().Select(d => (Direction: d, Result: board.Step(d))).FirstOrDefault(s => s.Result != StepResult.Refused);
+        if (step.Result == StepResult.Refused || board.Active == before)
+        {
+            problems.Add($"stage {stage.Id}: no step moves the character.");
+        }
+        else
+        {
+            output.WriteLine($"stage {stage.Id}: {step.Direction} {step.Result.ToString().ToLowerInvariant()} from ({before.X}, {before.Y}) to ({board.Active.X}, {board.Active.Y})");
+        }
     }
 }

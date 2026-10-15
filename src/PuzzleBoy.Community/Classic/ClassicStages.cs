@@ -74,7 +74,7 @@ internal static class ClassicStages
                 ["format"] = "puzzle-boy-classic-import",
                 ["schemaVersion"] = 1,
                 ["source"] = source,
-                ["importedAt"] = DateTimeOffset.UtcNow.ToString("O"),
+                ["importedAt"] = DateTime.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
                 ["files"] = hashes,
             };
             File.WriteAllText(Path.Combine(temp, "index.json"), index.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));

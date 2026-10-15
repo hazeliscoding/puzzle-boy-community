@@ -9,7 +9,8 @@ if (args.Contains("--smoke-test"))
 {
     // shortcut: a WinExe has no console, so on Windows the report shows only when output is redirected (as in CI); the
     // exit code always works. Attach to the parent console if players ever need to read it.
-    return SmokeTest.Run(content, Console.Out);
+    var smokeData = Array.IndexOf(args, "--data-dir") is var smokeDataAt and >= 0 && smokeDataAt + 1 < args.Length ? args[smokeDataAt + 1] : null;
+    return SmokeTest.Run(content, Console.Out, smokeData);
 }
 
 SmokeGui? smoke = null;

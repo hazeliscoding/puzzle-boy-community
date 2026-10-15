@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using PuzzleBoy.Community.App;
+using PuzzleBoy.Community.Classic;
 using PuzzleBoy.Community.Editor;
 using PuzzleBoy.Rules;
 
@@ -136,7 +137,11 @@ internal sealed class SmokeGui(string titlePng, string? screensDir = null)
 
             for (var tab = 0; tab < 16 && game.SelectPack is { PackId: not "custom" }; tab++)
             {
-                foreach (var tick in Press(Keys.Right))
+                // Classic stages show only on a data folder that has them (--data-dir), never on a fresh profile.
+                var classic = game.SelectPack.PackId is ClassicStages.OriginalPackId or ClassicStages.BonusPackId
+                    ? Shot(null, $"{game.SelectPack.PackId.Replace('/', '-')}.png")
+                    : [];
+                foreach (var tick in classic.Concat(Press(Keys.Right)))
                 {
                     yield return tick;
                 }
