@@ -29,6 +29,10 @@ Export My Classic Pack writes one zip you can import on your other computers. It
 
 Screenshots of this game in public use the Default theme only.
 
+## Download and play
+
+Once there's a release, download the archive for your system from [Releases](https://github.com/hazeliscoding/puzzle-boy-community/releases), unpack it anywhere and run `PuzzleBoyCommunity` (`PuzzleBoyCommunity.exe` on Windows). [Install and troubleshooting](docs/install-and-troubleshooting.md) covers each system, the security prompts for unsigned builds, where your saves live, the Classic theme and how to report a bug. Coming from puzzle-boy v0.2.0's bonus stages? See [docs/migration.md](docs/migration.md).
+
 ## Build
 
 ```bash
@@ -36,6 +40,8 @@ git clone --recurse-submodules https://github.com/hazeliscoding/puzzle-boy-commu
 cd puzzle-boy-community
 dotnet run --project src/PuzzleBoy.Community
 ```
+
+[docs/contributing.md](docs/contributing.md) covers the engine pin, adding a stage and the asset rules.
 
 ## License
 

@@ -146,7 +146,8 @@ The handoff's M7.
 
 - [x] Self-contained archives for win-x64, linux-x64, osx-arm64 and osx-x64, with `content/` inside. `scripts/package.sh` built all four on the owner's machine (2026.10.15, at `79c36e3`, version `0.1.0+79c36e3`): 35 to 38 MB each, 241 or 242 files, and `scripts/check-archive.sh` passed each. The tarballs keep `PuzzleBoyCommunity` at 755, and both macOS executables carry a code signature load command (the SDK's ad-hoc signature); the libraries MonoGame ships are universal binaries.
 - [x] CI unpacks each archive and runs the smoke checks; Windows and Linux start the real window. `release.yml`, run by hand on `main` with no tag (so nothing is published), passed at `a871ff0` (run 38756313074) and `6642394` (run 38761882379). Each smoke job unpacked the exact archive the package job built, checked against `SHA256SUMS`, into an empty profile and passed `--smoke-test`. On `macos-latest` (osx-arm64), `macos-15-intel` (osx-x64) and `ubuntu-latest` (linux-x64, under Xvfb) `--smoke-gui` opened a real window, drew the title and stage 1 and took a step, and the `--smoke-gui-screens` tour passed. `windows-latest` has no OpenGL, so CI ran only the headless check there; the Windows window and the table's other checks ran on the owner's PC.
-- [ ] Changelog, credits, troubleshooting and the signing status. `THIRD_PARTY_NOTICES.txt` (each shipped library's license, with OpenAL Soft's LGPL and its exact source) and `LICENSE` are copied beside the game on every build and publish, and a test fails when a package the game ships isn't in it. The release notes give the signing status, how to get past SmartScreen, Gatekeeper and a lost executable bit, what has been tested, and the OpenAL Soft source link the LGPL asks for. The credits show the version. Still to do: a changelog and a troubleshooting section in the README.
+- [x] Changelog, credits, troubleshooting and the signing status. [CHANGELOG.md](CHANGELOG.md); [install and troubleshooting](docs/install-and-troubleshooting.md) (each system, SmartScreen, Gatekeeper, the executable bit, OpenGL, saves, the Classic theme, bug reports); [contributing](docs/contributing.md); [moving from puzzle-boy v0.2.0](docs/migration.md). The credits name every shipped library and the Classic theme's works. `THIRD_PARTY_NOTICES.txt` (each shipped library's license, with OpenAL Soft's LGPL and its exact source) and `LICENSE` are copied beside the game on every build and publish, and a test fails when a package the game ships isn't in them. The release notes give the signing status, what's been tested, and the OpenAL Soft source link the LGPL asks for. The README shows three screenshots captured from the app in the Default theme.
+- [ ] Tag `v0.1.0` and publish, by the release checklist below. The owner's call.
 
 Release acceptance, from unpacked archives (2026.10.15). Untested means untested, not passed. Nobody has played a release build through by hand, and nobody has started one on macOS or a Linux desktop by hand.
 
@@ -160,6 +161,15 @@ Release acceptance, from unpacked archives (2026.10.15). Untested means untested
 The archives carry only the bundled Default theme. The Classic Nocturne theme is optional and made from the player's own copy (C6), so no archive holds it and this table doesn't cover it.
 
 **Done when** a tagged release publishes only after the 12-stage minimum, the editor, provenance, smoke tests and archive checks pass.
+
+### Release checklist
+
+1. Bump `<Version>` in `src/PuzzleBoy.Community/PuzzleBoy.Community.csproj` and move CHANGELOG.md's Unreleased section under that version and date.
+2. Push to `main` and wait for CI to pass.
+3. Run `release.yml` by hand on `main` (`gh workflow run release.yml --ref main`) and check every smoke job: the headless check everywhere, "GUI verified" on Linux and macOS, and the screenshots artifact.
+4. Tag `vX.Y.Z` on that commit and push the tag. The release job publishes only after the tests and every smoke job pass again.
+5. Add any hand-test results to the table above, and update the "Tested so far" paragraph in `release.yml`'s notes.
+6. Check that the release notes carry the OpenAL Soft source link.
 
 ## Later
 
