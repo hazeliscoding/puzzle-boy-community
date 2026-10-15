@@ -30,11 +30,11 @@ It plays on [puzzle-boy-engine](https://github.com/hazeliscoding/puzzle-boy-engi
 
 ## The Classic Nocturne theme, from your own copy
 
-Import once: Settings → Classic Nocturne → Import from My Steam Install (or Import from a Folder or Zip, with the folder that holds `smt3hd.exe`) copies the eight bundles the theme reads, about 120 MB, into a classic pack in your data folder, and checks each file's hash whenever it's used. The Theme setting is Auto: with a pack it plays the Classic theme, without one the Default theme; Classic and Default fix it. Menus, stage select, settings and the editor look the same in both. Stage select also adds Classic: Original 20, the original's stages in its order, and Classic: Bonus, 23 unused stages from the game that a solution clears. The Manikin Kid and the original's dialogue aren't part of it.
+Import once: Settings → Classic Nocturne → Import from My Steam Install (or Import from a Folder or Zip, with the folder that holds `smt3hd.exe`) copies the eight bundles the theme reads, about 120 MB, into a classic pack in your data folder, and checks each file's hash whenever it's used. The Theme setting is Auto: with a pack it plays the Classic theme, without one the Default theme; Classic and Default fix it. The whole interface follows: in play the original's HUD, controls bar, menu and rules page, and on Community's own screens the original's font, windows, cursor and key prompts, with the Jack-o'-Lantern on the title. Stage select also adds Classic: Original 20, the original's stages in its order, and Classic: Bonus, 23 unused stages from the game that a solution clears. The Manikin Kid and the original's dialogue aren't part of it.
 
 Export My Classic Pack writes one zip you can import on your other computers. It's made from your own copy, for your own computers: don't share it. Nothing from Nocturne ships with this game or is downloaded, and the game never looks for Nocturne unless you ask. Remove Classic Pack deletes the pack again, keeping your progress. From a command line, `--import-classic <game folder or pack zip>` and `--export-classic` do the same.
 
-Screenshots of this game in public use the Default theme only.
+Screenshots committed to this repo use the Default theme only.
 
 ## Download and play
 

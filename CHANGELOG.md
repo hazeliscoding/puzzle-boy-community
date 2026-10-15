@@ -4,6 +4,16 @@ Notable changes to Puzzle Boy Community Edition. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Added
+
+- A Nocturne-styled interface for the Classic theme. In play: the original's stage counter, COMPLETE!, UNDO, scroll arrows and controls bar on its timing, its menu (with Settings) and its rules page, then a page of every control. Community's screens keep their layout and words in the original's font, windows, cursor, key prompts and backdrop, and the title shows the Jack-o'-Lantern. The Default theme's interface is unchanged.
+- F opens the menu, as in the original, in both themes.
+- A classic pack in a `classic-pack` folder beside the game is used, read-only, when your data folder has none, for a build you carry to your own computers.
+
+### Changed
+
+- Classic packs now hold the original's UI and text bundles too (schema 2, about 120 MB). A pack imported by 0.1.0 still plays with Community's menus and says once a session to import again.
+
 ## [0.1.0] - 2026-10-15
 
 The first release.
