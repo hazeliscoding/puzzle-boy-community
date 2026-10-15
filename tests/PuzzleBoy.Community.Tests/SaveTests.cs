@@ -154,6 +154,17 @@ public class SaveTests
     }
 
     [Fact]
+    public void A_save_an_editor_gave_a_byte_order_mark_still_loads()
+    {
+        using var temp = new TempFolder();
+        temp.Write(SaveStore.FileName, $"﻿{{\"schemaVersion\": 1, \"stages\": {{\"{Id(0)}\": {{\"completed\": true}}}}}}");
+
+        var store = SaveStore.Load(temp.Path);
+        Assert.Null(store.Notice);
+        Assert.True(store.Data.IsCompleted(Id(0)));
+    }
+
+    [Fact]
     public void A_save_from_a_newer_version_is_never_overwritten()
     {
         using var temp = new TempFolder();

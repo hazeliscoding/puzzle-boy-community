@@ -188,8 +188,15 @@ internal sealed class SaveStore
                 return (null, "it's too big");
             }
 
+            // An editor may add a byte order mark when a player saves the file by hand.
+            var bytes = File.ReadAllBytes(path).AsSpan();
+            if (bytes.StartsWith("﻿"u8))
+            {
+                bytes = bytes[3..];
+            }
+
             // A duplicate property would otherwise throw ArgumentException later, when the object is first read.
-            root = JsonNode.Parse(File.ReadAllBytes(path), documentOptions: new JsonDocumentOptions { AllowDuplicateProperties = false });
+            root = JsonNode.Parse(bytes, documentOptions: new JsonDocumentOptions { AllowDuplicateProperties = false });
         }
         catch (JsonException)
         {
