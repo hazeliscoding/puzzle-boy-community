@@ -27,7 +27,7 @@ internal static class Atlas
     /// <summary>Plain white, no frame.</summary>
     public const int White = 10;
 
-    /// <summary>A soft ring, transparent inside and out, for the goal and the active character's marker.</summary>
+    /// <summary>A soft ring, transparent inside and out, for the goal and, in another color, the active character.</summary>
     public const int Ring = 11;
 
     /// <summary>A soft round glow fading to transparent at the edge.</summary>

@@ -281,7 +281,8 @@ internal sealed class BoardRenderer : IDisposable
             AddTinted(_jack, world, tint);
             if (active && several)
             {
-                _glow.AddFlat(x, 0.04f, -y, 1.15f, _theme["ember"] * (0.8f + (0.2f * idle)), Atlas.Ring);
+                // Violet, unlike the goal's ember ring, so the Jack in control never looks as if he stands on the goal.
+                _glow.AddFlat(x, 0.04f, -y, 1.15f, _theme["bandOnDark"] * (0.8f + (0.2f * idle)), Atlas.Ring);
             }
 
             // A soft shadow under each figure.
