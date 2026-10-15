@@ -5,6 +5,7 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
+    <PackageVersion Include="AssetsTools.NET" Version="3.0.5" />
     <PackageVersion Include="FontStashSharp.MonoGame" Version="1.6.1" />
     <PackageVersion Include="MonoGame.Framework.DesktopGL" Version="3.8.6" />
     <PackageVersion Include="xunit.v3" Version="4.0.2" />

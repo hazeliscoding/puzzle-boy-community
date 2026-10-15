@@ -1,5 +1,6 @@
 using Microsoft.Xna.Framework.Graphics;
 using PuzzleBoy.Community;
+using PuzzleBoy.Community.Classic;
 using PuzzleBoy.Community.Content;
 using PuzzleBoy.Community.Save;
 
@@ -55,6 +56,17 @@ else
 {
     // A smoke run never reads or writes the player's own save.
     dataDir = smoke is null ? SaveStore.DefaultFolder() : Directory.CreateTempSubdirectory("puzzle-boy-community-smoke-").FullName;
+}
+
+if (Array.IndexOf(args, "--import-classic") is var classicAt and >= 0)
+{
+    if (classicAt + 1 >= args.Length)
+    {
+        Console.Error.WriteLine("--import-classic needs the game's folder, the one that holds smt3hd.exe.");
+        return 2;
+    }
+
+    return ImportClassic(args[classicAt + 1], dataDir);
 }
 
 var problems = new List<string>();
@@ -119,4 +131,13 @@ int Run(bool multisampling)
     using var game = new CommunityGame(manifest, save, smoke, multisampling);
     game.Run();
     return game.ExitCode;
+}
+
+// The only way a launch reaches the classic import: the player asked for it by name.
+static int ImportClassic(string folder, string dataDir)
+{
+    Console.OutputEncoding = System.Text.Encoding.UTF8;
+    var result = ClassicImport.FromFolder(folder, dataDir);
+    Console.WriteLine(result.Message);
+    return result.Imported ? 0 : 1;
 }

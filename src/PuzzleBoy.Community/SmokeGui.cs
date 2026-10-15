@@ -112,7 +112,7 @@ internal sealed class SmokeGui(string titlePng, string? screensDir = null)
                 yield return tick;
             }
 
-            foreach (var tick in Visit(game, [Keys.Down, Keys.Down], Screen.Settings, "settings.png", ToggleFullscreen(game)))
+            foreach (var tick in Visit(game, [Keys.Down, Keys.Down], Screen.Settings, "settings.png", ToggleFullscreen(game).Concat(ImportClassic(game))))
             {
                 yield return tick;
             }
@@ -518,6 +518,29 @@ internal sealed class SmokeGui(string titlePng, string? screensDir = null)
                 Fail(game, $"turning fullscreen {(on ? "on" : "off")} from settings didn't take");
                 yield break;
             }
+        }
+    }
+
+    /// <summary>
+    /// On the settings screen with Display focused, opens Import Classic, saves it and goes back to settings. It never
+    /// chooses an import.
+    /// </summary>
+    private IEnumerable<Keys[]> ImportClassic(CommunityGame game)
+    {
+        foreach (var tick in Press([.. Enumerable.Repeat(Keys.Down, SettingsMenu.ImportRow), Keys.Enter]))
+        {
+            yield return tick;
+        }
+
+        if (game.CurrentScreen != Screen.ImportClassic)
+        {
+            Fail(game, $"settings' Import Classic Content opened {game.CurrentScreen}");
+            yield break;
+        }
+
+        foreach (var tick in Shot(null, "import-classic.png").Concat(Press(Keys.Escape)))
+        {
+            yield return tick;
         }
     }
 

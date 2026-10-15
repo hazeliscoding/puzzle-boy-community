@@ -104,10 +104,10 @@ internal sealed partial class CommunityGame : Game
             }
         };
 
-        // Typed text for the editor's title and a pack's; a smoke run takes none from the real keyboard.
+        // Typed text for the editor's title, a pack's and the classic game's folder; a smoke run takes none from the real keyboard.
         Window.TextInput += (_, e) =>
         {
-            if (_smoke is null && _overlay is EditorOverlay.Title or EditorOverlay.ExportText)
+            if (_smoke is null && (_overlay is EditorOverlay.Title or EditorOverlay.ExportText || (_nav.Current == Screen.ImportClassic && _classicPath is not null)))
             {
                 _typed.Append(e.Character);
             }
@@ -219,9 +219,12 @@ internal sealed partial class CommunityGame : Game
             case Screen.Editor:
                 UpdateEditor(controls);
                 break;
+            case Screen.ImportClassic:
+                UpdateImportClassic(controls);
+                break;
             default:
-                // Credits and the placeholders hold a single Back.
-                if (RunMenu(_backMenu, controls, _nav.Current == Screen.Credits ? CreditsBack : BackButton) is not null || Cancelled(controls))
+                // Credits holds a single Back.
+                if (RunMenu(_backMenu, controls, CreditsBack) is not null || Cancelled(controls))
                 {
                     GoBack();
                 }
@@ -261,8 +264,8 @@ internal sealed partial class CommunityGame : Game
             case Screen.Editor:
                 DrawEditor();
                 break;
-            default:
-                DrawPlaceholder("IMPORT CLASSIC", "Coming later, and always optional. If you own Shin Megami Tensei III: Nocturne, you'll be able to use the classic look and its bonus stages from your own copy. Nothing from it ships with this game.");
+            case Screen.ImportClassic:
+                DrawImportClassic();
                 break;
         }
 

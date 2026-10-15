@@ -21,7 +21,7 @@ internal enum StageStatus
     Cleared,
 }
 
-/// <summary>The menu screens: title, stage select, pause, settings, credits and the placeholders.</summary>
+/// <summary>The menu screens: title, stage select, pause, settings and credits.</summary>
 internal sealed partial class CommunityGame
 {
     /// <summary>The title menu, in order.</summary>
@@ -49,7 +49,6 @@ internal sealed partial class CommunityGame
     private static readonly MenuLayout SettingsLayout = new(240, 136, 800, 44);
     private static readonly MenuLayout ConfirmLayout = new(490, 380, 300, 54);
     private static readonly MenuLayout SelectMenu = new(72, 150, 580, 50);
-    private static readonly MenuLayout BackButton = new(540, 600, 200, 54);
     private static readonly MenuLayout ImportChoiceLayout = new(490, 386, 300, 50);
 
     // Credits run nearly to the bottom, so their Back sits lower.
@@ -330,7 +329,7 @@ internal sealed partial class CommunityGame
         switch (chosen)
         {
             case SettingsMenu.ImportRow:
-                _nav.Open(Screen.ImportClassic);
+                OpenImportClassic();
                 break;
             case SettingsMenu.ResetRow:
                 _confirmReset = true;
@@ -748,15 +747,9 @@ internal sealed partial class CommunityGame
                 FocusBar(layout, top);
             }
 
-            var ink = focused ? _ui["ink"] : _ui["cream"] * (row == SettingsMenu.ImportRow ? 0.6f : 0.92f);
+            var ink = focused ? _ui["ink"] : _ui["cream"] * 0.92f;
             var textTop = top + ((layout.Spacing - 26) / 2);
             _ui.Text(Font.BodyBold, 21, SettingsMenu.Labels[row], new Vector2(layout.Left + 36, textTop), ink);
-            if (row == SettingsMenu.ImportRow)
-            {
-                // Classic import comes with C4.
-                SoonTag(layout, row, ink);
-            }
-
             if (!SettingsMenu.HasValue(row))
             {
                 continue;
@@ -813,19 +806,9 @@ internal sealed partial class CommunityGame
         Section("PUZZLE BOY COMMUNITY EDITION", "Game, stages, Pixel Jack, music and sound by the Puzzle Boy Community authors. Code and original content under the Apache License 2.0.");
         Section("FONTS", "Atkinson Hyperlegible by the Braille Institute of America (Elliott Scott, Megan Eiswerth, Linus Boman, Theodore Petrosky).\nSilkscreen by Jason Kottke. Both under the SIL Open Font License 1.1.");
         Section("COLORS", "Block colors from the Okabe-Ito colorblind-safe palette.");
-        Section("LIBRARIES", "MonoGame (Ms-PL), SDL2 and FontStashSharp (zlib), OpenAL Soft (LGPL 2), StbTrueTypeSharp and StbImageSharp (public domain), NVorbis and Cyotek.Drawing.BitmapFont (MIT). Their notices are in THIRD_PARTY_NOTICES.txt beside the game.");
+        Section("LIBRARIES", "MonoGame (Ms-PL), SDL2 and FontStashSharp (zlib), OpenAL Soft (LGPL 2), StbTrueTypeSharp and StbImageSharp (public domain), NVorbis, Cyotek.Drawing.BitmapFont and AssetsTools.NET (MIT). Their notices are in THIRD_PARTY_NOTICES.txt beside the game.");
         Section("INSPIRATION", Notice);
         DrawMenu(_backMenu, ["Back"], CreditsBack, 26);
-        _ui.End();
-    }
-
-    private void DrawPlaceholder(string title, string text)
-    {
-        DrawDrift(0.6f);
-        _ui.Begin();
-        Heading(title);
-        _ui.Wrapped(Font.Body, 26, text, new Vector2(290, 280), 700, _ui["cream"]);
-        DrawMenu(_backMenu, ["Back"], BackButton, 26);
         _ui.End();
     }
 
@@ -914,10 +897,6 @@ internal sealed partial class CommunityGame
             _ui.Text(Font.BodyBold, size, labels[i], new Vector2(layout.Left + 36, top + ((layout.Spacing - (size * _ui.TextScale * 1.2f)) / 2)), color);
         }
     }
-
-    /// <summary>A "SOON" tag at the right of item <paramref name="index"/> of a menu laid out as <paramref name="layout"/>.</summary>
-    private void SoonTag(MenuLayout layout, int index, Color color) =>
-        _ui.Text(Font.Title, 16, "SOON", new Vector2(layout.Left + layout.Width - 16, layout.Top + (index * layout.Spacing) + (layout.Spacing / 2) - (8 * _ui.TextScale)), color, 1, 1);
 
     /// <summary>
     /// Blocks drifting slowly through the dark, behind the menus; <paramref name="strength"/> dims them. They stand still

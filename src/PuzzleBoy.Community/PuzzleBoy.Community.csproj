@@ -8,6 +8,8 @@
 
   <!-- No MonoGame content pipeline: fonts and data are read from content/ at runtime, and graphics are drawn in code. -->
   <ItemGroup>
+    <!-- Only Classic/ reads the player's own Nocturne bundles, and only when they choose an import. -->
+    <PackageReference Include="AssetsTools.NET" />
     <PackageReference Include="FontStashSharp.MonoGame" />
     <PackageReference Include="MonoGame.Framework.DesktopGL" />
   </ItemGroup>
