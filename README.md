@@ -19,7 +19,7 @@ Push blocks, turn swivels and fill holes to reach the goal, with the minigame's 
 - The Default theme's graphics are drawn and its music synthesized in code: nothing to download after you unpack it.
 - The Classic Nocturne theme, from your own copy, for every stage: the campaign, your own, imported packs, and the original's 20 stages and 23 unused bonus stages.
 
-It plays on [puzzle-boy-engine](https://github.com/hazeliscoding/puzzle-boy-engine), the rules shared with [puzzle-boy](https://github.com/hazeliscoding/puzzle-boy), a preservation port that reads the original stages from your own copy of Nocturne. The engine isn't published yet.
+It plays on [puzzle-boy-engine](https://github.com/hazeliscoding/puzzle-boy-engine), the rules shared with [puzzle-boy](https://github.com/hazeliscoding/puzzle-boy), a preservation port that reads the original stages from your own copy of Nocturne.
 
 ## The Classic Nocturne theme, from your own copy
 
@@ -41,4 +41,4 @@ dotnet run --project src/PuzzleBoy.Community
 
 The code is licensed under [Apache-2.0](LICENSE). The fonts are under the SIL Open Font License 1.1; [content/ASSET_CREDITS.md](content/ASSET_CREDITS.md) credits every file in `content/`. The libraries every build ships (MonoGame, SDL2, OpenAL Soft, FontStashSharp and others) keep their own licenses, collected in [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt), which is copied beside the game.
 
-*Shin Megami Tensei*, *Nocturne* and *Puzzle Boy* are trademarks of ATLUS and SEGA. This is an independent fan project. It is not affiliated with or endorsed by either company, and it contains no ATLUS or SEGA assets.
+*Shin Megami Tensei*, *Nocturne* and *Puzzle Boy* are trademarks of ATLUS and SEGA. This is an independent fan project. It is not affiliated with or endorsed by either company, and its downloads contain no ATLUS or SEGA assets: the Classic theme reads them from your own copy.
