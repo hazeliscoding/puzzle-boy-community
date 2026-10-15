@@ -1,4 +1,6 @@
+using Microsoft.Xna.Framework;
 using PuzzleBoy.Community.Content;
+using PuzzleBoy.Community.Graphics;
 using PuzzleBoy.Community.Play;
 using PuzzleBoy.Rules;
 
@@ -70,6 +72,49 @@ public class PlayTests
         Assert.Equal(1, camera.Mode);
         Settle(camera);
         Assert.True(camera.ToggleOverhead());
+    }
+
+    [Fact]
+    public void Every_bundled_stage_shows_its_whole_play_area_and_goal_clear_of_the_hud_from_every_view()
+    {
+        foreach (var stage in FirstSteps)
+        {
+            var board = new Board(stage.Stage);
+            var camera = new CameraRig();
+            var (minX, minY, maxX, maxY) = BoardRenderer.PlayBounds(board);
+            foreach (var view in new[] { "start", "turned once", "turned twice", "turned three times", "overhead" })
+            {
+                var (pivot, distance) = camera.Frame(minX, minY, maxX, maxY, 1280, 720);
+                List<Vector3> points = [new(board.Goal.X, 1.1f, -board.Goal.Y)];
+                for (var y = 0; y < Stage.Height; y++)
+                {
+                    for (var x = 0; x < Stage.Width; x++)
+                    {
+                        if (Cell.KindOf(board[x, y]) != CellKind.Wall)
+                        {
+                            points.Add(new(x, 0, -y));
+                        }
+                    }
+                }
+
+                foreach (var point in points)
+                {
+                    var screen = camera.ToScreen(point, pivot, distance, 1280, 720);
+                    Assert.True(screen is { } p && CameraRig.SafeArea.Contains(p), $"{stage.Id}, {view}: {point} is drawn at {screen}, outside {CameraRig.SafeArea}.");
+                }
+
+                if (view == "turned three times")
+                {
+                    camera.ToggleOverhead();
+                }
+                else
+                {
+                    camera.TurnRight();
+                }
+
+                Settle(camera);
+            }
+        }
     }
 
     [Fact]

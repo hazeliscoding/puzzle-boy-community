@@ -54,8 +54,6 @@ internal sealed partial class CommunityGame : Game
     private int _selectScroll;
     private bool _confirmReset;
     private bool _helpOpen;
-    private Vector3 _pivot;
-    private float _distance;
     private int _ticks;
     private int _noticeTicks;
     private bool _newBest;
@@ -293,34 +291,6 @@ internal sealed partial class CommunityGame : Game
     {
         _session = new PlaySession(pack.Stages, index);
         _nav.Open(Screen.Playing);
-        FrameStage();
-    }
-
-    /// <summary>Points the camera at a newly started stage.</summary>
-    private void FrameStage()
-    {
-        var (minX, minY, maxX, maxY) = BoardRenderer.PlayBounds(_session!.Board);
-        var extent = Math.Max(maxX - minX, (maxY - minY) * 1.4f) + 1;
-        _distance = Math.Clamp((extent * 1.05f) + 4, 9, 22);
-        _pivot = Pivot();
-    }
-
-    /// <summary>
-    /// Where the camera looks: the middle of a stage that fits the view, or else the active character, held inside the
-    /// play area.
-    /// </summary>
-    private Vector3 Pivot()
-    {
-        var (minX, minY, maxX, maxY) = BoardRenderer.PlayBounds(_session!.Board);
-        var center = new Vector3((minX + maxX) / 2f, 0, -(minY + maxY) / 2f);
-        if (maxX - minX <= 12 && maxY - minY <= 9)
-        {
-            return center;
-        }
-
-        // shortcut: large stages follow the character within the play area; a smarter framing can come with C2 stages.
-        var (x, y, _) = _session.Where(_session.Board.ActiveIndex);
-        return new Vector3(Math.Clamp(x, minX + 4, Math.Max(minX + 4, maxX - 4)), 0, -Math.Clamp(y, minY + 3, Math.Max(minY + 3, maxY - 3)));
     }
 
     private void GoBack()

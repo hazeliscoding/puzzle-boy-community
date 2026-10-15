@@ -36,14 +36,9 @@ internal sealed partial class CommunityGame
             _sounds.Play(Sfx.Goal);
         }
 
-        _pivot = _save.Data.Settings.ReduceMotion ? Pivot() : Vector3.Lerp(_pivot, Pivot(), 0.2f);
         if (session.ReadyToContinue)
         {
-            if (session.Next())
-            {
-                FrameStage();
-            }
-            else
+            if (!session.Next())
             {
                 // The pack is done: back to the stage list.
                 _session = null;
@@ -105,8 +100,11 @@ internal sealed partial class CommunityGame
     private void DrawPlaying()
     {
         var session = _session!;
-        var view = _camera.View(_pivot, _distance);
-        _board.Draw(session, view, Projection(34), _ticks);
+        // The whole play area stays in view, framed afresh each frame as the view turns or the window changes size.
+        var (minX, minY, maxX, maxY) = BoardRenderer.PlayBounds(session.Board);
+        var viewport = GraphicsDevice.Viewport;
+        var (pivot, distance) = _camera.Frame(minX, minY, maxX, maxY, viewport.Width, viewport.Height);
+        _board.Draw(session, _camera.View(pivot, distance), CameraRig.Projection(viewport.AspectRatio), _ticks);
         _ui.Begin();
         DrawHud(session);
         if (session.Board.IsCleared && session.ClearTicks > 0)

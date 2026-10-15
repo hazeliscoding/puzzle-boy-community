@@ -1,4 +1,5 @@
 using Microsoft.Xna.Framework;
+using PuzzleBoy.Community.App;
 using PuzzleBoy.Rules;
 
 namespace PuzzleBoy.Community.Play;
@@ -9,8 +10,24 @@ namespace PuzzleBoy.Community.Play;
 /// </summary>
 internal sealed class CameraRig
 {
+    /// <summary>The play view's vertical field of view, in degrees.</summary>
+    public const float FieldOfView = 34;
+
+    /// <summary>
+    /// Where the board must stay on the 1280×720 virtual screen: below the HUD's stat panels (which end at y = 114) and
+    /// above its hint bar (which starts at y = 672).
+    /// </summary>
+    public static readonly Rectangle SafeArea = new(16, 120, 1248, 548);
+
     private const int TurnTicks = 7;
     private const int AngleTicks = 7;
+
+    // The nearest the camera comes, so a small stage isn't blown up; the farthest, inside the far plane.
+    private const float MinDistance = 9;
+    private const float MaxDistance = 50;
+
+    // How high a stage's contents reach: blocks, swivel centers, the goal's gem and a hopping Pixel Jack.
+    private const float ContentTop = 1.1f;
 
     private float _fromYaw;
     private float _toYaw;
@@ -86,6 +103,61 @@ internal sealed class CameraRig
         var up = (-away * MathF.Sin(pitch)) + (Vector3.Up * MathF.Cos(pitch));
         return Matrix.CreateLookAt(position, pivot, up);
     }
+
+    /// <summary>
+    /// The pivot and distance, in cells, that show the whole play area from (<paramref name="minX"/>,
+    /// <paramref name="minY"/>) to (<paramref name="maxX"/>, <paramref name="maxY"/>) inside <see cref="SafeArea"/> with
+    /// the view as it is now, in a viewport of <paramref name="width"/>×<paramref name="height"/> pixels.
+    /// </summary>
+    public (Vector3 Pivot, float Distance) Frame(int minX, int minY, int maxX, int maxY, int width, int height)
+    {
+        var pivot = new Vector3((minX + maxX) / 2f, 0, -(minY + maxY) / 2f);
+        Vector3[] corners =
+        [
+            .. from x in new[] { minX - 0.5f, maxX + 0.5f }
+               from y in new[] { minY - 0.5f, maxY + 0.5f }
+               from top in new[] { 0, ContentTop }
+               select new Vector3(x, top, -y),
+        ];
+        bool Fits(float distance) => corners.All(c => ToScreen(c, pivot, distance, width, height) is { } p && SafeArea.Contains(p));
+
+        // The projected size shrinks as the camera backs off, so a binary search finds the nearest distance that fits.
+        var (near, far) = (MinDistance, MaxDistance);
+        if (Fits(near))
+        {
+            return (pivot, near);
+        }
+
+        for (var i = 0; i < 20; i++)
+        {
+            var middle = (near + far) / 2;
+            (near, far) = Fits(middle) ? (near, middle) : (middle, far);
+        }
+
+        return (pivot, far);
+    }
+
+    /// <summary>
+    /// Where <paramref name="world"/> appears on the 1280×720 virtual screen with the view as it is now, looking at
+    /// <paramref name="pivot"/> from <paramref name="distance"/> cells in a <paramref name="width"/>×<paramref name="height"/>
+    /// viewport; null when it's behind the camera.
+    /// </summary>
+    public Vector2? ToScreen(Vector3 world, Vector3 pivot, float distance, int width, int height)
+    {
+        var clip = Vector4.Transform(new Vector4(world, 1), View(pivot, distance) * Projection(width / (float)height));
+        if (clip.W <= 0)
+        {
+            return null;
+        }
+
+        var window = new Vector2(((clip.X / clip.W) + 1) / 2 * width, (1 - (clip.Y / clip.W)) / 2 * height);
+        var (scale, offset) = VirtualScreen.Fit(width, height);
+        return (window - offset) / scale;
+    }
+
+    /// <summary>The play view's projection for a viewport of <paramref name="aspect"/> width over height.</summary>
+    public static Matrix Projection(float aspect) =>
+        Matrix.CreatePerspectiveFieldOfView(MathHelper.ToRadians(FieldOfView), aspect, 0.05f, 60f);
 
     private bool Turn(int sense)
     {
