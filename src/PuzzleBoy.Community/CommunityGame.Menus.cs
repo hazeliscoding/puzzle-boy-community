@@ -10,7 +10,7 @@ namespace PuzzleBoy.Community;
 /// <summary>A stage's state in stage select.</summary>
 internal enum StageStatus
 {
-    /// <summary>Can't be played until the stage before it is cleared.</summary>
+    /// <summary>Can't be played until one of the two stages before it is cleared.</summary>
     Locked,
 
     /// <summary>Playable and not cleared yet.</summary>

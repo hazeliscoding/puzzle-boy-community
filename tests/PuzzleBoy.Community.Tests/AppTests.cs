@@ -212,7 +212,8 @@ public class AppTests
         data.Record(stages[0].Id, 5, 3);
         Assert.Equal(StageStatus.Cleared, CommunityGame.StatusOf(data, stages, 0));
         Assert.Equal(StageStatus.Open, CommunityGame.StatusOf(data, stages, 1));
-        Assert.Equal(StageStatus.Locked, CommunityGame.StatusOf(data, stages, 2));
+        Assert.Equal(StageStatus.Open, CommunityGame.StatusOf(data, stages, 2));
+        Assert.Equal(StageStatus.Locked, CommunityGame.StatusOf(data, stages, 3));
     }
 
     [Fact]

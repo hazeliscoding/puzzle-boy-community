@@ -259,17 +259,17 @@ public class SaveTests
     }
 
     [Fact]
-    public void Only_the_first_stage_and_the_stage_after_each_clear_are_unlocked()
+    public void A_clear_opens_the_two_stages_after_it_so_one_stage_can_be_skipped()
     {
         var data = new SaveData();
-        Assert.Equal([true, false, false], Unlocked(data));
+        Assert.Equal([true, false, false, false], Unlocked(data));
         data.Record(Id(0), 3, 1);
-        Assert.Equal([true, true, false], Unlocked(data));
+        Assert.Equal([true, true, true, false], Unlocked(data));
 
-        // A stage cleared out of order, as a migrated save may hold, stays playable.
+        // Skipping stage 2 and clearing stage 3 goes on from there; a stage cleared out of order stays playable.
         var skipped = new SaveData();
         skipped.Record(Id(2), 3, 1);
-        Assert.Equal([true, false, true], Unlocked(skipped));
+        Assert.Equal([true, false, true, true], Unlocked(skipped));
     }
 
     [Fact]
@@ -350,5 +350,5 @@ public class SaveTests
     }
 
     // The first three stages of the pack are enough to show the rule.
-    private static bool[] Unlocked(SaveData data) => [.. Enumerable.Range(0, 3).Select(i => data.IsUnlocked(FirstSteps.Stages, i))];
+    private static bool[] Unlocked(SaveData data) => [.. Enumerable.Range(0, 4).Select(i => data.IsUnlocked(FirstSteps.Stages, i))];
 }
