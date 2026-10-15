@@ -94,6 +94,36 @@ public class PackArchiveTests
         Assert.Equal(before, Snapshot(data));
     }
 
+    [Theory]
+    [InlineData("stages/CON.json")]
+    [InlineData("stages/con.json ")]
+    [InlineData("stages/Small.json")]
+    [InlineData("stages/a?b.json")]
+    [InlineData("stages/a*b.json")]
+    [InlineData("stages/a<b>.json")]
+    [InlineData("stages/a|b.json")]
+    [InlineData("stages/a\"b.json")]
+    [InlineData("stages/small .json")]
+    [InlineData("stages/small.json.")]
+    [InlineData("stages/‮nosj.json")]
+    [InlineData("stages/small．json")]
+    [InlineData("stages/café.json")]
+    [InlineData("stages/.json")]
+    [InlineData("stages/a-very-long-name-that-goes-past-forty-eight-chars.json")]
+    public void A_stage_file_name_export_wouldnt_write_is_refused_with_the_rule(string name)
+    {
+        using var temp = new TempFolder();
+        var data = Path.Combine(temp.Path, "data");
+        var zip = Zip(temp.Path, [("pack.json", PackJson(file: System.Text.Json.JsonEncodedText.Encode(name).ToString())), (name, StageJson())]);
+
+        var result = PackArchive.Import(zip, data, NoneKnown, Reserved);
+
+        Assert.Null(result.PackId);
+        Assert.Contains($"\"{name}\": a stage file's name is 1 to 48 of a-z, 0-9 and -, then .json.", result.Message);
+        Assert.DoesNotContain(Path.GetTempPath(), result.Message);
+        Assert.False(Directory.Exists(data));
+    }
+
     public static TheoryData<string, string> Refused => new()
     {
         { "symlink", "is a link" },

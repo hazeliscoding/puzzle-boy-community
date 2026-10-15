@@ -45,7 +45,7 @@ stages/...
 }
 ```
 
-Ids are 1 to 48 of `a-z`, `0-9` and `-`. Each stage file is engine stage JSON (puzzle-boy-engine's `docs/stage-json.md`). A stage's progress is saved under `packId/id`.
+Ids, and stage file names before `.json`, are 1 to 48 of `a-z`, `0-9` and `-`, so a pack unpacks the same on every system. Each stage file is engine stage JSON (puzzle-boy-engine's `docs/stage-json.md`). A stage's progress is saved under `packId/id`.
 
 ## What import refuses
 
@@ -53,6 +53,7 @@ Everything is checked before anything is written to the data folder, in a scratc
 
 - An archive over 2 MiB, with more than 256 entries, an entry that unpacks to more than 64 KiB, or more than 4 MiB in all.
 - Absolute paths, drive letters, network (UNC) paths, backslashes, colons, and `.`, `..` or empty parts in a path.
+- A stage file whose name isn't 1 to 48 of `a-z`, `0-9` and `-` then `.json`, such as `CON.json`, `Small.json` or a name with `?`, a space or a lookalike dot.
 - Links, entries named twice (ignoring case), other archives, and any file but `pack.json` and `stages/*.json`. A `.md` or `.txt` file is left out with a warning.
 - A `pack.json` or stage that isn't valid, comes from a newer version of the game, lists a file outside `stages/`, or leaves a stage file unlisted.
 - An id taken by a built-in pack, and any stage whose layout matches the original game's: "This layout matches a stage from the original game, so it can't be imported as a shared pack."

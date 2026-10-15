@@ -52,6 +52,8 @@ internal static partial class PackArchive
     /// <summary>What import says of a stage whose fingerprint is a known Nocturne layout.</summary>
     public const string KnownLayoutMessage = "This layout matches a stage from the original game, so it can't be imported as a shared pack.";
 
+    private const string StageNameRule = "a stage file's name is 1 to 48 of a-z, 0-9 and -, then .json.";
+
     /// <summary>The licenses export offers, as SPDX identifiers; the first is the default.</summary>
     public static readonly string[] Licenses = ["CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0", "Apache-2.0"];
 
@@ -378,6 +380,12 @@ internal static partial class PackArchive
                     return $"\"{name}\" is another archive, which a pack can't hold.";
                 }
 
+                // Only names export writes: anything else may be reserved (CON), invalid (?*<>|") or misleading (U+202E) somewhere.
+                if (name.StartsWith("stages/", StringComparison.Ordinal) && name.IndexOf('/', 7) < 0 && !StageEntry().IsMatch(name))
+                {
+                    return $"\"{name}\": {StageNameRule}";
+                }
+
                 if (name != "pack.json" && !StageEntry().IsMatch(name))
                 {
                     return $"\"{name}\" isn't part of a pack, which holds only pack.json and stages/*.json.";
@@ -463,7 +471,7 @@ internal static partial class PackArchive
                         number++;
                         if (ContentFile.String(entry, "file") is not { } file || !StageEntry().IsMatch(file))
                         {
-                            return $"pack.json, stage {number}: its \"file\" must be a .json file directly in stages/.";
+                            return $"pack.json, stage {number}: its \"file\" must be a .json file directly in stages/; {StageNameRule}";
                         }
                     }
                 }
@@ -549,7 +557,7 @@ internal static partial class PackArchive
     }
 
     // \z, not $, which would also accept a trailing newline.
-    [GeneratedRegex(@"^stages/[^/]+\.json\z")]
+    [GeneratedRegex(@"^stages/[a-z0-9-]{1,48}\.json\z")]
     private static partial Regex StageEntry();
 
     [GeneratedRegex(@"^[a-z0-9-]{1,48}\z")]
