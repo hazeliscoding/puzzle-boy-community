@@ -1,40 +1,40 @@
 <h1 align="center">
-  <img src="https://github.com/user-attachments/assets/979b3c30-580f-40b7-81d8-351a43551bde" alt="Puzzle Boy Community Edition" width="640">
+  <img src="https://github.com/user-attachments/assets/3a8bcdff-ac94-4d2b-a2aa-9f5a3a0af372" alt="Puzzle Boy Community Edition" width="640">
 </h1>
 
 <p align="center"><b>The Nocturne Puzzle Boy minigame, expanded. Best with your own copy (the Classic theme); plays out of the box with the bundled Default theme.</b></p>
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/80216284-e488-4946-8d2a-5b92d7830c04" alt="A tour of the Classic theme: the title with the Jack-o'-Lantern, stage select, Stepping Stone played to COMPLETE!, then the menu and help pages" width="800">
+  <img src="https://github.com/user-attachments/assets/0f50755c-3d6c-4c69-97af-9c4b3d813d4e" alt="A tour of the Classic theme: the title with the Jack-o'-Lantern, stage select, Stepping Stone played to COMPLETE!, then the menu and help pages" width="800">
   <br><em>The Classic Nocturne theme, rendered from a local copy of the game.</em>
 </p>
 
 <table>
   <tr>
     <td align="center" width="33%">
-      <a href="https://github.com/user-attachments/assets/4343a8af-2b77-43c9-88f1-1be45513193b"><img src="https://github.com/user-attachments/assets/4343a8af-2b77-43c9-88f1-1be45513193b" alt="The title screen in the Classic theme, with the original Jack-o'-Lantern" width="100%"></a>
+      <a href="https://github.com/user-attachments/assets/11165754-4eb1-4a77-a3b0-17b58a949b9f"><img src="https://github.com/user-attachments/assets/11165754-4eb1-4a77-a3b0-17b58a949b9f" alt="The title screen in the Classic theme, with the original Jack-o'-Lantern" width="100%"></a>
       <br><sub>Title, with the original Jack-o'-Lantern</sub>
     </td>
     <td align="center" width="33%">
-      <a href="https://github.com/user-attachments/assets/3f850e8f-1328-499a-a493-1d830054e3bf"><img src="https://github.com/user-attachments/assets/3f850e8f-1328-499a-a493-1d830054e3bf" alt="Stage select in the Classic theme, with the Classic campaigns" width="100%"></a>
+      <a href="https://github.com/user-attachments/assets/0f1ba580-9b60-4e1c-a67c-9238a8fd1a57"><img src="https://github.com/user-attachments/assets/0f1ba580-9b60-4e1c-a67c-9238a8fd1a57" alt="Stage select in the Classic theme, with the Classic campaigns" width="100%"></a>
       <br><sub>Stage select and the Classic campaigns</sub>
     </td>
     <td align="center" width="33%">
-      <a href="https://github.com/user-attachments/assets/991154ba-a4f6-4a5c-a804-709d6bd8b9bc"><img src="https://github.com/user-attachments/assets/991154ba-a4f6-4a5c-a804-709d6bd8b9bc" alt="Garden Path in play, with the original HUD and key prompts" width="100%"></a>
+      <a href="https://github.com/user-attachments/assets/ffc31e75-c783-4a6c-91dd-66e280bc535f"><img src="https://github.com/user-attachments/assets/ffc31e75-c783-4a6c-91dd-66e280bc535f" alt="Garden Path in play, with the original HUD and key prompts" width="100%"></a>
       <br><sub>In play: the original HUD and prompts</sub>
     </td>
   </tr>
   <tr>
     <td align="center" width="33%">
-      <a href="https://github.com/user-attachments/assets/93568a3c-5296-406b-972c-e2490f2d7f78"><img src="https://github.com/user-attachments/assets/93568a3c-5296-406b-972c-e2490f2d7f78" alt="The original menu panel over the board, with the stage's moves and time" width="100%"></a>
+      <a href="https://github.com/user-attachments/assets/6e52dbd0-fab7-4a44-acf7-2d1e32ff1953"><img src="https://github.com/user-attachments/assets/6e52dbd0-fab7-4a44-acf7-2d1e32ff1953" alt="The original menu panel over the board, with the stage's moves and time" width="100%"></a>
       <br><sub>The original menu, with your moves and time</sub>
     </td>
     <td align="center" width="33%">
-      <a href="https://github.com/user-attachments/assets/cb650f7e-e43a-48df-ae7e-7c68f0cddadb"><img src="https://github.com/user-attachments/assets/cb650f7e-e43a-48df-ae7e-7c68f0cddadb" alt="A bonus stage, one of the 23 the original ships but never plays" width="100%"></a>
+      <a href="https://github.com/user-attachments/assets/95e01a59-8409-4547-8413-b7981b9f6228"><img src="https://github.com/user-attachments/assets/95e01a59-8409-4547-8413-b7981b9f6228" alt="A bonus stage, one of the 23 the original ships but never plays" width="100%"></a>
       <br><sub>A bonus stage the original never plays</sub>
     </td>
     <td align="center" width="33%">
-      <a href="https://github.com/user-attachments/assets/ddc1028f-efc6-48a4-ae55-c82e9455ac4c"><img src="https://github.com/user-attachments/assets/ddc1028f-efc6-48a4-ae55-c82e9455ac4c" alt="The controls page in the original's style" width="100%"></a>
+      <a href="https://github.com/user-attachments/assets/fe93d4fb-9c7a-478c-8b4b-b05d1cc33963"><img src="https://github.com/user-attachments/assets/fe93d4fb-9c7a-478c-8b4b-b05d1cc33963" alt="The controls page in the original's style" width="100%"></a>
       <br><sub>Every control, in the original's style</sub>
     </td>
   </tr>
