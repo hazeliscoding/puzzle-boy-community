@@ -193,6 +193,17 @@ public class SaveTests
     }
 
     [Fact]
+    public void A_best_time_too_big_to_write_back_is_dropped_on_load()
+    {
+        using var temp = new TempFolder();
+        temp.Write(SaveStore.FileName, "{\"schemaVersion\": 1, \"stages\": {\"a/b\": {\"completed\": true, \"bestTime\": 1e400}}}");
+
+        var store = SaveStore.Load(temp.Path);
+        Assert.Empty(store.Data.Stages);
+        Assert.True(store.Save());
+    }
+
+    [Fact]
     public void A_folder_that_cant_be_written_gives_a_notice_instead_of_a_crash()
     {
         using var temp = new TempFolder();

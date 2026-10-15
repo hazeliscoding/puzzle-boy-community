@@ -156,7 +156,8 @@ internal sealed class SaveData
         Stages ??= [];
         foreach (var (id, progress) in Stages.ToList())
         {
-            if (progress is null || progress.BestMoves < 0 || progress.BestTime is < 0 or double.NaN)
+            // An infinite time loads (1e400 reads as one) but can't be written back.
+            if (progress is null || progress.BestMoves < 0 || progress.BestTime is { } time && (time < 0 || !double.IsFinite(time)))
             {
                 Stages.Remove(id);
             }
