@@ -560,28 +560,54 @@ internal sealed partial class CommunityGame
         _ui.End();
     }
 
-    /// <summary>The packs and Import as tabs over the list, the open one underlined; the boxes are kept for clicks.</summary>
+    /// <summary>
+    /// The packs and Import as tabs over the list, the open one underlined; the boxes are kept for clicks. With more tabs
+    /// than fit, the strip shows whole tabs around the open one and an arrow on each side that has more.
+    /// </summary>
     private void DrawTabs()
     {
+        const float Left = 78, Right = 1240, Gap = 40, Top = 114;
         _tabBoxes.Clear();
         var labels = _selectPacks.Select(p => p.PackId == CustomStages.PackId ? $"{p.Title.ToUpperInvariant()} ({p.Stages.Count})" : Shorten(p.Title.ToUpperInvariant(), 20)).Append("+ IMPORT").ToList();
-
-        // With several imported packs the row runs past the screen's edge, so it slides left until the open tab shows.
-        var right = SelectMenu.Left + 6 + labels.Take(_selectTab + 1).Sum(l => _ui.Measure(Font.Title, 17, l, 2).X + 40);
-        var x = SelectMenu.Left + 6 - Math.Max(0, right - 1250);
-        for (var tab = 0; tab < labels.Count; tab++)
+        var widths = labels.Select(l => _ui.Measure(Font.Title, 17, l, 2).X).ToList();
+        _tabFirst = TabStrip.First(widths, Gap, Right - Left, _selectTab, _tabFirst);
+        var count = TabStrip.Count(widths, Gap, Right - Left, _tabFirst);
+        var x = Left;
+        for (var tab = _tabFirst; tab < _tabFirst + count; tab++)
         {
-            var label = labels[tab];
             var open = tab == _selectTab;
-            var size = _ui.Text(Font.Title, 17, label, new Vector2(x, 114), open ? _ui["ember"] : _ui["cream"] * 0.6f, spacing: 2);
+            var size = _ui.Text(Font.Title, 17, labels[tab], new Vector2(x, Top), open ? _ui["ember"] : _ui["cream"] * 0.6f, spacing: 2);
             if (open)
             {
-                _ui.Rect(x, 136, size.X, 3, _ui["ember"]);
+                _ui.Rect(x, Top + 22, size.X, 3, _ui["ember"]);
             }
 
-            _tabBoxes.Add((new RectangleF(x - 6, 108, size.X + 12, 34), tab));
-            x += size.X + 40;
+            _tabBoxes.Add((new RectangleF(x - 6, Top - 6, size.X + 12, 34), tab));
+            x += widths[tab] + Gap;
         }
+
+        if (_tabFirst > 0)
+        {
+            TabArrow(Left - 14, Top + 10, left: true);
+        }
+
+        if (_tabFirst + count < labels.Count)
+        {
+            TabArrow(Right + 16, Top + 10, left: false);
+        }
+    }
+
+    /// <summary>Says more tabs lie past the strip's left or right edge: the skin's cursor, or else a chevron.</summary>
+    private void TabArrow(float x, float y, bool left)
+    {
+        if (_ui.Cursor(x, y, 22, left: left))
+        {
+            return;
+        }
+
+        var (tip, foot) = left ? (x - 4, x + 4) : (x + 4, x - 4);
+        _ui.Line(new Vector2(foot, y - 10), new Vector2(tip, y), 3, _ui["cream"] * 0.7f);
+        _ui.Line(new Vector2(tip, y), new Vector2(foot, y + 10), 3, _ui["cream"] * 0.7f);
     }
 
     /// <summary>The focused stage's card: its state, a preview of how it starts and its best clear.</summary>

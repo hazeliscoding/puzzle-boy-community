@@ -274,4 +274,33 @@ public class AppTests
         Assert.Null(new SmokeGui("run.png").ScreensDir);
         Assert.Equal(Path.GetFullPath("shots"), new SmokeGui("run.png", "shots").ScreensDir);
     }
+
+    [Fact]
+    public void The_tab_strip_slides_just_enough_to_show_the_selected_tab_whole()
+    {
+        // Five 100-pixel tabs 10 apart in a 320-pixel strip: three fit at a time.
+        float[] widths = [100, 100, 100, 100, 100];
+        Assert.Equal(0, TabStrip.First(widths, 10, 320, 2, 0));
+        Assert.Equal(3, TabStrip.Count(widths, 10, 320, 0));
+        Assert.Equal(1, TabStrip.First(widths, 10, 320, 3, 0));
+        Assert.Equal(2, TabStrip.First(widths, 10, 320, 4, 0));
+        Assert.Equal(3, TabStrip.Count(widths, 10, 320, 2));
+
+        // Moving back inside the window keeps it; moving past its left edge brings that tab to the edge.
+        Assert.Equal(2, TabStrip.First(widths, 10, 320, 3, 2));
+        Assert.Equal(1, TabStrip.First(widths, 10, 320, 1, 2));
+        Assert.Equal(0, TabStrip.First(widths, 10, 320, 0, 2));
+    }
+
+    [Fact]
+    public void The_tab_strip_shows_every_tab_when_they_fit_and_one_tab_when_none_does()
+    {
+        Assert.Equal(0, TabStrip.First([50, 50, 50], 10, 320, 2, 2));
+        Assert.Equal(3, TabStrip.Count([50, 50, 50], 10, 320, 0));
+        Assert.Equal(1, TabStrip.First([500, 500], 10, 320, 1, 0));
+        Assert.Equal(1, TabStrip.Count([500, 500], 10, 320, 0));
+
+        // With fewer tabs than last time, earlier tabs come back to fill the strip.
+        Assert.Equal(1, TabStrip.First([100, 100, 100, 100], 10, 320, 3, 3));
+    }
 }

@@ -190,12 +190,12 @@ internal sealed class ClassicSkin : IUiSkin, IDisposable
     }
 
     /// <inheritdoc />
-    public void Cursor(SpriteBatch batch, float x, float y, float height, float alpha)
+    public void Cursor(SpriteBatch batch, float x, float y, float height, float alpha, bool left)
     {
         // The □ menu's cursor is 60×56 for rows 58 apart.
         var h = height * 56 / 58;
         var w = h * 60 / 56;
-        batch.Draw(_sheet, new Vector2(x - (w / 2), y - (h / 2)), Flip(MenuCursor, _sheet.Height), Color.White * alpha, 0, Vector2.Zero, new Vector2(w / 60, h / 56), SpriteEffects.None, 0);
+        batch.Draw(_sheet, new Vector2(x - (w / 2), y - (h / 2)), Flip(MenuCursor, _sheet.Height), Color.White * alpha, 0, Vector2.Zero, new Vector2(w / 60, h / 56), left ? SpriteEffects.FlipHorizontally : SpriteEffects.None, 0);
     }
 
     /// <inheritdoc />

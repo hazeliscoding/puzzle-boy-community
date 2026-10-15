@@ -46,8 +46,11 @@ internal interface IUiSkin
     /// <summary>The width <see cref="Key"/> draws <paramref name="key"/> at, <paramref name="height"/> tall.</summary>
     float KeyWidth(string key, float height);
 
-    /// <summary>Draws the menu cursor pointing right, its middle at (<paramref name="x"/>, <paramref name="y"/>), sized for a row <paramref name="height"/> tall.</summary>
-    void Cursor(SpriteBatch batch, float x, float y, float height, float alpha);
+    /// <summary>
+    /// Draws the menu cursor pointing right, or left when <paramref name="left"/>, its middle at (<paramref name="x"/>,
+    /// <paramref name="y"/>), sized for a row <paramref name="height"/> tall.
+    /// </summary>
+    void Cursor(SpriteBatch batch, float x, float y, float height, float alpha, bool left);
 
     /// <summary>Fills a <paramref name="width"/>×<paramref name="height"/> window with the backdrop; draws in window pixels, with its own batch.</summary>
     void Backdrop(SpriteBatch batch, int width, int height);
@@ -285,12 +288,12 @@ internal sealed class Ui : IDisposable
 
     /// <summary>
     /// With a skin, draws its menu cursor for a row <paramref name="height"/> tall with its middle at
-    /// (<paramref name="x"/>, <paramref name="y"/>) and returns true. Without one it draws nothing and returns false:
-    /// Community's menus mark focus with a bar instead.
+    /// (<paramref name="x"/>, <paramref name="y"/>), pointing left when <paramref name="left"/>, and returns true.
+    /// Without one it draws nothing and returns false: Community's menus mark focus with a bar instead.
     /// </summary>
-    public bool Cursor(float x, float y, float height, float alpha = 1)
+    public bool Cursor(float x, float y, float height, float alpha = 1, bool left = false)
     {
-        Skin?.Cursor(_batch, x, y, height, alpha);
+        Skin?.Cursor(_batch, x, y, height, alpha, left);
         return Skin is not null;
     }
 
