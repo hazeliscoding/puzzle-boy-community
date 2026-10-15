@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework.Input;
 using PuzzleBoy.Community.App;
 using PuzzleBoy.Community.Audio;
 using PuzzleBoy.Community.Content;
+using PuzzleBoy.Community.Editor;
 using PuzzleBoy.Community.Graphics;
 using PuzzleBoy.Community.Play;
 using PuzzleBoy.Community.Save;
@@ -25,8 +26,7 @@ internal sealed partial class CommunityGame : Game
     private readonly MenuList _settingsMenu = new(SettingsMenu.Labels.Length);
     private readonly MenuList _confirmMenu = new(2);
     private readonly MenuList _backMenu = new(1);
-    private readonly MenuList _selectMenu;
-    private readonly List<(StagePack Pack, int Index)> _selectable;
+    private readonly List<(RectangleF Box, int Tab)> _tabBoxes = [];
     private readonly KeyRepeat _up = new();
     private readonly KeyRepeat _down = new();
     private readonly KeyRepeat _left = new();
@@ -54,6 +54,10 @@ internal sealed partial class CommunityGame : Game
     private bool _menuRight;
     private int _wheel;
     private int _selectScroll;
+    private List<StagePack> _selectPacks = [];
+    private List<(StagePack Pack, int Index)> _selectable = [];
+    private MenuList _selectMenu = new(1);
+    private int _selectTab;
     private bool _confirmReset;
     private bool _helpOpen;
     private int _ticks;
@@ -73,8 +77,6 @@ internal sealed partial class CommunityGame : Game
         _manifest = manifest;
         _save = save;
         _smoke = smoke;
-        _selectable = [.. manifest.Packs.SelectMany(p => p.Stages.Select((_, i) => (p, i)))];
-        _selectMenu = new MenuList(Math.Max(1, _selectable.Count));
         _graphics = new GraphicsDeviceManager(this)
         {
             PreferredBackBufferWidth = VirtualScreen.Width,
@@ -122,6 +124,9 @@ internal sealed partial class CommunityGame : Game
 
     /// <summary>The player's settings and progress.</summary>
     internal SaveStore Save => _save;
+
+    /// <summary>The pack stage select shows, or null before it first opens.</summary>
+    internal StagePack? SelectPack => _selectPacks.Count > 0 ? _selectPacks[_selectTab] : null;
 
     /// <summary>The loaded content.</summary>
     internal ContentManifest Manifest => _manifest;

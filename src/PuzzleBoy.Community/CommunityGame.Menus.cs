@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework;
 using PuzzleBoy.Community.App;
 using PuzzleBoy.Community.Audio;
+using PuzzleBoy.Community.Editor;
 using PuzzleBoy.Community.Graphics;
 using PuzzleBoy.Community.Save;
 using PuzzleBoy.Rules;
@@ -95,7 +96,24 @@ internal sealed partial class CommunityGame
     /// <summary>Focuses the stage Play would start, so stage select opens where the player left off.</summary>
     private void FocusNextStage()
     {
-        _selectMenu.Set(_selectable.IndexOf(_save.Data.NextToPlay(_manifest.Packs)));
+        LoadSelectPacks();
+        var (pack, index) = _save.Data.NextToPlay(_manifest.Packs);
+        ShowTab(_selectPacks.IndexOf(pack), index);
+    }
+
+    /// <summary>Stage select's tabs: each bundled pack, then the player's own stages, read afresh from the custom folder.</summary>
+    private void LoadSelectPacks() =>
+        _selectPacks = [.. _manifest.Packs.Where(p => p.Stages.Count > 0), CustomStages.AsPack(CustomStages.List(_save.Folder))];
+
+    /// <summary>Shows tab <paramref name="tab"/> of stage select with stage <paramref name="focus"/> focused.</summary>
+    private void ShowTab(int tab, int focus)
+    {
+        _selectTab = tab;
+        var pack = _selectPacks[tab];
+        _selectable = [.. pack.Stages.Select((_, i) => (pack, i))];
+        _selectMenu = new MenuList(Math.Max(1, _selectable.Count));
+        _selectMenu.Set(Math.Clamp(focus, 0, _selectMenu.Count - 1));
+        _selectScroll = 0;
         KeepFocusVisible();
     }
 
@@ -111,6 +129,20 @@ internal sealed partial class CommunityGame
         if (Cancelled(controls))
         {
             GoBack();
+            return;
+        }
+
+        // Left and Right, or a click on a tab, change the pack.
+        var clickedTab = _clicked ? _tabBoxes.FirstOrDefault(t => t.Box.Contains(_pointer), (default, -1)).Tab : -1;
+        if (_menuLeft || _menuRight || (clickedTab >= 0 && clickedTab != _selectTab))
+        {
+            var tab = clickedTab >= 0 ? clickedTab : Math.Clamp(_selectTab + (_menuRight ? 1 : -1), 0, _selectPacks.Count - 1);
+            if (tab != _selectTab)
+            {
+                ShowTab(tab, 0);
+                _sounds.Play(Sfx.MenuMove);
+            }
+
             return;
         }
 
@@ -295,7 +327,13 @@ internal sealed partial class CommunityGame
         DrawDrift(0.6f);
         _ui.Begin();
         Heading("STAGE SELECT");
+        DrawTabs();
         var layout = SelectMenu;
+        if (_selectable.Count == 0)
+        {
+            _ui.Wrapped(Font.Body, 22, "No stages of your own yet. Make one with the Level Editor on the title screen; each one you save shows up here.", new Vector2(layout.Left + 20, layout.Top + 12), layout.Width - 40, _ui["cream"] * 0.85f);
+        }
+
         for (var row = 0; row < SelectRows && _selectScroll + row < _selectable.Count; row++)
         {
             var i = _selectScroll + row;
@@ -328,10 +366,35 @@ internal sealed partial class CommunityGame
             Chevron(middle, layout.Top + (SelectRows * layout.Spacing) + 6, up: false);
         }
 
-        _ui.Text(Font.Title, 16, $"{_selectMenu.Focus + 1} / {_selectable.Count}", new Vector2(layout.Left + layout.Width, layout.Top + (SelectRows * layout.Spacing) + 4), _ui["cream"] * 0.7f, 1, 1);
-        DrawStageDetails();
-        _ui.Hints([("Arrows", "Choose"), ("Enter", "Play"), ("Esc", "Back")], 640, 660, _ui["cream"], 17);
+        if (_selectable.Count > 0)
+        {
+            _ui.Text(Font.Title, 16, $"{_selectMenu.Focus + 1} / {_selectable.Count}", new Vector2(layout.Left + layout.Width, layout.Top + (SelectRows * layout.Spacing) + 4), _ui["cream"] * 0.7f, 1, 1);
+            DrawStageDetails();
+        }
+
+        _ui.Hints([("Up Down", "Choose"), ("Left Right", "Pack"), ("Enter", "Play"), ("Esc", "Back")], 640, 660, _ui["cream"], 17);
         _ui.End();
+    }
+
+    /// <summary>The packs as tabs over the list, the open one underlined; the boxes are kept for clicks.</summary>
+    private void DrawTabs()
+    {
+        _tabBoxes.Clear();
+        var x = SelectMenu.Left + 6;
+        for (var tab = 0; tab < _selectPacks.Count; tab++)
+        {
+            var pack = _selectPacks[tab];
+            var label = pack.PackId == CustomStages.PackId ? $"{pack.Title.ToUpperInvariant()} ({pack.Stages.Count})" : pack.Title.ToUpperInvariant();
+            var open = tab == _selectTab;
+            var size = _ui.Text(Font.Title, 17, label, new Vector2(x, 114), open ? _ui["ember"] : _ui["cream"] * 0.6f, spacing: 2);
+            if (open)
+            {
+                _ui.Rect(x, 136, size.X, 3, _ui["ember"]);
+            }
+
+            _tabBoxes.Add((new RectangleF(x - 6, 108, size.X + 12, 34), tab));
+            x += size.X + 40;
+        }
     }
 
     /// <summary>The focused stage's card: its state, a preview of how it starts and its best clear.</summary>
