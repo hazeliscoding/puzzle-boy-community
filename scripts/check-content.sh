@@ -23,6 +23,11 @@ while IFS= read -r -d '' file; do
     esac
 done < <(git ls-files -z)
 
+# A classic pack is made on the player's computer from their own copy of Nocturne; no part of one is ever tracked.
+while IFS= read -r file; do
+    report "$file: part of a classic pack"
+done < <(git ls-files -- '*classic-pack.json' '*smt3hd_Data/*' ':(icase)*classic-pack.json' ':(icase)*smt3hd_data/*' | sort -u)
+
 # Stage files: only handmade test stages may live in the repo.
 while IFS= read -r file; do
     report "$file: stage file outside tests/"

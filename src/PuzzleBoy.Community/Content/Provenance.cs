@@ -22,6 +22,19 @@ internal static partial class Provenance
 
     private const int MaxBytes = 256 * 1024;
 
+    /// <summary>The game format whose first bytes the file at <paramref name="path"/> has, as check-content.sh knows them, or null.</summary>
+    private static string? GameFormat(string path)
+    {
+        Span<byte> head = stackalloc byte[12];
+        using var stream = File.OpenRead(path);
+        head = head[..stream.ReadAtLeast(head, head.Length, throwOnEndOfStream: false)];
+        return head.StartsWith("UnityFS"u8) ? "a Unity asset bundle"
+            : head.StartsWith("FSB5"u8) ? "an FMOD sound bank"
+            : head.StartsWith(new byte[] { 0xaf, 0x1b, 0xb1, 0xfa }) ? "IL2CPP metadata"
+            : head.Length == 12 && head[8..].SequenceEqual("FLW0"u8) ? "an Atlus flow script (FLW0)"
+            : null;
+    }
+
     /// <summary>Every problem with the content in <paramref name="contentFolder"/>; empty when it's fit to ship. Nothing throws.</summary>
     public static List<string> Check(string contentFolder)
     {
@@ -43,6 +56,16 @@ internal static partial class Provenance
                     if (!AllowedExtensions.Contains(Path.GetExtension(relative).ToLowerInvariant()))
                     {
                         problems.Add($"{relative}: content may only hold {string.Join(", ", AllowedExtensions)} files.");
+                    }
+
+                    // A classic pack is the player's own, made from their copy of Nocturne; no name or extension disguises one.
+                    if (Path.GetFileName(relative).Equals("classic-pack.json", StringComparison.OrdinalIgnoreCase) || relative.Contains("smt3hd_Data/", StringComparison.OrdinalIgnoreCase))
+                    {
+                        problems.Add($"{relative}: part of a classic pack, which is made on the player's computer from their own copy of Nocturne and never ships.");
+                    }
+                    else if (GameFormat(entry.FullName) is { } format)
+                    {
+                        problems.Add($"{relative}: {format}, which content never holds.");
                     }
                 }
             }

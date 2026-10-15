@@ -48,10 +48,12 @@ elif archive.endswith(".tar.gz"):
 else:
     sys.exit(f"{archive}: not a .zip or .tar.gz")
 
-# The same formats check-content.sh keeps out of the repo.
+# The same formats check-content.sh keeps out of the repo, and the player's own classic pack.
 for name, (mode, member) in files.items():
     if name.lower().endswith(".map"):
         problems.append(f"{name}: stage file")
+    if posixpath.basename(name).lower() == "classic-pack.json" or "smt3hd_data/" in name.lower():
+        problems.append(f"{name}: part of a classic pack, which is the player's own and never ships")
     head = read(member, 12)
     if head.startswith(b"UnityFS"):
         problems.append(f"{name}: Unity asset bundle")

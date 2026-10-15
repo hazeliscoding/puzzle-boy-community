@@ -41,6 +41,12 @@ if fault == "Unity bundle":
     files["content/themes/default/sky.png"] = b"UnityFS\0\0\0\0\6"
 if fault == "FLW0 script":
     files["pbmsg.bf"] = b"\0\0\0\0\xfe\3\0\0FLW0"
+if fault == "classic pack manifest":
+    files["content/classic-pack.json"] = json.dumps({"format": "puzzle-boy-classic-pack", "schemaVersion": 1, "origin": "local-import"}).encode()
+if fault == "classic pack bundle":
+    files["classic/smt3hd_Data/StreamingAssets/PC/common"] = b"UnityFS\0\0\0\0\6"
+if fault == "classic pack layout":
+    files["classic/smt3hd_Data/StreamingAssets/PC/notes.txt"] = b"x"
 if fault == "parent path":
     files["../evil.txt"] = b"x"
 if fault == "absolute path":
@@ -88,6 +94,11 @@ expect fail "planted .map" zip
 expect fail "planted .map" tar.gz
 expect fail "Unity bundle" tar.gz
 expect fail "FLW0 script" zip
+expect fail "classic pack manifest" zip
+expect fail "classic pack manifest" tar.gz
+expect fail "classic pack bundle" zip
+expect fail "classic pack bundle" tar.gz
+expect fail "classic pack layout" tar.gz
 expect fail "parent path" zip
 expect fail "parent path" tar.gz
 expect fail "absolute path" tar.gz

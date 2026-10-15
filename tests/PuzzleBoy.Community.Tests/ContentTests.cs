@@ -156,6 +156,39 @@ public class ContentTests
         Assert.Contains($"{file}: content may only hold .json, .md, .txt, .ttf, .png, .wav, .ogg files.", Provenance.Check(temp.Path));
     }
 
+    [Theory]
+    [InlineData("classic-pack.json", "{\"format\": \"puzzle-boy-classic-pack\", \"schemaVersion\": 1, \"origin\": \"local-import\"}")]
+    [InlineData("themes/default/Classic-Pack.JSON", "{}")]
+    [InlineData("classic/smt3hd_Data/StreamingAssets/PC/pazzleboy.json", "{}")]
+    public void A_classic_pack_under_content_is_caught_whatever_its_provenance_says(string file, string text)
+    {
+        using var temp = TempFolder.WithContent();
+        temp.Write(file, text);
+        var provenance = JsonNode.Parse(File.ReadAllText(Path.Combine(temp.Path, "provenance.json")))!;
+        provenance["entries"]!.AsArray().Add(new JsonObject
+        {
+            ["path"] = file,
+            ["creator"] = Provenance.OwnCreator,
+            ["source"] = "planted",
+            ["category"] = "data",
+            ["license"] = "Apache-2.0",
+            ["modified"] = false,
+            ["redistribution"] = "allowed",
+        });
+        temp.Write("provenance.json", provenance.ToJsonString());
+        Assert.Equal([$"{file}: part of a classic pack, which is made on the player's computer from their own copy of Nocturne and never ships."], Provenance.Check(temp.Path));
+    }
+
+    [Theory]
+    [InlineData("themes/default/backdrop.png", "UnityFS\0\0\0\0\u0006", "a Unity asset bundle")]
+    [InlineData("themes/default/music.ogg", "FSB5\u0001\0\0\0", "an FMOD sound bank")]
+    public void A_game_bundle_disguised_with_an_allowed_extension_is_caught_by_its_first_bytes(string file, string bytes, string format)
+    {
+        using var temp = TempFolder.WithContent();
+        temp.Write(file, bytes);
+        Assert.Contains($"{file}: {format}, which content never holds.", Provenance.Check(temp.Path));
+    }
+
     [Fact]
     public void A_file_beside_the_stages_isnt_covered_by_their_provenance_or_their_pack()
     {
