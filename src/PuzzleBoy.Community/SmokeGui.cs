@@ -8,7 +8,8 @@ namespace PuzzleBoy.Community;
 /// <summary>
 /// <c>--smoke-gui &lt;png&gt;</c>: drives the real window from the title into stage 1 through the same menu and play code a
 /// player uses, and saves what it drew. It proves a build opens a window, renders and plays. With a screens folder
-/// (<c>--smoke-gui-screens</c>) it also visits stage select, settings, the pause menu and help on the way and saves each.
+/// (<c>--smoke-gui-screens</c>) it also visits stage select, settings (turning fullscreen on and off there), the pause
+/// menu and help on the way and saves each.
 /// </summary>
 /// <param name="titlePng">Where to write the title screenshot; the stage one goes beside it with a <c>-stage</c> suffix.</param>
 /// <param name="screensDir">
@@ -104,7 +105,7 @@ internal sealed class SmokeGui(string titlePng, string? screensDir = null)
                 yield return tick;
             }
 
-            foreach (var tick in Visit(game, [Keys.Down, Keys.Down], Screen.Settings, "settings.png"))
+            foreach (var tick in Visit(game, [Keys.Down, Keys.Down], Screen.Settings, "settings.png", ToggleFullscreen(game)))
             {
                 yield return tick;
             }
@@ -192,8 +193,11 @@ internal sealed class SmokeGui(string titlePng, string? screensDir = null)
         _passed = $"{TitlePng}, {StagePng}{(ScreensDir is null ? "" : $", screens in {ScreensDir}")}; {session.Stage.Id} from {before} to {after}";
     }
 
-    /// <summary>From the title, presses <paramref name="moves"/> and Enter, saves the screen it opens, and goes back.</summary>
-    private IEnumerable<Keys[]> Visit(CommunityGame game, Keys[] moves, Screen expected, string file)
+    /// <summary>
+    /// From the title, presses <paramref name="moves"/> and Enter, saves the screen it opens, runs <paramref name="there"/>
+    /// if given, and goes back.
+    /// </summary>
+    private IEnumerable<Keys[]> Visit(CommunityGame game, Keys[] moves, Screen expected, string file, IEnumerable<Keys[]>? there = null)
     {
         foreach (var tick in Press([.. moves, Keys.Enter]))
         {
@@ -211,9 +215,35 @@ internal sealed class SmokeGui(string titlePng, string? screensDir = null)
             yield return tick;
         }
 
+        foreach (var tick in there ?? [])
+        {
+            yield return tick;
+        }
+
         foreach (var tick in Press(Keys.Escape))
         {
             yield return tick;
+        }
+    }
+
+    /// <summary>
+    /// On the settings screen with Display focused, turns fullscreen on and off again through the menu, letting the window
+    /// settle each time, and fails unless both took.
+    /// </summary>
+    private IEnumerable<Keys[]> ToggleFullscreen(CommunityGame game)
+    {
+        foreach (var on in new[] { true, false })
+        {
+            foreach (var tick in Press(Keys.Enter).Concat(Enumerable.Repeat(Array.Empty<Keys>(), 15)))
+            {
+                yield return tick;
+            }
+
+            if (game.Save.Data.Settings.Fullscreen != on || game.CurrentScreen != Screen.Settings)
+            {
+                Fail(game, $"turning fullscreen {(on ? "on" : "off")} from settings didn't take");
+                yield break;
+            }
         }
     }
 

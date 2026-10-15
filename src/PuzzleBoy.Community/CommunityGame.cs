@@ -86,10 +86,13 @@ internal sealed partial class CommunityGame : Game
         Window.AllowUserResizing = true;
         Window.ClientSizeChanged += (_, _) =>
         {
-            if (Window.ClientBounds.Width > 0 && Window.ClientBounds.Height > 0)
+            // ApplyChanges raises this event again, endlessly in fullscreen, so only a window the player resized applies.
+            var (width, height) = (Window.ClientBounds.Width, Window.ClientBounds.Height);
+            if (!_graphics.IsFullScreen && width > 0 && height > 0
+                && (width != _graphics.PreferredBackBufferWidth || height != _graphics.PreferredBackBufferHeight))
             {
-                _graphics.PreferredBackBufferWidth = Window.ClientBounds.Width;
-                _graphics.PreferredBackBufferHeight = Window.ClientBounds.Height;
+                _graphics.PreferredBackBufferWidth = width;
+                _graphics.PreferredBackBufferHeight = height;
                 _graphics.ApplyChanges();
             }
         };
