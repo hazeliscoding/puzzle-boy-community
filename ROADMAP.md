@@ -82,6 +82,14 @@ The owner's direction, superseding "No classic theme for now" above.
 - **Help names the character the theme draws:** the Jack-o'-Lantern in Classic, Pixel Jack in Default.
 - **Credits cover the Classic theme.** They say its board, Jack-o'-Lantern, backdrop, music and effects are ATLUS / SEGA's, read from the player's own copy and not included, and that this download contains no ATLUS or SEGA assets. The library list names every package the game ships; a test holds it to the build's `deps.json`.
 
+## Decisions (2026.10.15, Nocturne-styled interface)
+
+- **The original UI is shared.** puzzle-boy's `Hud` (with `UiLayout`, `UiSheets`, `HudState`, `BarSet`), `TextRenderer`, `Menu`, `KeyRepeat` and `Dialogue` moved verbatim into the engine's `PuzzleBoy.Rendering` (engine `49a07d8`). Community draws the original HUD, help page and text with it, and adds its own pieces from the same sheets and font; only `Classic/` touches them. This supersedes C6's "Community's HUD over the original board".
+- **Classic pack schema 2** adds the UI and text bundles: `ui_tex_en`, `ui_tex_keyboard_en`, `font-en`, `pazzleboy_en` and `common_en`. A schema 1 pack still plays the board, Jack-o'-Lantern and sound with Community's UI, and says once a session: "Re-import your classic pack to get the Nocturne-styled menus."
+- **No dialogue, still.** `pazzleboy_en` holds the Manikin Kid's lines as well as the help text, so it's in the pack, but Community never calls `Hud.DrawDialogue`, never makes a `Dialogue` and never names a `PBMESSAGE` id. The dialogue-only sheets (`talkUI01`, `buttonUI01_en_common`) aren't read; one-texel stand-ins fill their places in `UiSheets`.
+- **The Nocturne-styled interface goes with the Classic theme.** It applies on every screen whenever the theme setting resolves to Classic, loaded behind a loading frame at startup, after a theme change and after an import. The Default theme's UI is unchanged.
+- **The original's keys work in both themes.** F opens the menu beside Esc and P; Enter and Space confirm, Backspace cancels, Tab scrolls, V switches the view and Q and E turn, as before. Community's keys keep working. Prompts follow the theme.
+
 ## C1: Instant play
 
 The handoff's M3.
@@ -140,6 +148,18 @@ Before C5's release, which now also covers the Classic theme's docs.
 
 **Done when** a player imports their own copy once (or carries the pack to another computer), Auto plays every stage source in the original's look and sound, a missing or damaged pack falls back to the Default theme with a notice, and no release or repo file holds Atlus data.
 
+## C7: Nocturne-styled interface
+
+The owner's request (2026.10.15): in the Classic theme the interface looks like Nocturne's, controls and menus included.
+
+- [ ] The shared original UI: puzzle-boy's `Hud`, `TextRenderer`, `Menu` and `Dialogue` in the engine's `PuzzleBoy.Rendering`, verbatim, and both games pinned to the same engine.
+- [ ] Classic pack v2 with the UI and text bundles; a v1 pack still plays, with Community's UI and a one-time notice to re-import.
+- [ ] In play, the original's HUD, □ menu and help page, with Community's extras in the same style and the original's keys in both themes.
+- [ ] Community's screens in the original's frames, font, colours, cursor and prompts, falling back to Community's UI with a notice when a UI part is missing or broken.
+- [ ] A local check against the owner's install, a v1 pack and no pack.
+
+**Done when** a player with a v2 pack plays and navigates every screen in a Nocturne-styled interface built only from their own copy, a v1 pack or none keeps Community's UI, and the theme still changes no progress or gameplay.
+
 ## C5: Releases
 
 The handoff's M7.
@@ -176,11 +196,6 @@ The archives carry only the bundled Default theme. The Classic Nocturne theme is
 ## Later
 
 - Key and controller remapping.
-- A Nocturne-styled interface for the Classic theme (owner's request, 2026.10.15): the original's in-play HUD (stage counter, COMPLETE!, UNDO, controls bar with its key and button prompts), its □ menu and help page, and Community's own screens (title, stage select, settings, pause, editor panels) drawn with the original's UI sheets and font. Plan:
-  - Move puzzle-boy's `Hud`, `TextRenderer` and the UI sheet records into the engine's `PuzzleBoy.Rendering`, verbatim, as was done for the board. Both games then draw the original UI with the same code.
-  - Add the UI and text bundles to the classic pack (`ui_tex_en`, `ui_tex_keyboard_en`, `font-en`, `pazzleboy_en`, `common_en`), with a manifest schema bump. Older packs keep working with Community's UI until re-imported.
-  - Screens the original never had keep their layout but take the original's frames, font, colours and prompts. Text comes from Community's own strings, not Nocturne's. The no-dialogue test still holds: no `PBMESSAGE` string or Manikin Kid art is drawn.
-  - The Default theme keeps today's UI, and the in-play layout stays one choice per theme, so the theme still changes no progress or gameplay.
 - Hints built on the stage tool's solver.
 - More built-in packs.
 - Draft saves of a stage with problems: kept, clearly marked, but not playable or exportable. Saves are engine stage JSON, which only a valid stage can be written as, so a draft needs its own format.
