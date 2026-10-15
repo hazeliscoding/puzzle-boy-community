@@ -96,6 +96,7 @@ The owner's direction, superseding "No classic theme for now" above.
 - **The title shows the Jack-o'-Lantern** (owner's request, 2026.10.15): the original model idling where Pixel Jack stands, with its shadow and lantern glow, through the engine's `CharacterView`, made public for it. Pixel Jack stays the Default theme's, and the Classic theme's with a schema 1 pack, whose screens are Community's.
 - shortcut: the stage counter has two digits, so a pack's stages past 99 show 99, and a playtest shows 1; the intro and the pause window give the real number. Draw a third digit if long packs become common.
 - **The original's keys work in both themes.** F opens the menu beside Esc and P; Enter and Space confirm, Backspace cancels, Tab scrolls, V switches the view and Q and E turn, as before. Community's keys keep working. Prompts follow the theme.
+- **The README header is the title screen's lettering** (owner's request, 2026.10.15): `docs/brand/lockup.svg` and `lockup-dark.svg` set "PUZZLE BOY" in Silkscreen Bold over its pumpkin shadow and "COMMUNITY EDITION" in Silkscreen, at the title screen's sizes and spacing, converted to paths so no font is needed. Silkscreen is OFL-1.1, the same source as puzzle-boy's wordmark. The light version swaps the cream for ink.
 
 ## C1: Instant play
 

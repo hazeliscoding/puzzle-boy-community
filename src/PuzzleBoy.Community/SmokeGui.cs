@@ -25,7 +25,7 @@ namespace PuzzleBoy.Community;
 /// <c>help-controls.png</c>, help's second page, in the Classic theme's original menus), or null to save only the two
 /// screenshots.
 /// </param>
-internal sealed class SmokeGui(string titlePng, string? screensDir = null)
+internal sealed class SmokeGui(string titlePng, string? screensDir = null) : IDriver
 {
     // A slow first frame or a window still settling must not end the run; a stuck one must.
     private const int TimeoutTicks = 2400;
@@ -707,7 +707,8 @@ internal sealed class SmokeGui(string titlePng, string? screensDir = null)
         game.Exit();
     }
 
-    private static void Save(GraphicsDevice device, string path)
+    /// <summary>Saves the back buffer, as drawn so far, to <paramref name="path"/> as an opaque PNG.</summary>
+    internal static void Save(GraphicsDevice device, string path)
     {
         var pp = device.PresentationParameters;
         var pixels = new Microsoft.Xna.Framework.Color[pp.BackBufferWidth * pp.BackBufferHeight];

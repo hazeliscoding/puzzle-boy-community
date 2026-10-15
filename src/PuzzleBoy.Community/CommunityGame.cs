@@ -34,7 +34,7 @@ internal sealed partial class CommunityGame : Game
     private readonly KeyRepeat _left = new();
     private readonly KeyRepeat _right = new();
     private readonly CameraRig _camera = new();
-    private readonly SmokeGui? _smoke;
+    private readonly IDriver? _smoke;
     private readonly SaveStore _save;
     private Theme _theme = null!;
     private Ui _ui = null!;
@@ -95,12 +95,12 @@ internal sealed partial class CommunityGame : Game
     /// <summary>Opens a 1280×720 window on the title screen.</summary>
     /// <param name="manifest">The loaded content; it must hold at least one stage.</param>
     /// <param name="save">The player's settings and progress; clears are recorded and written to it.</param>
-    /// <param name="smoke">The <c>--smoke-gui</c> run to drive, or null to play normally.</param>
+    /// <param name="smoke">The <c>--smoke-gui</c> or <c>--record</c> run to drive, or null to play normally.</param>
     /// <param name="multisampling">
     /// False asks for no antialiased back buffer, for a driver that offers none; <see cref="Game.Run()"/> throws
     /// <see cref="NoSuitableGraphicsDeviceException"/> when the device can't be made.
     /// </param>
-    public CommunityGame(ContentManifest manifest, SaveStore save, SmokeGui? smoke = null, bool multisampling = true)
+    public CommunityGame(ContentManifest manifest, SaveStore save, IDriver? smoke = null, bool multisampling = true)
     {
         _manifest = manifest;
         _save = save;
@@ -140,9 +140,16 @@ internal sealed partial class CommunityGame : Game
         IsFixedTimeStep = true;
         TargetElapsedTime = TimeSpan.FromSeconds(1.0 / 30);
         IsMouseVisible = true;
+        if (smoke is DemoRecorder)
+        {
+            // A recording's time is its tick count: one update and one draw each, as fast as the machine goes, never the clock.
+            IsFixedTimeStep = false;
+            _graphics.SynchronizeWithVerticalRetrace = false;
+            InactiveSleepTime = TimeSpan.Zero;
+        }
     }
 
-    /// <summary>The process exit code a <c>--smoke-gui</c> run ends with; 0 for a normal run.</summary>
+    /// <summary>The process exit code a <c>--smoke-gui</c> or <c>--record</c> run ends with; 0 for a normal run.</summary>
     public int ExitCode => _smoke?.ExitCode ?? 0;
 
     /// <summary>The screen showing.</summary>
@@ -304,7 +311,7 @@ internal sealed partial class CommunityGame : Game
             {
                 _sounds.StopMusic();
                 var settings = _save.Data.Settings;
-                _classic!.Enter(settings.SfxVolume, settings.MusicVolume, settings.Mute);
+                _classic!.Enter(settings.SfxVolume, settings.MusicVolume, Muted);
             }
             else
             {
@@ -405,6 +412,9 @@ internal sealed partial class CommunityGame : Game
         _ui.End();
     }
 
+    /// <summary>True when the player muted the game, and always in a recording, which plays faster than real time.</summary>
+    private bool Muted => _save.Data.Settings.Mute || _smoke is DemoRecorder;
+
     /// <summary>Ticks for decorative motion: frozen at 0 when the player reduces motion.</summary>
     private int Motion => _save.Data.Settings.ReduceMotion ? 0 : _ticks;
 
@@ -417,7 +427,7 @@ internal sealed partial class CommunityGame : Game
         _ui.ReduceMotion = settings.ReduceMotion;
         _board.HighContrast = settings.HighContrast;
         _camera.Instant = settings.ReduceMotion;
-        _sounds.SetVolumes(settings.MusicVolume, settings.SfxVolume, settings.Mute);
+        _sounds.SetVolumes(settings.MusicVolume, settings.SfxVolume, Muted);
         if (!display)
         {
             return;
@@ -425,9 +435,10 @@ internal sealed partial class CommunityGame : Game
 
         // Borderless fullscreen at the desktop's size: no mode switch, so alt-tab and a second display behave.
         var mode = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
-        var (width, height) = settings.Fullscreen ? (mode.Width, mode.Height) : GameSettings.WindowSize(settings.WindowScale, mode.Width, mode.Height);
+        var (width, height) = _smoke is DemoRecorder recorder ? recorder.Size
+            : settings.Fullscreen ? (mode.Width, mode.Height) : GameSettings.WindowSize(settings.WindowScale, mode.Width, mode.Height);
         _graphics.HardwareModeSwitch = false;
-        _graphics.IsFullScreen = settings.Fullscreen;
+        _graphics.IsFullScreen = settings.Fullscreen && _smoke is not DemoRecorder;
         _graphics.PreferredBackBufferWidth = width;
         _graphics.PreferredBackBufferHeight = height;
         _graphics.ApplyChanges();

@@ -1,10 +1,15 @@
-# Puzzle Boy Community Edition
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/lockup-dark.svg">
+    <img alt="Puzzle Boy Community Edition" src="docs/brand/lockup.svg" height="72">
+  </picture>
+</h1>
 
 **The Nocturne Puzzle Boy minigame, expanded. Best with your own copy (the Classic theme); plays out of the box with the bundled Default theme.**
 
 Push blocks, turn swivels and fill holes to reach the goal, with the minigame's rules, a campaign of new stages, a level editor and level packs. If you own *Shin Megami Tensei III Nocturne HD Remaster*, import it once and every stage plays in the original's look and sound: its board, its Jack-o'-Lantern, its camera, its music. Without it, the Default theme plays the same stages with Pixel Jack, a pumpkin in a witch's hat, and art and sound made for this game. It needs no Steam and no network either way.
 
-> **Status:** early development. There's no release yet: CI builds and checks all four archives, and 0.1.0 waits on the owner. See [ROADMAP.md](ROADMAP.md) and [CHANGELOG.md](CHANGELOG.md).
+> **Status:** [0.1.0](https://github.com/hazeliscoding/puzzle-boy-community/releases/tag/v0.1.0) is out for Windows, Linux and macOS. The Nocturne-styled interface for the Classic theme comes in the next release. See [ROADMAP.md](ROADMAP.md) and [CHANGELOG.md](CHANGELOG.md).
 
 <p align="center">
   <img src="docs/screenshots/title.png" alt="The title screen, with Pixel Jack in his witch's hat" width="32%">

@@ -1,5 +1,6 @@
 using Microsoft.Xna.Framework.Graphics;
 using PuzzleBoy.Community;
+using PuzzleBoy.Community.App;
 using PuzzleBoy.Community.Classic;
 using PuzzleBoy.Community.Content;
 using PuzzleBoy.Community.Save;
@@ -41,6 +42,35 @@ else if (screens is not null)
     smoke = new SmokeGui(Path.Combine(screens, "smoke.png"), screens);
 }
 
+IDriver? driver = smoke;
+if (Array.IndexOf(args, "--record") is var recordAt and >= 0)
+{
+    if (recordAt + 2 >= args.Length)
+    {
+        Console.Error.WriteLine("--record needs the script to play and the folder to save the frames in.");
+        return 2;
+    }
+
+    var every = Array.IndexOf(args, "--every") is var everyAt and >= 0 ? (everyAt + 1 < args.Length && int.TryParse(args[everyAt + 1], out var n) && n > 0 ? n : 0) : 1;
+    var size = Array.IndexOf(args, "--size") is var sizeAt and >= 0 ? (sizeAt + 1 < args.Length ? args[sizeAt + 1] : "") : $"{VirtualScreen.Width}x{VirtualScreen.Height}";
+    var wh = size.Split('x');
+    if (every == 0 || wh.Length != 2 || !int.TryParse(wh[0], out var width) || !int.TryParse(wh[1], out var height) || width < 64 || height < 36)
+    {
+        Console.Error.WriteLine("--every needs a whole number of ticks, at least 1, and --size a size such as 1280x720.");
+        return 2;
+    }
+
+    try
+    {
+        driver = new DemoRecorder(DemoRecorder.Parse(File.ReadAllText(args[recordAt + 1])), args[recordAt + 2], every, (width, height));
+    }
+    catch (Exception e) when (e is IOException or UnauthorizedAccessException or FormatException)
+    {
+        Console.Error.WriteLine($"--record can't use {args[recordAt + 1]}: {e.Message}");
+        return 2;
+    }
+}
+
 string dataDir;
 if (Array.IndexOf(args, "--data-dir") is var dataAt and >= 0)
 {
@@ -55,8 +85,8 @@ if (Array.IndexOf(args, "--data-dir") is var dataAt and >= 0)
 }
 else
 {
-    // A smoke run never reads or writes the player's own save.
-    dataDir = smoke is null ? SaveStore.DefaultFolder() : Directory.CreateTempSubdirectory("puzzle-boy-community-smoke-").FullName;
+    // A smoke run or a recording never reads or writes the player's own save.
+    dataDir = driver is null ? SaveStore.DefaultFolder() : Directory.CreateTempSubdirectory("puzzle-boy-community-smoke-").FullName;
 }
 
 if (Array.IndexOf(args, "--import-classic") is var classicAt and >= 0)
@@ -134,7 +164,7 @@ catch (NoSuitableGraphicsDeviceException)
 
 int Run(bool multisampling)
 {
-    using var game = new CommunityGame(manifest, save, smoke, multisampling);
+    using var game = new CommunityGame(manifest, save, driver, multisampling);
     game.Run();
     return game.ExitCode;
 }
