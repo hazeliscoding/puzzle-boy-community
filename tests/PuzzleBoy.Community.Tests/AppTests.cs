@@ -145,4 +145,20 @@ public class AppTests
     [InlineData(1920, 720, 320, 0, 0, 0)]
     public void The_virtual_screen_fits_centered_in_any_window(int width, int height, int windowX, int windowY, float virtualX, float virtualY) =>
         Assert.Equal(new Vector2(virtualX, virtualY), VirtualScreen.ToVirtual(new Point(windowX, windowY), width, height));
+
+    [Fact]
+    public void The_gui_smoke_check_saves_the_stage_beside_the_title_with_a_suffix() =>
+        Assert.Equal(Path.GetFullPath(Path.Combine("shots", "run-stage.png")), new SmokeGui(Path.Combine("shots", "run.png")).StagePng);
+
+    [Fact]
+    public void The_title_offers_the_six_options_in_order() =>
+        Assert.Equal(["Play", "Stage Select", "Level Editor", "Settings", "Credits", "Quit"], CommunityGame.TitleItems);
+
+    [Fact]
+    public void The_credits_carry_the_trademark_and_affiliation_notice()
+    {
+        Assert.Contains("Puzzle Boy, Shin Megami Tensei and Nocturne are trademarks of ATLUS and SEGA.", CommunityGame.Notice);
+        Assert.Contains("not affiliated with or endorsed by either company", CommunityGame.Notice);
+        Assert.Contains("It contains no ATLUS or SEGA assets.", CommunityGame.Notice);
+    }
 }

@@ -1,38 +1,281 @@
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using PuzzleBoy.Community.App;
+using PuzzleBoy.Community.Audio;
+using PuzzleBoy.Community.Content;
+using PuzzleBoy.Community.Graphics;
+using PuzzleBoy.Community.Play;
 
 namespace PuzzleBoy.Community;
 
-/// <summary>The Community Edition window. It needs no game install: everything it shows comes from this repo.</summary>
-internal sealed class CommunityGame : Game
+/// <summary>
+/// The Community Edition window: the screens, their input and their drawing. Everything it shows comes from this
+/// repo's <c>content/</c> or is drawn and synthesized in code; it never looks for a game install. One Update is one
+/// tick, 30 a second like the original.
+/// </summary>
+internal sealed partial class CommunityGame : Game
 {
-    // The brand's night (ROADMAP.md, decisions).
-    private static readonly Color Night = new(0x15, 0x10, 0x2A);
+    private readonly GraphicsDeviceManager _graphics;
+    private readonly ContentManifest _manifest;
+    private readonly Navigator _nav = new();
+    private readonly MenuList _titleMenu = new(TitleItems.Length);
+    private readonly MenuList _pauseMenu = new(PauseItems.Length);
+    private readonly MenuList _settingsMenu = new(SettingsItems.Length);
+    private readonly MenuList _backMenu = new(1);
+    private readonly MenuList _selectMenu;
+    private readonly List<(StagePack Pack, int Index)> _selectable;
+    private readonly KeyRepeat _up = new();
+    private readonly KeyRepeat _down = new();
+    private readonly CameraRig _camera = new();
+    private readonly SmokeGui? _smoke;
+    private Theme _theme = null!;
+    private Ui _ui = null!;
+    private BoardRenderer _board = null!;
+    private Sounds _sounds = null!;
+    private PlaySession? _session;
+    private KeyboardState _previousKeys;
+    private GamePadState _previousPad;
+    private MouseState _previousMouse;
+    private Vector2 _pointer;
+    private bool _pointerMoved;
+    private bool _clicked;
+    private bool _rightClicked;
+    private bool _menuUp;
+    private bool _menuDown;
+    private bool _helpOpen;
+    private Vector3 _pivot;
+    private float _distance;
+    private int _ticks;
 
-    /// <summary>Opens a 1280×720 window at the original's 30 ticks a second.</summary>
-    public CommunityGame()
+    /// <summary>Opens a 1280×720 window on the title screen.</summary>
+    /// <param name="manifest">The loaded content; it must hold at least one stage.</param>
+    /// <param name="smoke">The <c>--smoke-gui</c> run to drive, or null to play normally.</param>
+    public CommunityGame(ContentManifest manifest, SmokeGui? smoke = null)
     {
-        _ = new GraphicsDeviceManager(this) { PreferredBackBufferWidth = 1280, PreferredBackBufferHeight = 720 };
+        _manifest = manifest;
+        _smoke = smoke;
+        _selectable = [.. manifest.Packs.SelectMany(p => p.Stages.Select((_, i) => (p, i)))];
+        _selectMenu = new MenuList(Math.Max(1, _selectable.Count));
+        _graphics = new GraphicsDeviceManager(this)
+        {
+            PreferredBackBufferWidth = VirtualScreen.Width,
+            PreferredBackBufferHeight = VirtualScreen.Height,
+            PreferMultiSampling = true,
+            GraphicsProfile = GraphicsProfile.HiDef,
+        };
         Window.Title = "Puzzle Boy Community Edition";
+        Window.AllowUserResizing = true;
+        Window.ClientSizeChanged += (_, _) =>
+        {
+            if (Window.ClientBounds.Width > 0 && Window.ClientBounds.Height > 0)
+            {
+                _graphics.PreferredBackBufferWidth = Window.ClientBounds.Width;
+                _graphics.PreferredBackBufferHeight = Window.ClientBounds.Height;
+                _graphics.ApplyChanges();
+            }
+        };
+
+        IsFixedTimeStep = true;
         TargetElapsedTime = TimeSpan.FromSeconds(1.0 / 30);
         IsMouseVisible = true;
+    }
+
+    /// <summary>The process exit code a <c>--smoke-gui</c> run ends with; 0 for a normal run.</summary>
+    public int ExitCode => _smoke?.ExitCode ?? 0;
+
+    /// <summary>The screen showing.</summary>
+    internal Screen CurrentScreen => _nav.Current;
+
+    /// <summary>The stage in play, or null when none is.</summary>
+    internal PlaySession? Session => _session;
+
+    /// <summary>The play camera, which maps screen directions to grid directions.</summary>
+    internal CameraRig Camera => _camera;
+
+    /// <inheritdoc />
+    protected override void LoadContent()
+    {
+        _theme = Theme.Load(_manifest.Theme);
+        _ui = new Ui(GraphicsDevice, _theme, _manifest.Fonts);
+        _board = new BoardRenderer(GraphicsDevice, _theme);
+        _sounds = new Sounds();
+        _sounds.StartMusic();
+    }
+
+    /// <inheritdoc />
+    protected override void UnloadContent()
+    {
+        _ui.Dispose();
+        _board.Dispose();
+        _sounds.Dispose();
     }
 
     /// <inheritdoc />
     protected override void Update(GameTime gameTime)
     {
-        if (Keyboard.GetState().IsKeyDown(Keys.Escape))
+        var keys = Keyboard.GetState();
+        var pad = GamePad.GetState(PlayerIndex.One);
+        var mouse = Mouse.GetState();
+        var controls = new Controls(keys, _previousKeys, pad, _previousPad);
+        if (_smoke is not null)
         {
-            Exit();
+            // A smoke run ignores the real keyboard, pad and mouse, so nothing on the desk can steer it.
+            controls = _smoke.Input(this);
+            mouse = _previousMouse;
         }
 
+        var pp = GraphicsDevice.PresentationParameters;
+        _pointer = VirtualScreen.ToVirtual(mouse.Position, pp.BackBufferWidth, pp.BackBufferHeight);
+        _pointerMoved = IsActive && mouse.Position != _previousMouse.Position && _ticks > 0;
+        _clicked = IsActive && mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton == ButtonState.Released;
+        _rightClicked = IsActive && mouse.RightButton == ButtonState.Pressed && _previousMouse.RightButton == ButtonState.Released;
+
+        // The repeat counts every tick, whichever screen reads it.
+        _menuUp = _up.Fires(controls.Held(Command.Up));
+        _menuDown = _down.Fires(controls.Held(Command.Down));
+        _ticks++;
+        _camera.Tick();
+        switch (_nav.Current)
+        {
+            case Screen.Title:
+                UpdateTitle(controls);
+                break;
+            case Screen.StageSelect:
+                UpdateStageSelect(controls);
+                break;
+            case Screen.Playing:
+                UpdatePlaying(controls);
+                break;
+            case Screen.Paused:
+                UpdatePaused(controls);
+                break;
+            case Screen.Settings:
+                UpdateSettings(controls);
+                break;
+            default:
+                // Credits and the placeholders hold a single Back.
+                if (RunMenu(_backMenu, controls, BackButton) is not null || Cancelled(controls))
+                {
+                    GoBack();
+                }
+
+                break;
+        }
+
+        _previousKeys = keys;
+        _previousPad = pad;
+        _previousMouse = mouse;
         base.Update(gameTime);
     }
 
     /// <inheritdoc />
     protected override void Draw(GameTime gameTime)
     {
-        GraphicsDevice.Clear(Night);
+        GraphicsDevice.Clear(_theme["night"]);
+        _ui.Backdrop(_ticks);
+        switch (_nav.Current)
+        {
+            case Screen.Title:
+                DrawTitle();
+                break;
+            case Screen.Playing:
+            case Screen.Paused:
+                DrawPlaying();
+                break;
+            case Screen.StageSelect:
+                DrawStageSelect();
+                break;
+            case Screen.Settings:
+                DrawSettings();
+                break;
+            case Screen.Credits:
+                DrawCredits();
+                break;
+            case Screen.Editor:
+                DrawPlaceholder("LEVEL EDITOR", "Coming soon. You'll paint stages tile by tile, test them as you go, and share them as packs.");
+                break;
+            default:
+                DrawPlaceholder("IMPORT CLASSIC", "Coming later, and always optional. If you own Shin Megami Tensei III: Nocturne, you'll be able to use the classic look and its bonus stages from your own copy. Nothing from it ships with this game.");
+                break;
+        }
+
         base.Draw(gameTime);
+        _smoke?.AfterDraw(this);
     }
+
+    /// <summary>Starts stage <paramref name="index"/> of <paramref name="pack"/> and opens the play screen.</summary>
+    private void StartStage(StagePack pack, int index)
+    {
+        _session = new PlaySession(pack.Stages, index);
+        _nav.Open(Screen.Playing);
+        FrameStage();
+    }
+
+    /// <summary>Points the camera at a newly started stage.</summary>
+    private void FrameStage()
+    {
+        var (minX, minY, maxX, maxY) = BoardRenderer.PlayBounds(_session!.Board);
+        var extent = Math.Max(maxX - minX, (maxY - minY) * 1.4f) + 1;
+        _distance = Math.Clamp((extent * 1.05f) + 4, 9, 22);
+        _pivot = Pivot();
+    }
+
+    /// <summary>
+    /// Where the camera looks: the middle of a stage that fits the view, or else the active character, held inside the
+    /// play area.
+    /// </summary>
+    private Vector3 Pivot()
+    {
+        var (minX, minY, maxX, maxY) = BoardRenderer.PlayBounds(_session!.Board);
+        var center = new Vector3((minX + maxX) / 2f, 0, -(minY + maxY) / 2f);
+        if (maxX - minX <= 12 && maxY - minY <= 9)
+        {
+            return center;
+        }
+
+        // shortcut: large stages follow the character within the play area; a smarter framing can come with C2 stages.
+        var (x, y, _) = _session.Where(_session.Board.ActiveIndex);
+        return new Vector3(Math.Clamp(x, minX + 4, Math.Max(minX + 4, maxX - 4)), 0, -Math.Clamp(y, minY + 3, Math.Max(minY + 3, maxY - 3)));
+    }
+
+    private void GoBack()
+    {
+        if (_nav.Back())
+        {
+            _sounds.Play(Sfx.Cancel);
+        }
+    }
+
+    private bool Cancelled(Controls controls) => controls.Pressed(Command.Back) || _rightClicked;
+
+    /// <summary>
+    /// One tick of a vertical menu laid out as <paramref name="layout"/>: arrows and the mouse move the focus, Confirm or
+    /// a click on the focused item chooses. Returns the chosen item, or null.
+    /// </summary>
+    private int? RunMenu(MenuList menu, Controls controls, MenuLayout layout)
+    {
+        if (_menuUp || _menuDown)
+        {
+            menu.Move(_menuUp ? -1 : 1);
+            _sounds.Play(Sfx.MenuMove);
+        }
+
+        var hit = menu.HitTest(_pointer, layout.Left, layout.Top, layout.Width, layout.Spacing);
+        if (_pointerMoved && hit >= 0 && menu.Set(hit))
+        {
+            _sounds.Play(Sfx.MenuMove);
+        }
+
+        if (controls.Pressed(Command.Confirm) || (_clicked && hit >= 0 && hit == menu.Focus))
+        {
+            _sounds.Play(Sfx.Confirm);
+            return menu.Focus;
+        }
+
+        return null;
+    }
+
+    /// <summary>Where a vertical menu's items are, in virtual pixels: each <see cref="Spacing"/> tall, stacked from <see cref="Top"/>.</summary>
+    private readonly record struct MenuLayout(float Left, float Top, float Width, float Spacing);
 }
