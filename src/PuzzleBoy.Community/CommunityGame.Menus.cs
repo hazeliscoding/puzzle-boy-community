@@ -54,7 +54,7 @@ internal sealed partial class CommunityGame
 
     private static readonly MenuLayout TitleMenu = new(96, 300, 400, 54);
     private static readonly MenuLayout PauseMenu = new(470, 262, 340, 50);
-    private static readonly MenuLayout SettingsLayout = new(240, 136, 800, 44);
+    private static readonly MenuLayout SettingsLayout = new(240, 130, 800, 40);
     private static readonly MenuLayout ConfirmLayout = new(490, 380, 300, 54);
     private static readonly MenuLayout SelectMenu = new(72, 150, 580, 50);
     private static readonly MenuLayout ImportChoiceLayout = new(490, 386, 300, 50);
@@ -799,6 +799,10 @@ internal sealed partial class CommunityGame
         if (_sounds.Silent)
         {
             _ui.Text(Font.Body, 16, "No audio device was found, so the game is silent.", new Vector2(640, 626), _ui["ember"], 0.5f);
+        }
+        else if (_settingsMenu.Focus == SettingsMenu.ThemeRow)
+        {
+            _ui.Text(Font.Body, 16, "Auto plays the Classic theme when you have a classic pack (Classic Nocturne, below), and the Default theme otherwise.", new Vector2(640, 626), _ui["cream"] * 0.85f, 0.5f);
         }
 
         _ui.Hints([("Up Down", "Choose"), ("Left Right", "Change"), ("Enter", "Select"), ("Esc", "Back")], 640, 660, _ui["cream"], 17);

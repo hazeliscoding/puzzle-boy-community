@@ -69,6 +69,7 @@ The owner's direction, superseding "No classic theme for now" above.
 - **No redistribution.** No classic pack, bundle or `classic-pack.json` enters `content/`, the repo, a release or a level pack. An exported pack says it was made from the player's own copy for their own computers and must not be shared. Distributing a licensed pack stays out until the rights are settled.
 - **No Manikin Kid and no Nocturne dialogue,** in either theme. The Classic theme reads no text bundle; Community's HUD, pause menu, help and clear flow sit over the original board.
 - **Theme setting: Auto (the default), Classic or Default.** Auto plays Classic when a valid classic pack is there and Default otherwise. When the pack is missing or fails its check, play falls back to Default with a notice that says why; it never stops the game. The theme only picks the presenter: rules, stage ids, move counts, undo and saved progress are the same in both.
+- **Save schema 2** adds `settings.theme`, `auto`, `classic` or `default`, kept as a string so a value this version doesn't know reads as `auto` instead of failing the save. A schema 1 save loads with its progress and settings and the theme on `auto`, and is written back as schema 2.
 
 ## C1: Instant play
 

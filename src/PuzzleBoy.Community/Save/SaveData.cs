@@ -49,6 +49,13 @@ internal sealed class GameSettings
     public bool HighContrast { get; set; }
 
     /// <summary>
+    /// The look of play, one of <see cref="Themes"/>: <c>auto</c> (Classic when a valid classic pack is there, else
+    /// Default), <c>classic</c> or <c>default</c>. A string, so a value from a newer version reads as <c>auto</c> instead
+    /// of failing the whole save.
+    /// </summary>
+    public string Theme { get; set; } = Themes.Auto;
+
+    /// <summary>
     /// The option in <paramref name="options"/> <paramref name="by"/> places from the one nearest <paramref name="current"/>,
     /// held at the ends.
     /// </summary>
@@ -72,6 +79,7 @@ internal sealed class GameSettings
     /// <summary>Puts every value back in range, as a save file edited by hand may not be.</summary>
     public void Normalize()
     {
+        Theme = Themes.All.Contains(Theme) ? Theme : Themes.Auto;
         WindowScale = Step(WindowScales, WindowScale, 0);
         UiScale = Step(UiScales, UiScale, 0);
         MusicVolume = Volume(MusicVolume);
@@ -82,14 +90,30 @@ internal sealed class GameSettings
     private static float Volume(float value) => float.IsNaN(value) ? 0 : MathF.Round(Math.Clamp(value, 0, 1) * 10) / 10;
 }
 
+/// <summary>The values of <see cref="GameSettings.Theme"/>, in the order the setting steps through them.</summary>
+internal static class Themes
+{
+    /// <summary>Classic when a valid classic pack is there, else Default.</summary>
+    public const string Auto = "auto";
+
+    /// <summary>The original minigame's look and sound, from the player's classic pack.</summary>
+    public const string Classic = "classic";
+
+    /// <summary>Community's own drawn graphics and synthesized sound, which need nothing else.</summary>
+    public const string Default = "default";
+
+    /// <summary>Every value, in order.</summary>
+    public static readonly string[] All = [Auto, Classic, Default];
+}
+
 /// <summary>
 /// Everything the game keeps between runs: the settings and each stage's progress by its pack-scoped id. Written by
 /// <see cref="SaveStore"/> as JSON with a <see cref="SchemaVersion"/>.
 /// </summary>
 internal sealed class SaveData
 {
-    /// <summary>The schema this build writes.</summary>
-    public const int CurrentVersion = 1;
+    /// <summary>The schema this build writes. Schema 2 added the theme setting.</summary>
+    public const int CurrentVersion = 2;
 
     /// <summary>The schema the data was written in; always <see cref="CurrentVersion"/> once loaded.</summary>
     public int SchemaVersion { get; set; } = CurrentVersion;

@@ -38,7 +38,7 @@ public class SaveTests
         Assert.Equal(4.25, again.Data.Stages[Id(0)].BestTime);
         Assert.Equal(0.3f, again.Data.Settings.MusicVolume);
         Assert.True(again.Data.Settings.HighContrast);
-        Assert.Contains("\"schemaVersion\": 1", File.ReadAllText(again.MainPath));
+        Assert.Contains("\"schemaVersion\": 2", File.ReadAllText(again.MainPath));
     }
 
     [Fact]
@@ -179,11 +179,48 @@ public class SaveTests
         Assert.Equal(0.4f, store.Data.Settings.SfxVolume);
 
         store.Save();
-        Assert.Contains("\"schemaVersion\": 1", File.ReadAllText(store.MainPath));
+        Assert.Contains("\"schemaVersion\": 2", File.ReadAllText(store.MainPath));
         Assert.True(SaveStore.Load(temp.Path).Data.IsCompleted(Id(1)));
 
         // The first real clear of a migrated stage sets its first best.
         Assert.True(store.Data.Record(Id(0), 30, 20));
+    }
+
+    [Fact]
+    public void A_schema_1_save_migrates_to_schema_2_with_its_progress_and_settings_and_the_theme_on_auto()
+    {
+        using var temp = new TempFolder();
+        temp.Write(SaveStore.FileName, $"{{\"schemaVersion\": 1, \"settings\": {{\"musicVolume\": 0.3, \"highContrast\": true}}, \"stages\": {{\"{Id(0)}\": {{\"completed\": true, \"bestMoves\": 12, \"bestTime\": 9.5}}, \"classic/original/02\": {{\"completed\": true}}}}}}");
+
+        var store = SaveStore.Load(temp.Path);
+        Assert.Null(store.Notice);
+        Assert.Equal(Themes.Auto, store.Data.Settings.Theme);
+        Assert.Equal((0.3f, true), (store.Data.Settings.MusicVolume, store.Data.Settings.HighContrast));
+        Assert.Equal((12, 9.5), (store.Data.Stages[Id(0)].BestMoves, store.Data.Stages[Id(0)].BestTime));
+        Assert.True(store.Data.IsCompleted("classic/original/02"));
+
+        store.Data.Settings.Theme = Themes.Classic;
+        Assert.True(store.Save());
+        var written = File.ReadAllText(store.MainPath);
+        Assert.Contains("\"schemaVersion\": 2", written);
+        Assert.Contains("\"theme\": \"classic\"", written);
+        Assert.Equal(Themes.Classic, SaveStore.Load(temp.Path).Data.Settings.Theme);
+    }
+
+    [Theory]
+    [InlineData("\"fancy\"")]
+    [InlineData("\"\"")]
+    [InlineData("null")]
+    public void A_theme_this_version_doesnt_know_reads_as_auto_and_keeps_the_rest_of_the_save(string theme)
+    {
+        using var temp = new TempFolder();
+        temp.Write(SaveStore.FileName, $"{{\"schemaVersion\": 2, \"settings\": {{\"theme\": {theme}, \"mute\": true}}, \"stages\": {{\"{Id(0)}\": {{\"completed\": true}}}}}}");
+
+        var store = SaveStore.Load(temp.Path);
+        Assert.Null(store.Notice);
+        Assert.Equal(Themes.Auto, store.Data.Settings.Theme);
+        Assert.True(store.Data.Settings.Mute);
+        Assert.True(store.Data.IsCompleted(Id(0)));
     }
 
     [Fact]

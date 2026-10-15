@@ -239,7 +239,8 @@ internal sealed class SaveStore
                 data = version switch
                 {
                     0 => MigrateV0(obj),
-                    1 => obj.Deserialize<SaveData>(Json),
+                    // Schema 1 is schema 2 without the theme, which then starts at Auto.
+                    1 or 2 => obj.Deserialize<SaveData>(Json),
                     _ => null,
                 };
             }

@@ -189,6 +189,23 @@ public class AppTests
     }
 
     [Fact]
+    public void The_theme_row_steps_through_auto_classic_and_default_and_confirm_wraps()
+    {
+        var settings = new GameSettings();
+        Assert.Equal("Theme", SettingsMenu.Labels[SettingsMenu.ThemeRow]);
+        Assert.True(SettingsMenu.HasValue(SettingsMenu.ThemeRow));
+        Assert.Equal("Auto", SettingsMenu.Value(settings, SettingsMenu.ThemeRow));
+        Assert.False(SettingsMenu.Adjust(settings, SettingsMenu.ThemeRow, -1));
+        Assert.True(SettingsMenu.Adjust(settings, SettingsMenu.ThemeRow, 1));
+        Assert.Equal(("Classic", Themes.Classic), (SettingsMenu.Value(settings, SettingsMenu.ThemeRow), settings.Theme));
+        Assert.True(SettingsMenu.Adjust(settings, SettingsMenu.ThemeRow, 1));
+        Assert.Equal("Default", SettingsMenu.Value(settings, SettingsMenu.ThemeRow));
+        Assert.False(SettingsMenu.Adjust(settings, SettingsMenu.ThemeRow, 1));
+        Assert.True(SettingsMenu.Adjust(settings, SettingsMenu.ThemeRow, 1, wrap: true));
+        Assert.Equal(Themes.Auto, settings.Theme);
+    }
+
+    [Fact]
     public void Every_switch_flips_either_way()
     {
         var settings = new GameSettings();

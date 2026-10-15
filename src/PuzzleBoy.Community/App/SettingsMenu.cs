@@ -9,20 +9,23 @@ namespace PuzzleBoy.Community.App;
 /// </summary>
 internal static class SettingsMenu
 {
+    /// <summary>The row that picks the theme: Auto, Classic or Default.</summary>
+    public const int ThemeRow = 8;
+
     /// <summary>The row that opens the optional Classic Nocturne screen: import, export and remove the classic pack.</summary>
-    public const int ImportRow = 8;
+    public const int ImportRow = 9;
 
     /// <summary>The row that resets every setting, after a confirmation.</summary>
-    public const int ResetRow = 9;
+    public const int ResetRow = 10;
 
     /// <summary>The row that goes back.</summary>
-    public const int BackRow = 10;
+    public const int BackRow = 11;
 
     /// <summary>The rows' labels, in order.</summary>
     public static readonly string[] Labels =
     [
         "Display", "Window size", "UI scale", "Music volume", "Sound volume", "Mute", "Reduce motion", "High contrast",
-        "Classic Nocturne", "Reset to defaults", "Back",
+        "Theme", "Classic Nocturne", "Reset to defaults", "Back",
     ];
 
     // Volumes in tenths, 0 to 1.
@@ -48,6 +51,7 @@ internal static class SettingsMenu
         5 => OnOff(settings.Mute),
         6 => OnOff(settings.ReduceMotion),
         7 => OnOff(settings.HighContrast),
+        ThemeRow => char.ToUpperInvariant(settings.Theme[0]) + settings.Theme[1..],
         _ => "",
     };
 
@@ -84,6 +88,10 @@ internal static class SettingsMenu
                 break;
             case 7:
                 settings.HighContrast = !settings.HighContrast;
+                break;
+            case ThemeRow:
+                var at = Array.IndexOf(Themes.All, settings.Theme) + by;
+                settings.Theme = Themes.All[wrap ? ((at % Themes.All.Length) + Themes.All.Length) % Themes.All.Length : Math.Clamp(at, 0, Themes.All.Length - 1)];
                 break;
         }
 
