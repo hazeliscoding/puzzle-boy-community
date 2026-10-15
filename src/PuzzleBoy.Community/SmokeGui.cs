@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using PuzzleBoy.Community.App;
+using PuzzleBoy.Community.Editor;
 using PuzzleBoy.Rules;
 
 namespace PuzzleBoy.Community;
@@ -10,18 +11,20 @@ namespace PuzzleBoy.Community;
 /// profile) through the same menu and play code a player uses, takes one step and saves what it drew. It proves a build
 /// opens a window, renders and takes input; it never plays a stage through. With a screens folder
 /// (<c>--smoke-gui-screens</c>) it also visits stage select, settings (turning fullscreen on and off there), credits, the
-/// pause menu and help on the way and saves each.
+/// level editor (its list, a sample stage with a problem, a playtest and Solve), stage select's My Stages, the pause menu
+/// and help on the way and saves each.
 /// </summary>
 /// <param name="titlePng">Where to write the title screenshot; the stage one goes beside it with a <c>-stage</c> suffix.</param>
 /// <param name="screensDir">
-/// A folder for <c>title.png</c>, <c>stage-select.png</c>, <c>settings.png</c>, <c>credits.png</c>, <c>playing.png</c>,
-/// <c>pause.png</c> and <c>help.png</c>, or
+/// A folder for <c>title.png</c>, <c>stage-select.png</c>, <c>settings.png</c>, <c>credits.png</c>,
+/// <c>editor-list.png</c>, <c>editor.png</c>, <c>playtest.png</c>, <c>editor-solve.png</c>, <c>my-stages.png</c>,
+/// <c>playing.png</c>, <c>pause.png</c> and <c>help.png</c>, or
 /// null to save only the two screenshots.
 /// </param>
 internal sealed class SmokeGui(string titlePng, string? screensDir = null)
 {
     // A slow first frame or a window still settling must not end the run; a stuck one must.
-    private const int TimeoutTicks = 900;
+    private const int TimeoutTicks = 2400;
 
     // Frames drawn on the title before it's saved, so the backdrop and fonts have settled.
     private const int TitleFrames = 5;
@@ -117,7 +120,25 @@ internal sealed class SmokeGui(string titlePng, string? screensDir = null)
                 yield return tick;
             }
 
-            foreach (var tick in Press(Keys.Up, Keys.Up, Keys.Up, Keys.Up))
+            // Credits is the fifth item; two up is the Level Editor, and one more Stage Select.
+            foreach (var tick in Press(Keys.Up, Keys.Up).Concat(Editor(game)))
+            {
+                yield return tick;
+            }
+
+            // Right is the My Stages tab, which holds the sample the editor visit saved.
+            foreach (var tick in Press(Keys.Up, Keys.Enter, Keys.Right))
+            {
+                yield return tick;
+            }
+
+            if (game.CurrentScreen != Screen.StageSelect || game.SelectPack is not { PackId: "custom", Stages: [{ Id: "custom/sample" }] })
+            {
+                Fail(game, "stage select's My Stages tab didn't list the sample");
+                yield break;
+            }
+
+            foreach (var tick in Shot(null, "my-stages.png").Concat(Press(Keys.Escape, Keys.Up)))
             {
                 yield return tick;
             }
@@ -198,6 +219,160 @@ internal sealed class SmokeGui(string titlePng, string? screensDir = null)
 
         _done = true;
         _passed = $"{TitlePng}, {StagePng}{(ScreensDir is null ? "" : $", screens in {ScreensDir}")}; {session.Stage.Id} from {before} to {after}";
+    }
+
+    /// <summary>
+    /// With the title's focus on the Level Editor: saves a sample stage (a bundled one with blocks, a swivel and holes)
+    /// as the player's own, opens the editor and saves its list, opens the sample, splits one of its block groups through
+    /// the keyboard, jumps to the problem that makes and saves the canvas. Then it checks that P won't play it, undoes
+    /// the split, playtests and comes back with the stage, cursor and undo history kept, runs Solve, and closes it.
+    /// </summary>
+    private IEnumerable<Keys[]> Editor(CommunityGame game)
+    {
+        var sample = game.Manifest.Packs.SelectMany(p => p.Stages).First(s =>
+        {
+            var tiles = Enumerable.Range(0, Stage.Width * Stage.Height).Select(i => Tile.FromCell(s.Stage[i % Stage.Width, i / Stage.Width])).ToList();
+            return tiles.Any(t => t.Kind == CellKind.Block) && tiles.Any(t => t.Kind == CellKind.SwivelCenter) && tiles.Any(t => t.OverHole || t.Kind == CellKind.Hole);
+        });
+        Community.Save.CustomStages.Write(game.Save.Folder, "sample", new StageDocument(sample.Stage, $"{sample.Title} (sample)"));
+
+        foreach (var tick in Press(Keys.Enter))
+        {
+            yield return tick;
+        }
+
+        if (game.CurrentScreen != Screen.Editor || game.CustomList.Count != 1)
+        {
+            Fail(game, $"the Level Editor opened {game.CurrentScreen} with {game.CustomList.Count} stages, not its list with the sample");
+            yield break;
+        }
+
+        // Down to the sample; Enter, Enter is Edit.
+        foreach (var tick in Press(Keys.Down).Concat(Shot(null, "editor-list.png")).Concat(Press(Keys.Enter, Keys.Enter)))
+        {
+            yield return tick;
+        }
+
+        if (game.Editor is not { } editor || editor.Problems.Count != 0)
+        {
+            Fail(game, "the sample didn't open in the editor, or opened with problems");
+            yield break;
+        }
+
+        // A floor cell beside none of a block group's cells, after its first in row order so the engine names the new
+        // cell as the one cut off: a block of that group there splits it.
+        var group = Enumerable.Range(1, StageEditor.MaxGroup).First(g => editor.CellsOf(g) is [var first, ..] && editor[first.X, first.Y].Kind == CellKind.Block);
+        var cells = editor.CellsOf(group);
+        var after = (cells[0].Y * Stage.Width) + cells[0].X + 1;
+        var target = Enumerable.Range(after, (Stage.Width * Stage.Height) - after).Select(i => (X: i % Stage.Width, Y: i / Stage.Width)).First(c =>
+            editor[c.X, c.Y].Kind == CellKind.Floor && editor.Goal != c && !editor.Starts.Contains(c)
+            && cells.All(b => Math.Abs(b.X - c.X) + Math.Abs(b.Y - c.Y) > 1));
+        foreach (var tick in MoveCursor(editor, cells[0]).Concat(Press(Keys.G)).Concat(MoveCursor(editor, target)).Concat(Press(Keys.Space, Keys.Tab)))
+        {
+            yield return tick;
+        }
+
+        if (!editor.HasProblemAt(target.X, target.Y) || editor.Cursor != target)
+        {
+            Fail(game, $"painting group {group} at {target} didn't show a problem there");
+            yield break;
+        }
+
+        foreach (var tick in Shot(null, "editor.png"))
+        {
+            yield return tick;
+        }
+
+        // P refuses a stage with a problem. Ctrl+Z takes the stroke back, and then P plays it.
+        foreach (var tick in Press(Keys.P))
+        {
+            yield return tick;
+        }
+
+        if (game.CurrentScreen != Screen.Editor)
+        {
+            Fail(game, "a stage with a problem was playtested");
+            yield break;
+        }
+
+        foreach (var tick in Chord(Keys.LeftControl, Keys.Z).Concat(Press(Keys.P)))
+        {
+            yield return tick;
+        }
+
+        if (editor.Problems.Count != 0 || !editor.CanRedo || game.CurrentScreen != Screen.Playing || game.Session is not { } playtest)
+        {
+            Fail(game, "Ctrl+Z and P didn't playtest the sample");
+            yield break;
+        }
+
+        var kept = (editor.Version, editor.Cursor);
+        while (playtest.Ticks <= CommunityGame.StartLock)
+        {
+            yield return [];
+        }
+
+        foreach (var tick in Shot(null, "playtest.png").Concat(Press(Keys.Escape)))
+        {
+            yield return tick;
+        }
+
+        if (game.CurrentScreen != Screen.Editor || game.Editor != editor || (editor.Version, editor.Cursor) != kept || !editor.CanRedo)
+        {
+            Fail(game, "Esc from the playtest didn't come back to the same stage, cursor and undo history");
+            yield break;
+        }
+
+        // Solve is the menu's fifth item; the capped search runs in the background.
+        foreach (var tick in Press(Keys.Escape, Keys.Down, Keys.Down, Keys.Down, Keys.Down, Keys.Enter))
+        {
+            yield return tick;
+        }
+
+        while (editor.Message is null || editor.Message.StartsWith("Solving", StringComparison.Ordinal))
+        {
+            yield return [];
+        }
+
+        foreach (var tick in Shot(null, "editor-solve.png"))
+        {
+            yield return tick;
+        }
+
+        // Close Stage is the menu's last item; the undo left nothing unsaved, so it closes without asking.
+        foreach (var tick in Press(Keys.Escape, Keys.Up, Keys.Enter))
+        {
+            yield return tick;
+        }
+
+        if (game.Editor is not null || game.CurrentScreen != Screen.Editor)
+        {
+            Fail(game, "closing the sample didn't return to the editor's list");
+            yield break;
+        }
+
+        foreach (var tick in Press(Keys.Escape))
+        {
+            yield return tick;
+        }
+    }
+
+    /// <summary>Holds <paramref name="keys"/> together for one tick, then releases them.</summary>
+    private static IEnumerable<Keys[]> Chord(params Keys[] keys)
+    {
+        yield return keys;
+        yield return [];
+    }
+
+    /// <summary>Presses the arrows that take the editor's cursor to <paramref name="to"/>; up is +y.</summary>
+    private static IEnumerable<Keys[]> MoveCursor(StageEditor editor, (int X, int Y) to)
+    {
+        // An iterator, so the cursor is read when the presses start, not when the script is put together.
+        var (dx, dy) = (to.X - editor.Cursor.X, to.Y - editor.Cursor.Y);
+        foreach (var tick in Press([.. Enumerable.Repeat(dx > 0 ? Keys.Right : Keys.Left, Math.Abs(dx)), .. Enumerable.Repeat(dy > 0 ? Keys.Up : Keys.Down, Math.Abs(dy))]))
+        {
+            yield return tick;
+        }
     }
 
     /// <summary>
