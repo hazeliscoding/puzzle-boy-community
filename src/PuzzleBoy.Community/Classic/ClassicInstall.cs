@@ -56,10 +56,13 @@ internal sealed partial class ClassicInstall
     /// </summary>
     public Dictionary<string, byte[]> ReadTextAssets()
     {
+        // The stream is ours: when AssetsTools.NET throws on a damaged file, UnloadAll doesn't close it, and the game's
+        // own file would stay locked until this game quits.
+        using var stream = new FileStream(BundlePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         var manager = new AssetsManager();
         try
         {
-            var bundleFile = manager.LoadBundleFile(BundlePath, true);
+            var bundleFile = manager.LoadBundleFile(stream, BundlePath, true);
             var assets = manager.LoadAssetsFileFromBundle(bundleFile, 0, false);
             return assets.file.GetAssetsOfType(AssetClassID.TextAsset)
                 .Select(info => manager.GetBaseField(assets, info))
