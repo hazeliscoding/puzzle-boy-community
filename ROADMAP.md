@@ -55,7 +55,7 @@ The handoff's M4.
 - [x] Stage select with locked and completed states, best moves and time. Each state has an icon and a word, and the focused stage shows a preview of how it starts. `--smoke-gui-screens` on a fresh profile and on one with stage 1 cleared showed both, and Play resumed at stage 2 (2026.10.15).
 - [x] Progress and settings saved locally and atomically, with recovery from a damaged file. `SaveTests` cover a relaunch, the backup, a crash before the replace, a stale temp file, a corrupted save, a schema 0 migration, a newer schema and an unwritable folder.
 - [x] Pause, help and settings; keyboard, mouse and controller. Menus read the same commands from keys, the d-pad and stick, and the mouse and wheel. Only the keyboard path has run in the real window (the smoke tour); the mouse and a real gamepad haven't been tried by hand.
-- [ ] Graphics and sound polish.
+- [ ] Graphics and sound polish. So far (2026.10.15): every stage framed whole between the HUD bands, walls at least 3:1 against both floor tones, a pattern of its own for each group of a stage, a violet ring for the active Jack, and Pixel Jack leaning back from the camera so his face shows.
 
 **Done when** every bundled stage has a replay that clears it, a fresh profile works, saving and relaunching resumes progress, and every title option works.
 
