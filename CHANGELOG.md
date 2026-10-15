@@ -4,7 +4,9 @@ Notable changes to Puzzle Boy Community Edition. The format follows [Keep a Chan
 
 ## [Unreleased]
 
-Planned as 0.1.0, the first release.
+## [0.1.0] - 2026-10-15
+
+The first release.
 
 ### Added
 
@@ -18,4 +20,5 @@ Planned as 0.1.0, the first release.
 - The original's input timing and its Tab scroll mode, the same in both themes.
 - Self-contained archives for Windows x64, Linux x64 and macOS (Apple Silicon and Intel), each unpacked and smoke-tested in CI before a release can publish.
 
-[Unreleased]: https://github.com/hazeliscoding/puzzle-boy-community/commits/main
+[Unreleased]: https://github.com/hazeliscoding/puzzle-boy-community/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/hazeliscoding/puzzle-boy-community/releases/tag/v0.1.0

@@ -158,6 +158,8 @@ Release acceptance, from unpacked archives (2026.10.15). Untested means untested
 | macOS ARM64 | Pass in CI (`macos-latest`, run 38761882379): the exact archive unpacked into an empty profile, `--smoke-test` exit 0. Never started by hand | Pass (automated, CI): a real window opened, drew the title and stage 1 and took a step | Untested | Pass (automated, CI): the `--smoke-gui-screens` tour | Untested |
 | macOS x64 | Pass in CI (`macos-15-intel`, run 38761882379): the exact archive unpacked into an empty profile, `--smoke-test` exit 0. Never started by hand | Pass (automated, CI): a real window opened, drew the title and stage 1 and took a step | Untested | Pass (automated, CI): the `--smoke-gui-screens` tour | Untested |
 
+The owner has no Mac, and plays Linux only under WSL (2026.10.15). So the macOS rows rest on CI's window checks alone, and Linux has no hand test on a real desktop; a Mac or Linux player's report is welcome.
+
 The archives carry only the bundled Default theme. The Classic Nocturne theme is optional and made from the player's own copy (C6), so no archive holds it and this table doesn't cover it.
 
 **Done when** a tagged release publishes only after the 12-stage minimum, the editor, provenance, smoke tests and archive checks pass.
