@@ -106,6 +106,7 @@ public class AppTests
     [InlineData(Keys.R, nameof(Command.Restart))]
     [InlineData(Keys.Escape, nameof(Command.Pause))]
     [InlineData(Keys.P, nameof(Command.Pause))]
+    [InlineData(Keys.Tab, nameof(Command.Scroll))]
     [InlineData(Keys.Enter, nameof(Command.Confirm))]
     [InlineData(Keys.Space, nameof(Command.Confirm))]
     [InlineData(Keys.Escape, nameof(Command.Back))]

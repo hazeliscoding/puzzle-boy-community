@@ -44,6 +44,9 @@ internal enum Command
 
     /// <summary>Opens the pause menu.</summary>
     Pause,
+
+    /// <summary>Turns scroll mode on or off: the directions move the view a cell at a time instead of the character.</summary>
+    Scroll,
 }
 
 /// <summary>
@@ -74,6 +77,7 @@ internal readonly record struct Controls(KeyboardState Keys, KeyboardState Previ
         [Command.Undo] = [Microsoft.Xna.Framework.Input.Keys.Z, Microsoft.Xna.Framework.Input.Keys.Back],
         [Command.Restart] = [Microsoft.Xna.Framework.Input.Keys.R],
         [Command.Pause] = [Microsoft.Xna.Framework.Input.Keys.Escape, Microsoft.Xna.Framework.Input.Keys.P],
+        [Command.Scroll] = [Microsoft.Xna.Framework.Input.Keys.Tab],
     };
 
     /// <summary>The gamepad buttons for each command; the left stick moves too. B means Back in menus and Undo in play.</summary>
@@ -92,6 +96,7 @@ internal readonly record struct Controls(KeyboardState Keys, KeyboardState Previ
         [Command.Undo] = [Buttons.B],
         [Command.Restart] = [Buttons.Back],
         [Command.Pause] = [Buttons.Start],
+        [Command.Scroll] = [Buttons.RightStick],
     };
 
     // The four directions as screen directions: 0 up, 1 right, 2 down, 3 left.

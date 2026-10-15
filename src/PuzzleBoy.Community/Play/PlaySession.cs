@@ -85,6 +85,9 @@ internal sealed class PlaySession
     /// <summary>The way each character last tried to step, or null before its first input.</summary>
     public Direction?[] Facings { get; private set; }
 
+    /// <summary>The cell the view looks at in scroll mode, or null outside it; the characters stay where they are.</summary>
+    public (int X, int Y)? Scroll { get; private set; }
+
     /// <summary>True when a switch would hand control to another character.</summary>
     public bool CanSwitch => !Board.IsCleared && Board.Characters.Count(c => c.Visible) > 1;
 
@@ -171,6 +174,19 @@ internal sealed class PlaySession
 
     /// <summary>Hands control to the next visible character. False, changing nothing, unless <see cref="CanSwitch"/>.</summary>
     public bool Switch() => CanSwitch && Animation is null && Board.Switch();
+
+    /// <summary>Turns scroll mode on, its cursor on the active character, or off.</summary>
+    public void ToggleScroll() => Scroll = Scroll is null ? (Board.Active.X, Board.Active.Y) : null;
+
+    /// <summary>Moves the scroll cursor a cell in <paramref name="direction"/>, staying inside the grid.</summary>
+    public void ScrollBy(Direction direction)
+    {
+        if (Scroll is { } cursor)
+        {
+            var (dx, dy) = direction.Offset();
+            Scroll = (Math.Clamp(cursor.X + dx, 0, Rules.Stage.Width - 1), Math.Clamp(cursor.Y + dy, 0, Rules.Stage.Height - 1));
+        }
+    }
 
     /// <summary>
     /// Starts the stage again. Restart sits a key away from the turn keys, so <see cref="Undo"/> can take it back; a
@@ -259,6 +275,7 @@ internal sealed class PlaySession
     {
         _undoMoves.Clear();
         Animation = null;
+        Scroll = null;
         Moves = 0;
         Ticks = 0;
         ElapsedTicks = 0;

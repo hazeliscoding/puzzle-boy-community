@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using PuzzleBoy.Community.App;
+using PuzzleBoy.Community.Audio;
 using PuzzleBoy.Community.Content;
 using PuzzleBoy.Community.Graphics;
 using PuzzleBoy.Community.Play;
@@ -248,15 +249,53 @@ public class PlayTests
 
         Assert.Equal(3, tick);
 
-        // A press while the step plays is lost, not queued: a turn, an undo.
+        // A press while the step plays is lost, not queued: a turn, an undo, scroll mode.
         session.Tick();
         Assert.NotNull(session.Animation);
-        Assert.Empty(PlayInput.Apply(session, camera, Controls.FromKeys([Keys.E, Keys.Z])));
+        Assert.Empty(PlayInput.Apply(session, camera, Controls.FromKeys([Keys.E, Keys.Z, Keys.Tab])));
         Assert.Equal(0, camera.Mode);
+        Assert.Null(session.Scroll);
 
         // A restart locks input for two ticks again.
         session.Restart();
         session.Tick();
         Assert.Empty(PlayInput.Apply(session, camera, Controls.FromKeys([Keys.E])));
+    }
+
+    [Fact]
+    public void Tab_scrolls_the_view_a_cell_a_tick_inside_the_grid_while_Jack_stays_put()
+    {
+        var session = new PlaySession([new PackStage("t/scroll", "Scroll", SolverTests.Draw("1..G"))], 0);
+        var camera = new CameraRig();
+        for (var i = 0; i <= PlayInput.StartLock; i++)
+        {
+            session.Tick();
+        }
+
+        var start = (session.Board.Active.X, session.Board.Active.Y);
+        Assert.Equal([Sfx.View], PlayInput.Apply(session, camera, Controls.FromKeys([Keys.Tab])));
+        Assert.Equal(start, session.Scroll);
+
+        // Held right: one cell a tick, stopping at the grid's edge.
+        for (var i = 0; i < Stage.Width; i++)
+        {
+            session.Tick();
+            PlayInput.Apply(session, camera, Controls.FromKeys([Keys.Right], [Keys.Right]));
+            Assert.Equal((Math.Min(start.X + i + 1, Stage.Width - 1), start.Y), session.Scroll);
+        }
+
+        Assert.Equal(start, (session.Board.Active.X, session.Board.Active.Y));
+        Assert.Equal(0, session.Moves);
+
+        // The cursor moves the way the view faces, like a step: after a right turn, screen up is grid -x.
+        Assert.True(camera.TurnRight());
+        Settle(camera);
+        PlayInput.Apply(session, camera, Controls.FromKeys([Keys.Up]));
+        Assert.Equal((Stage.Width - 2, start.Y), session.Scroll);
+
+        // Tab again goes back to Jack, and the directions walk him.
+        PlayInput.Apply(session, camera, Controls.FromKeys([Keys.Tab]));
+        Assert.Null(session.Scroll);
+        Assert.Equal([Sfx.Step], PlayInput.Apply(session, camera, Controls.FromKeys([Keys.Down])));
     }
 }

@@ -102,10 +102,13 @@ internal sealed class ClassicStageView(CharacterData character)
         }
     }
 
-    /// <summary>The view matrix: the original's camera on the active character, a quarter cell below it.</summary>
+    /// <summary>
+    /// The view matrix: the original's camera on the active character, or on the scroll cursor in scroll mode, a quarter
+    /// cell below it.
+    /// </summary>
     public Matrix View(PlaySession session)
     {
-        var (x, y) = Rendering.MoveAnimation.Where(session.Board, _animation, session.Board.ActiveIndex);
+        var (x, y) = session.Scroll is { } cursor ? (cursor.X, cursor.Y) : Rendering.MoveAnimation.Where(session.Board, _animation, session.Board.ActiveIndex);
         return Camera.View(new Vector3(x, PivotHeight, -y));
     }
 

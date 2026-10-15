@@ -120,12 +120,21 @@ internal sealed partial class CommunityGame
         _ui.End();
     }
 
-    /// <summary>The Default theme's board: drawn in code, the whole play area framed afresh each frame.</summary>
+    /// <summary>
+    /// The Default theme's board: drawn in code, the whole play area framed afresh each frame, or centered on the cursor in
+    /// scroll mode.
+    /// </summary>
     private void DrawDefaultBoard(PlaySession session)
     {
         var (minX, minY, maxX, maxY) = BoardRenderer.PlayBounds(session.Board);
         var viewport = GraphicsDevice.Viewport;
         var (pivot, distance) = _camera.Frame(minX, minY, maxX, maxY, viewport.Width, viewport.Height);
+        if (session.Scroll is { } cursor)
+        {
+            // Scroll mode looks at the cursor from the same distance.
+            pivot = new Vector3(cursor.X, 0, -cursor.Y);
+        }
+
         _board.Draw(session, _camera.View(pivot, distance), CameraRig.Projection(viewport.AspectRatio), _ticks);
     }
 
@@ -152,7 +161,13 @@ internal sealed partial class CommunityGame
             return;
         }
 
-        List<(string, string)> hints = [("W A S D", "Move"), ("Q E", "Turn"), ("V", "View"), ("Z", "Undo"), ("R", "Restart")];
+        if (session.Scroll is not null)
+        {
+            _ui.Hints([("W A S D", "Look around"), ("Q E", "Turn"), ("V", "View"), ("Tab", "Back to Jack")], 640, 680, _ui["cream"], 16);
+            return;
+        }
+
+        List<(string, string)> hints = [("W A S D", "Move"), ("Q E", "Turn"), ("V", "View"), ("Tab", "Scroll"), ("Z", "Undo"), ("R", "Restart")];
         if (several)
         {
             hints.Add(("C", "Switch"));

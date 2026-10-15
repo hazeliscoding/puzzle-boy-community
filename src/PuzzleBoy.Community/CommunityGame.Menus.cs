@@ -871,6 +871,7 @@ internal sealed partial class CommunityGame
             ("Arrows / WASD", "D-pad / stick", "Move (hold to keep walking)"),
             ("Q  E", "LB  RB", "Turn the view"),
             ("V", "Y", "Overhead view"),
+            ("Tab", "R3", "Scroll the view"),
             ("Z / Backspace", "B", "Undo"),
             ("R", "Back", "Restart"),
             ("C", "X", "Switch character"),

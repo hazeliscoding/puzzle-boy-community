@@ -17,9 +17,9 @@ internal static class PlayInput
     public const int StartLock = 2;
 
     /// <summary>
-    /// Applies <paramref name="controls"/> to <paramref name="session"/> through <paramref name="camera"/>: view turns,
-    /// undo, restart, switch, then a held direction. Like the original, it reads nothing at all while a step plays: a
-    /// press then is lost, not queued. Returns the sounds that go with what happened, in order.
+    /// Applies <paramref name="controls"/> to <paramref name="session"/> through <paramref name="camera"/>: scroll mode,
+    /// view turns, undo, restart, switch, then a held direction. Like the original, it reads nothing at all while a step
+    /// plays: a press then is lost, not queued. Returns the sounds that go with what happened, in order.
     /// </summary>
     public static List<Sfx> Apply(PlaySession session, CameraRig camera, Controls controls)
     {
@@ -27,6 +27,12 @@ internal static class PlayInput
         if (session.Busy || session.Ticks <= StartLock)
         {
             return sounds;
+        }
+
+        if (controls.Pressed(Command.Scroll))
+        {
+            session.ToggleScroll();
+            sounds.Add(Sfx.View);
         }
 
         if ((controls.Pressed(Command.TurnLeft) && camera.TurnLeft())
@@ -52,8 +58,13 @@ internal static class PlayInput
             sounds.Add(session.Switch() ? Sfx.View : Sfx.Buzz);
         }
 
-        // Input follows the view; a held direction keeps walking. Steps wait for a turn of the view to finish.
-        if (!camera.IsBusy && controls.HeldDirection() is { } screen)
+        // Input follows the view; a held direction keeps walking, or in scroll mode moves the view a cell a tick, as in
+        // the original. Steps wait for a turn of the view to finish.
+        if (session.Scroll is not null && controls.HeldDirection() is { } look)
+        {
+            session.ScrollBy(camera.DirectionFor(look));
+        }
+        else if (session.Scroll is null && !camera.IsBusy && controls.HeldDirection() is { } screen)
         {
             var result = session.Step(camera.DirectionFor(screen));
             if (result != StepResult.Refused)
