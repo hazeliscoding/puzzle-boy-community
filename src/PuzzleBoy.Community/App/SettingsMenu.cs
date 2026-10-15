@@ -34,11 +34,14 @@ internal static class SettingsMenu
     /// <summary>True for the rows that hold a value; the rest are actions.</summary>
     public static bool HasValue(int row) => row < ImportRow;
 
-    /// <summary>What row <paramref name="row"/> shows for <paramref name="settings"/>, or an empty string for an action.</summary>
-    public static string Value(GameSettings settings, int row) => row switch
+    /// <summary>
+    /// What row <paramref name="row"/> shows for <paramref name="settings"/>, or an empty string for an action. Given the
+    /// <paramref name="display"/>'s size in pixels, the window size is the one it really gets there.
+    /// </summary>
+    public static string Value(GameSettings settings, int row, (int Width, int Height)? display = null) => row switch
     {
         0 => settings.Fullscreen ? "Fullscreen" : "Windowed",
-        1 => string.Create(CultureInfo.InvariantCulture, $"{1280 * settings.WindowScale:0} × {720 * settings.WindowScale:0}"),
+        1 => WindowSize(settings.WindowScale, display),
         2 => Percent(settings.UiScale),
         3 => Percent(settings.MusicVolume),
         4 => Percent(settings.SfxVolume),
@@ -91,6 +94,12 @@ internal static class SettingsMenu
     {
         var next = GameSettings.Step(options, current, by);
         return wrap && next == current ? options[by > 0 ? 0 : ^1] : next;
+    }
+
+    private static string WindowSize(float scale, (int Width, int Height)? display)
+    {
+        var (width, height) = display is { } d ? GameSettings.WindowSize(scale, d.Width, d.Height) : ((int)MathF.Round(1280 * scale), (int)MathF.Round(720 * scale));
+        return string.Create(CultureInfo.InvariantCulture, $"{width} × {height}");
     }
 
     private static string Percent(float value) => string.Create(CultureInfo.InvariantCulture, $"{value * 100:0}%");

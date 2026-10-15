@@ -60,11 +60,12 @@ internal sealed class GameSettings
 
     /// <summary>
     /// The window size for <paramref name="scale"/> on a display of <paramref name="displayWidth"/>×<paramref name="displayHeight"/>:
-    /// 1280×720 times the scale, shrunk to fit the display when it wouldn't.
+    /// 1280×720 times the scale, shrunk to 90% of the display when it wouldn't fit there, so the title bar and taskbar
+    /// stay clear.
     /// </summary>
     public static (int Width, int Height) WindowSize(float scale, int displayWidth, int displayHeight)
     {
-        var fit = Math.Min(scale, Math.Min(displayWidth / 1280f, displayHeight / 720f));
+        var fit = Math.Min(scale, Math.Min(displayWidth * 0.9f / 1280f, displayHeight * 0.9f / 720f));
         return ((int)MathF.Round(1280 * fit), (int)MathF.Round(720 * fit));
     }
 

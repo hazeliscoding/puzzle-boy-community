@@ -196,6 +196,7 @@ public class AppTests
     {
         var settings = new GameSettings { WindowScale = 1.5f, UiScale = 1.1f };
         Assert.Equal("1920 × 1080", SettingsMenu.Value(settings, 1));
+        Assert.Equal("1728 × 972", SettingsMenu.Value(settings, 1, (1920, 1080)));
         Assert.Equal("110%", SettingsMenu.Value(settings, 2));
         Assert.Equal("Windowed", SettingsMenu.Value(settings, 0));
         Assert.Equal(["Import Classic Content", "Reset to defaults", "Back"], SettingsMenu.Labels[SettingsMenu.ImportRow..]);

@@ -480,6 +480,7 @@ internal sealed partial class CommunityGame
         Heading("SETTINGS");
         var settings = _save.Data.Settings;
         var layout = SettingsLayout;
+        var mode = Microsoft.Xna.Framework.Graphics.GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
         for (var row = 0; row < SettingsMenu.Labels.Length; row++)
         {
             var top = layout.Top + (row * layout.Spacing);
@@ -498,7 +499,7 @@ internal sealed partial class CommunityGame
             }
 
             var right = layout.Left + layout.Width - 24;
-            var value = SettingsMenu.Value(settings, row);
+            var value = SettingsMenu.Value(settings, row, (mode.Width, mode.Height));
             if (SettingsMenu.IsSlider(row))
             {
                 var level = row == 3 ? settings.MusicVolume : settings.SfxVolume;

@@ -327,9 +327,11 @@ public class SaveTests
 
     [Theory]
     [InlineData(1f, 1920, 1080, 1280, 720)]
-    [InlineData(2f, 1920, 1080, 1920, 1080)]
+    [InlineData(1.5f, 1920, 1080, 1728, 972)]
+    [InlineData(2f, 1920, 1080, 1728, 972)]
+    [InlineData(1f, 1280, 720, 1152, 648)]
     [InlineData(0.75f, 1366, 768, 960, 540)]
-    public void A_window_scale_too_big_for_the_display_shrinks_to_fit(float scale, int displayWidth, int displayHeight, int width, int height) =>
+    public void A_window_scale_too_big_for_the_display_shrinks_to_nine_tenths_of_it(float scale, int displayWidth, int displayHeight, int width, int height) =>
         Assert.Equal((width, height), GameSettings.WindowSize(scale, displayWidth, displayHeight));
 
     [Fact]
