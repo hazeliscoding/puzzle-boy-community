@@ -182,6 +182,14 @@ public class AppTests
         Assert.Equal("Classic theme: board, Jack-o'-Lantern, backdrop, music and sound effects © ATLUS / SEGA, read from your own copy of Shin Megami Tensei III Nocturne HD Remaster; not included with this game.", CommunityGame.ClassicCredit);
 
     [Fact]
+    public void Help_names_the_character_the_theme_draws()
+    {
+        Assert.StartsWith("Lead the Jack-o'-Lantern to", CommunityGame.HowToPlay(classic: true));
+        Assert.DoesNotContain("Pixel Jack", CommunityGame.HowToPlay(classic: true));
+        Assert.StartsWith("Lead Pixel Jack to", CommunityGame.HowToPlay(classic: false));
+    }
+
+    [Fact]
     public void Volumes_step_by_ten_percent_and_hold_at_the_ends_unless_confirm_wraps_them()
     {
         var settings = new GameSettings { MusicVolume = 0.9f };
