@@ -48,6 +48,14 @@ Puzzle Boy Community Edition is a standalone puzzle game on the Puzzle Boy rules
 - **The classic campaigns are tabs after the imported packs.** Classic: Original 20 plays files 2, 4, 32, 8, 38, 36, 37, 48, 42, 49, 40, 20, 22, 13, 21, 24, 14, 10, 25, 26 (puzzle-boy's `OriginalStageOrder`), and Classic: Bonus the 23 solved unused files 1, 30, 31, 0, 3, 9, 35, 43, 5, 6, 33, 7, 19, 47, 39, 41, 45, 34, 12, 46, 15, 11, 44 (puzzle-boy's ROADMAP M4, `PlayOrder.Bonus` at `pre-split-baseline`). Ids are `classic/original/NN` and `classic/bonus/NN` by file number, so progress survives a re-import. They unlock like any pack, with the one skip, since the original is a campaign too. A file that's missing, changed since the import or unreadable is left out with a notice; the rest play. They're never the player's stages, so the editor's export can't reach them, and a copy of one is refused by its fingerprint.
 - **No classic theme for now.** Board textures, backdrop and music from the player's install would need puzzle-boy's texture and audio readers (Fmod5Sharp, NVorbis, DXT decoding) in this game. The default theme is complete, and stages alone keep the compatibility module small, so the classic look moves to Later.
 
+## Decisions (2026.10.15, releases)
+
+- **Version 0.1.0.** The game's csproj holds `<Version>`; the informational version adds the commit, which the credits and `--smoke-test` show as `0.1.0+<7-character sha>`. A release tag must be `v` plus that version, or the release workflow stops.
+- **Archives are built on Linux** by `scripts/package.sh`, one per runtime, self-contained, files at the archive's root beside `content/`, `LICENSE`, `THIRD_PARTY_NOTICES.txt` and `known-atlus-layouts.txt`. Windows gets a `.zip`, the rest a `.tar.gz` whose modes the script sets (the game 755), so a Windows build of the tarballs keeps the executable bit too. `SHA256SUMS` lists every archive; the smoke jobs and the release check the same bytes against it.
+- **`scripts/check-archive.sh` reads an archive without unpacking it,** so a bad path can't land anywhere, and requires what the manifest lists rather than a fixed file list. It refuses the formats `check-content.sh` refuses, by name and first bytes, so a release can never carry a Nocturne bundle, including from a later Classic theme.
+- **Release smoke runs on each system's own runner,** unpacked into an empty profile outside the workspace: `windows-latest`, `ubuntu-latest`, `macos-latest` (arm64) and `macos-15-intel` (GitHub's last Intel image, until August 2027). Linux must open the window under Xvfb. Hosted Windows and macOS runners may have no OpenGL, so there a missing OpenGL window shows as a failed step with the warning "GUI not verified on this runner" and the job goes on; any other GUI failure fails the job. The tag publishes only after every smoke job passes.
+- **Builds are unsigned** apart from the SDK's ad-hoc signature on the macOS executables. The release notes say so and how to get past SmartScreen and Gatekeeper; they also say the Classic Nocturne theme is optional, from the player's own copy, and comes in a later milestone.
+
 ## C1: Instant play
 
 The handoff's M3.
@@ -96,9 +104,20 @@ The handoff's M6.
 
 The handoff's M7.
 
-- [ ] Self-contained archives for win-x64, linux-x64, osx-arm64 and osx-x64, with `content/` inside.
-- [ ] CI unpacks each archive and runs the smoke checks; Windows and Linux start the real window.
-- [ ] Changelog, credits, troubleshooting and the signing status. `THIRD_PARTY_NOTICES.txt` (each shipped library's license, with OpenAL Soft's LGPL and its exact source) and `LICENSE` are copied beside the game on every build and publish, and a test fails when a package the game ships isn't in it. Still to do: put the OpenAL Soft source link in each release's notes, as the LGPL asks.
+- [x] Self-contained archives for win-x64, linux-x64, osx-arm64 and osx-x64, with `content/` inside. `scripts/package.sh` built all four on the owner's machine (2026.10.15, at `79c36e3`, version `0.1.0+79c36e3`): 35 to 38 MB each, 241 or 242 files, and `scripts/check-archive.sh` passed each. The tarballs keep `PuzzleBoyCommunity` at 755, and both macOS executables carry a code signature load command (the SDK's ad-hoc signature); the libraries MonoGame ships are universal binaries.
+- [ ] CI unpacks each archive and runs the smoke checks; Windows and Linux start the real window. `release.yml` does this (decisions below), but it can't run until the engine is on GitHub, so it hasn't passed yet. Its Windows smoke job's steps ran locally in Git Bash on the archive and passed, and fed a missing-OpenGL and a crash output, reported "GUI not verified on this runner" and failed the job respectively.
+- [ ] Changelog, credits, troubleshooting and the signing status. `THIRD_PARTY_NOTICES.txt` (each shipped library's license, with OpenAL Soft's LGPL and its exact source) and `LICENSE` are copied beside the game on every build and publish, and a test fails when a package the game ships isn't in it. The release notes give the signing status, how to get past SmartScreen, Gatekeeper and a lost executable bit, what has been tested, and the OpenAL Soft source link the LGPL asks for. The credits show the version. Still to do: a changelog and a troubleshooting section in the README.
+
+Release acceptance, from unpacked archives (2026.10.15). Untested means untested, not passed. Nobody has played a release build through by hand.
+
+| Platform | Fresh machine, no game | First stage playable | Settings persisted | Editor create/play/export | Import failure falls back |
+|---|---|---|---|---|---|
+| Windows x64 | Pass, on a clean profile on the owner's PC, not a fresh machine: the zip unpacked outside any repo, `APPDATA`, `LOCALAPPDATA`, `USERPROFILE`, `HOME` and `TEMP` empty, no `dotnet` on `PATH`; `--smoke-test` exit 0; started with no flags it showed the window "Puzzle Boy Community Edition", responding, for 5 s | Pass (automated): `--smoke-gui` exit 0, Play started First Steps 1 (Garden Path) and one step moved Jack from (6, 7) to (7, 7); both screenshots looked right | Pass: with music set to 30% and high contrast on in that profile's `save.json`, a relaunch showed both on the settings screen and rewrote the save keeping them | Pass (automated): `--smoke-gui-screens` saved a bundled stage as the player's, broke and undid it, playtested, solved, exported `shared-stages.zip`, imported it and started its stage | Pass: `--import-classic` on an empty folder and `--import-pack` on a file that isn't a zip each exited 1 with a message; `--smoke-test` on that data folder then passed |
+| Linux x64 | Pass under WSLg only (Ubuntu 24.04 on Windows, which isn't a Linux desktop): the tarball unpacked in the WSL home, `HOME` and `XDG_*` empty, no `dotnet`; `--smoke-test` exit 0 | Pass under WSLg (automated): `--smoke-gui` exit 0, same step, after retrying without antialiasing | Untested | Pass under WSLg (automated): the same `--smoke-gui-screens` tour | Untested |
+| macOS ARM64 | Untested: built and checked, never started | Untested | Untested | Untested | Untested |
+| macOS x64 | Untested: built and checked, never started | Untested | Untested | Untested | Untested |
+
+The archives carry only the bundled default theme. The Classic Nocturne theme is optional, from the player's own copy (coming in a later milestone), so no archive holds it and this table doesn't cover it.
 
 **Done when** a tagged release publishes only after the 12-stage minimum, the editor, provenance, smoke tests and archive checks pass.
 
