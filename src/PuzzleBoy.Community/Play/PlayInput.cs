@@ -10,17 +10,21 @@ namespace PuzzleBoy.Community.Play;
 /// </summary>
 internal static class PlayInput
 {
-    /// <summary>Ticks after a stage starts before a step is read, so a key still held from the menu doesn't walk.</summary>
-    public const int StartLock = 6;
+    /// <summary>
+    /// Ticks after a stage starts or restarts before input is read, as in the original: it reads its first input on the
+    /// third tick.
+    /// </summary>
+    public const int StartLock = 2;
 
     /// <summary>
     /// Applies <paramref name="controls"/> to <paramref name="session"/> through <paramref name="camera"/>: view turns,
-    /// undo, restart, switch, then a held direction. Returns the sounds that go with what happened, in order.
+    /// undo, restart, switch, then a held direction. Like the original, it reads nothing at all while a step plays: a
+    /// press then is lost, not queued. Returns the sounds that go with what happened, in order.
     /// </summary>
     public static List<Sfx> Apply(PlaySession session, CameraRig camera, Controls controls)
     {
         var sounds = new List<Sfx>();
-        if (session.Board.IsCleared || session.Ticks <= StartLock)
+        if (session.Busy || session.Ticks <= StartLock)
         {
             return sounds;
         }
@@ -49,7 +53,7 @@ internal static class PlayInput
         }
 
         // Input follows the view; a held direction keeps walking. Steps wait for a turn of the view to finish.
-        if (!session.Busy && !camera.IsBusy && controls.HeldDirection() is { } screen)
+        if (!camera.IsBusy && controls.HeldDirection() is { } screen)
         {
             var result = session.Step(camera.DirectionFor(screen));
             if (result != StepResult.Refused)

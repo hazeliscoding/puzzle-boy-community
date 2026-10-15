@@ -9,7 +9,7 @@ namespace PuzzleBoy.Community;
 /// <summary>The play screen: input, the board, the HUD and the clear celebration.</summary>
 internal sealed partial class CommunityGame
 {
-    /// <summary>Ticks after a stage starts before a step is read, so a key still held from the menu doesn't walk.</summary>
+    /// <summary>Ticks after a stage starts or restarts before input is read, as in the original.</summary>
     internal const int StartLock = PlayInput.StartLock;
 
     /// <summary>Ticks the stage's name shows big as it starts, before it has faded.</summary>

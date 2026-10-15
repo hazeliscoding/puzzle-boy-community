@@ -1,4 +1,6 @@
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Input;
+using PuzzleBoy.Community.App;
 using PuzzleBoy.Community.Content;
 using PuzzleBoy.Community.Graphics;
 using PuzzleBoy.Community.Play;
@@ -229,5 +231,32 @@ public class PlayTests
         Play(session, Direction.PlusX);
         Assert.True(session.Next());
         Assert.Equal((1, 0, FirstSteps[1].Id), (session.Index, session.Moves, session.Stage.Id));
+    }
+
+    [Fact]
+    public void Like_the_original_play_reads_its_first_input_on_the_third_tick_and_none_while_a_step_plays()
+    {
+        var session = new PlaySession([new PackStage("t/lock", "Lock", SolverTests.Draw("1...G"))], 0);
+        var camera = new CameraRig();
+        var tick = 0;
+        while (session.Moves == 0)
+        {
+            tick++;
+            session.Tick();
+            PlayInput.Apply(session, camera, Controls.FromKeys([Keys.Right]));
+        }
+
+        Assert.Equal(3, tick);
+
+        // A press while the step plays is lost, not queued: a turn, an undo.
+        session.Tick();
+        Assert.NotNull(session.Animation);
+        Assert.Empty(PlayInput.Apply(session, camera, Controls.FromKeys([Keys.E, Keys.Z])));
+        Assert.Equal(0, camera.Mode);
+
+        // A restart locks input for two ticks again.
+        session.Restart();
+        session.Tick();
+        Assert.Empty(PlayInput.Apply(session, camera, Controls.FromKeys([Keys.E])));
     }
 }
