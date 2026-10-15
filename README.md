@@ -1,8 +1,8 @@
 # Puzzle Boy Community Edition
 
-**A standalone puzzle game inspired by Puzzle Boy. Download and play immediately: no Nocturne required.**
+**The Nocturne Puzzle Boy minigame, expanded. Best with your own copy (the Classic theme); plays out of the box with the bundled Default theme.**
 
-Guide Pixel Jack, a pumpkin in a witch's hat, to the goal by pushing blocks, turning swivels and filling holes. The stages, art, sound and text are all made for this game. It needs no copy of *Shin Megami Tensei III Nocturne*, no Steam and no network.
+Push blocks, turn swivels and fill holes to reach the goal, with the minigame's rules, a campaign of new stages, a level editor and level packs. If you own *Shin Megami Tensei III Nocturne HD Remaster*, import it once and every stage plays in the original's look and sound: its board, its Jack-o'-Lantern, its camera, its music. Without it, the Default theme plays the same stages with Pixel Jack, a pumpkin in a witch's hat, and art and sound made for this game. It needs no Steam and no network either way.
 
 > **Status:** early development, with nothing to download yet. See [ROADMAP.md](ROADMAP.md).
 
@@ -16,15 +16,18 @@ Guide Pixel Jack, a pumpkin in a witch's hat, to the goal by pushing blocks, tur
 - Progress and settings saved on your computer, with a backup if the file is ever damaged. No account, no network.
 - Settings for fullscreen, window size, UI scale, music and sound volume, mute, reduced motion and high contrast.
 - Keyboard, mouse and controller. Undo, restart, a turning camera and an overhead view.
-- Graphics drawn and music synthesized in code: nothing to download after you unpack it.
+- The Default theme's graphics are drawn and its music synthesized in code: nothing to download after you unpack it.
+- The Classic Nocturne theme, from your own copy, for every stage: the campaign, your own, imported packs, and the original's 20 stages and 23 unused bonus stages.
 
 It plays on [puzzle-boy-engine](https://github.com/hazeliscoding/puzzle-boy-engine), the rules shared with [puzzle-boy](https://github.com/hazeliscoding/puzzle-boy), a preservation port that reads the original stages from your own copy of Nocturne. The engine isn't published yet.
 
-## Optional: the Classic Nocturne theme from your own copy
+## The Classic Nocturne theme, from your own copy
 
-If you own *Shin Megami Tensei III Nocturne HD Remaster*, Settings → Classic Nocturne → Import from My Steam Install (or a folder you type) copies the three bundles the Classic theme reads into a classic pack in your data folder. Stage select then adds Classic: Original 20, the original's stages in its order, and Classic: Bonus, 23 unused stages from the game that a solution clears. You never need this: the game starts and plays without it, and never looks for Nocturne unless you ask.
+Import once: Settings → Classic Nocturne → Import from My Steam Install (or Import from a Folder or Zip, with the folder that holds `smt3hd.exe`) copies the three bundles the theme reads, about 86 MB, into a classic pack in your data folder, and checks each file's hash whenever it's used. The Theme setting is Auto: with a pack it plays the Classic theme, without one the Default theme; Classic and Default fix it. Menus, stage select, settings and the editor look the same in both. Stage select also adds Classic: Original 20, the original's stages in its order, and Classic: Bonus, 23 unused stages from the game that a solution clears. The Manikin Kid and the original's dialogue aren't part of it.
 
-Nothing from Nocturne ships with this game or is downloaded. Export My Classic Pack writes a zip you can import on your other computers; it's made from your own copy, so don't share it. Remove Classic Pack deletes it again. From a command line, `--import-classic <game folder or pack zip>` and `--export-classic` do the same.
+Export My Classic Pack writes one zip you can import on your other computers. It's made from your own copy, for your own computers: don't share it. Nothing from Nocturne ships with this game or is downloaded, and the game never looks for Nocturne unless you ask. Remove Classic Pack deletes the pack again, keeping your progress. From a command line, `--import-classic <game folder or pack zip>` and `--export-classic` do the same.
+
+Screenshots of this game in public use the Default theme only.
 
 ## Build
 
