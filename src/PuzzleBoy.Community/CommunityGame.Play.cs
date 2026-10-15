@@ -3,7 +3,6 @@ using PuzzleBoy.Community.App;
 using PuzzleBoy.Community.Audio;
 using PuzzleBoy.Community.Graphics;
 using PuzzleBoy.Community.Play;
-using PuzzleBoy.Community.Save;
 using PuzzleBoy.Rules;
 
 namespace PuzzleBoy.Community;
@@ -52,12 +51,13 @@ internal sealed partial class CommunityGame
         {
             if (!session.Next())
             {
-                // The pack is done: back to the stage list, where My Stages stays open on its last stage.
+                // The pack is done: back to the stage list, where My Stages or an imported pack stays open on its last stage.
                 _session = null;
-                if (_playPack?.PackId == CustomStages.PackId)
+                LoadSelectPacks();
+                var tab = _selectPacks.FindIndex(p => p.PackId == _playPack?.PackId);
+                if (tab >= 0 && !_manifest.Packs.Contains(_playPack!))
                 {
-                    LoadSelectPacks();
-                    ShowTab(_selectPacks.Count - 1, session.Index);
+                    ShowTab(tab, session.Index);
                 }
                 else
                 {

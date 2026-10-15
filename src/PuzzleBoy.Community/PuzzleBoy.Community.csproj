@@ -23,6 +23,11 @@
     <None Include="..\..\THIRD_PARTY_NOTICES.txt" Link="THIRD_PARTY_NOTICES.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- Pack import and export refuse a copy of a Nocturne layout by its fingerprint, so the list travels with the game. -->
+  <ItemGroup>
+    <None Include="..\..\scripts\known-atlus-layouts.txt" Link="known-atlus-layouts.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\external\puzzle-boy-engine\src\PuzzleBoy.Rules\PuzzleBoy.Rules.csproj" />
   </ItemGroup>

@@ -58,6 +58,11 @@ internal sealed partial class CommunityGame : Game
     private List<(StagePack Pack, int Index)> _selectable = [];
     private MenuList _selectMenu = new(1);
     private int _selectTab;
+    private List<StagePack> _importedPacks = [];
+    private List<string> _importZips = [];
+    private string? _importPending;
+    private string? _importStatus;
+    private MenuList _importMenu = new(1);
     private bool _confirmReset;
     private bool _helpOpen;
     private int _ticks;
@@ -99,10 +104,10 @@ internal sealed partial class CommunityGame : Game
             }
         };
 
-        // Typed text for the editor's title; a smoke run takes none from the real keyboard.
+        // Typed text for the editor's title and a pack's; a smoke run takes none from the real keyboard.
         Window.TextInput += (_, e) =>
         {
-            if (_smoke is null && _overlay == EditorOverlay.Title)
+            if (_smoke is null && _overlay is EditorOverlay.Title or EditorOverlay.ExportText)
             {
                 _typed.Append(e.Character);
             }
@@ -125,8 +130,20 @@ internal sealed partial class CommunityGame : Game
     /// <summary>The player's settings and progress.</summary>
     internal SaveStore Save => _save;
 
-    /// <summary>The pack stage select shows, or null before it first opens.</summary>
-    internal StagePack? SelectPack => _selectPacks.Count > 0 ? _selectPacks[_selectTab] : null;
+    /// <summary>The pack stage select shows, or null before it first opens or on the Import tab.</summary>
+    internal StagePack? SelectPack => _selectTab < _selectPacks.Count ? _selectPacks[_selectTab] : null;
+
+    /// <summary>Stage select's Import tab, after every pack's.</summary>
+    internal int ImportTab => _selectPacks.Count;
+
+    /// <summary>True when stage select shows its Import tab.</summary>
+    internal bool ImportTabOpen => _nav.Current == Screen.StageSelect && _selectTab == ImportTab;
+
+    /// <summary>True while an import waits for the player to choose between replacing a pack and keeping both.</summary>
+    internal bool ImportConflict => _importPending is not null;
+
+    /// <summary>The imported packs, as stage select last read them.</summary>
+    internal IReadOnlyList<StagePack> ImportedPacks => _importedPacks;
 
     /// <summary>The loaded content.</summary>
     internal ContentManifest Manifest => _manifest;

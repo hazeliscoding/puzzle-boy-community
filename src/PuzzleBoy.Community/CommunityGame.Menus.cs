@@ -33,6 +33,9 @@ internal sealed partial class CommunityGame
     /// <summary>The pause menu in a playtest, whose last item returns to the editor.</summary>
     internal static readonly string[] PlaytestPauseItems = [.. PauseItems[..^1], "Back to Editor"];
 
+    /// <summary>What can be done when an imported pack's id is already taken, in order.</summary>
+    internal static readonly string[] ImportChoiceItems = ["Replace It", "Keep Both", "Cancel"];
+
     /// <summary>
     /// The trademark and affiliation notice, as the credits show it. A shorter form sits on the title screen.
     /// </summary>
@@ -47,6 +50,7 @@ internal sealed partial class CommunityGame
     private static readonly MenuLayout ConfirmLayout = new(490, 380, 300, 54);
     private static readonly MenuLayout SelectMenu = new(72, 150, 580, 50);
     private static readonly MenuLayout BackButton = new(540, 600, 200, 54);
+    private static readonly MenuLayout ImportChoiceLayout = new(490, 386, 300, 50);
 
     // Credits run nearly to the bottom, so their Back sits lower.
     private static readonly MenuLayout CreditsBack = new(540, 652, 200, 54);
@@ -97,24 +101,64 @@ internal sealed partial class CommunityGame
     private void FocusNextStage()
     {
         LoadSelectPacks();
+        (_importStatus, _importPending) = (null, null);
         var (pack, index) = _save.Data.NextToPlay(_manifest.Packs);
         ShowTab(_selectPacks.IndexOf(pack), index);
     }
 
-    /// <summary>Stage select's tabs: each bundled pack, then the player's own stages, read afresh from the custom folder.</summary>
-    private void LoadSelectPacks() =>
-        _selectPacks = [.. _manifest.Packs.Where(p => p.Stages.Count > 0), CustomStages.AsPack(CustomStages.List(_save.Folder))];
+    /// <summary>
+    /// Stage select's tabs: each bundled pack, the imported packs, then the player's own stages, all read afresh from the
+    /// data folder. The Import tab comes after them, at <see cref="ImportTab"/>.
+    /// </summary>
+    private void LoadSelectPacks()
+    {
+        _importedPacks = PackArchive.LoadImported(_save.Folder, PackArchive.Reserved(_manifest.Packs), []);
+        _selectPacks = [.. _manifest.Packs.Where(p => p.Stages.Count > 0), .. _importedPacks.Where(p => p.Stages.Count > 0), CustomStages.AsPack(CustomStages.List(_save.Folder))];
+    }
 
     /// <summary>Shows tab <paramref name="tab"/> of stage select with stage <paramref name="focus"/> focused.</summary>
     private void ShowTab(int tab, int focus)
     {
         _selectTab = tab;
-        var pack = _selectPacks[tab];
-        _selectable = [.. pack.Stages.Select((_, i) => (pack, i))];
-        _selectMenu = new MenuList(Math.Max(1, _selectable.Count));
+        _importZips = tab == ImportTab ? ListImports() : [];
+        _selectable = tab == ImportTab ? [] : [.. _selectPacks[tab].Stages.Select((_, i) => (_selectPacks[tab], i))];
+        _selectMenu = new MenuList(Math.Max(1, _selectable.Count + _importZips.Count));
         _selectMenu.Set(Math.Clamp(focus, 0, _selectMenu.Count - 1));
         _selectScroll = 0;
         KeepFocusVisible();
+    }
+
+    /// <summary>The archives in the imports folder, which is made here so the player can find it.</summary>
+    private List<string> ListImports()
+    {
+        try
+        {
+            Directory.CreateDirectory(PackArchive.ImportsFolder(_save.Folder));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // The tab still says where the folder should be.
+        }
+
+        return PackArchive.ListImports(_save.Folder);
+    }
+
+    /// <summary>Imports <paramref name="zip"/>: on success opens the new pack's tab, and on a taken id asks what to do.</summary>
+    private void RunImport(string zip, ImportChoice choice)
+    {
+        var result = PackArchive.Import(zip, _save.Folder, PackArchive.ReadKnown(), PackArchive.Reserved(_manifest.Packs), choice);
+        _importStatus = string.Join(" ", [result.Message, .. result.Warnings]);
+        _importPending = result.Conflict ? zip : null;
+        if (result.Conflict)
+        {
+            _importMenu = new MenuList(ImportChoiceItems.Length);
+            return;
+        }
+
+        LoadSelectPacks();
+        var tab = _selectPacks.FindIndex(p => p.PackId == result.PackId);
+        ShowTab(tab >= 0 ? tab : ImportTab, 0);
+        _sounds.Play(result.PackId is null ? Sfx.Buzz : Sfx.Goal);
     }
 
     private void KeepFocusVisible()
@@ -126,6 +170,23 @@ internal sealed partial class CommunityGame
 
     private void UpdateStageSelect(Controls controls)
     {
+        if (_importPending is { } pending)
+        {
+            var pick = Cancelled(controls) ? 2 : RunMenu(_importMenu, controls, ImportChoiceLayout);
+            if (pick is 0 or 1)
+            {
+                RunImport(pending, pick == 0 ? ImportChoice.Replace : ImportChoice.KeepBoth);
+            }
+            else if (pick == 2)
+            {
+                _importPending = null;
+                _importStatus = "Nothing was imported.";
+                _sounds.Play(Sfx.Cancel);
+            }
+
+            return;
+        }
+
         if (Cancelled(controls))
         {
             GoBack();
@@ -136,9 +197,10 @@ internal sealed partial class CommunityGame
         var clickedTab = _clicked ? _tabBoxes.FirstOrDefault(t => t.Box.Contains(_pointer), (default, -1)).Tab : -1;
         if (_menuLeft || _menuRight || (clickedTab >= 0 && clickedTab != _selectTab))
         {
-            var tab = clickedTab >= 0 ? clickedTab : Math.Clamp(_selectTab + (_menuRight ? 1 : -1), 0, _selectPacks.Count - 1);
+            var tab = clickedTab >= 0 ? clickedTab : Math.Clamp(_selectTab + (_menuRight ? 1 : -1), 0, ImportTab);
             if (tab != _selectTab)
             {
+                _importStatus = null;
                 ShowTab(tab, 0);
                 _sounds.Play(Sfx.MenuMove);
             }
@@ -148,6 +210,16 @@ internal sealed partial class CommunityGame
 
         var choice = RunMenu(_selectMenu, controls, SelectMenu, _selectScroll, SelectRows);
         KeepFocusVisible();
+        if (_selectTab == ImportTab)
+        {
+            if (choice is { } zip && zip < _importZips.Count)
+            {
+                RunImport(_importZips[zip], ImportChoice.Ask);
+            }
+
+            return;
+        }
+
         if (choice is { } chosen && chosen < _selectable.Count)
         {
             var (pack, index) = _selectable[chosen];
@@ -328,7 +400,19 @@ internal sealed partial class CommunityGame
         _ui.Begin();
         Heading("STAGE SELECT");
         DrawTabs();
+        if (_selectTab == ImportTab)
+        {
+            DrawImportTab();
+            _ui.End();
+            return;
+        }
+
         var layout = SelectMenu;
+        if (_importStatus is not null)
+        {
+            _ui.Text(Font.Body, 17, _importStatus, new Vector2(640, 628), _ui["ember"], 0.5f);
+        }
+
         if (_selectable.Count == 0)
         {
             _ui.Wrapped(Font.Body, 22, "No stages of your own yet. Make one with the Level Editor on the title screen; each one you save shows up here.", new Vector2(layout.Left + 20, layout.Top + 12), layout.Width - 40, _ui["cream"] * 0.85f);
@@ -376,15 +460,18 @@ internal sealed partial class CommunityGame
         _ui.End();
     }
 
-    /// <summary>The packs as tabs over the list, the open one underlined; the boxes are kept for clicks.</summary>
+    /// <summary>The packs and Import as tabs over the list, the open one underlined; the boxes are kept for clicks.</summary>
     private void DrawTabs()
     {
         _tabBoxes.Clear();
-        var x = SelectMenu.Left + 6;
-        for (var tab = 0; tab < _selectPacks.Count; tab++)
+        var labels = _selectPacks.Select(p => p.PackId == CustomStages.PackId ? $"{p.Title.ToUpperInvariant()} ({p.Stages.Count})" : Shorten(p.Title.ToUpperInvariant(), 20)).Append("+ IMPORT").ToList();
+
+        // With several imported packs the row runs past the screen's edge, so it slides left until the open tab shows.
+        var right = SelectMenu.Left + 6 + labels.Take(_selectTab + 1).Sum(l => _ui.Measure(Font.Title, 17, l, 2).X + 40);
+        var x = SelectMenu.Left + 6 - Math.Max(0, right - 1250);
+        for (var tab = 0; tab < labels.Count; tab++)
         {
-            var pack = _selectPacks[tab];
-            var label = pack.PackId == CustomStages.PackId ? $"{pack.Title.ToUpperInvariant()} ({pack.Stages.Count})" : pack.Title.ToUpperInvariant();
+            var label = labels[tab];
             var open = tab == _selectTab;
             var size = _ui.Text(Font.Title, 17, label, new Vector2(x, 114), open ? _ui["ember"] : _ui["cream"] * 0.6f, spacing: 2);
             if (open)
@@ -432,7 +519,85 @@ internal sealed partial class CommunityGame
             ? $"Best: {moves} {(moves == 1 ? "move" : "moves")}  ·  {FormatTime(time)}"
             : best is { Completed: true } ? "Best: not recorded" : "Best: none yet";
         _ui.Text(Font.BodyBold, 21, line, new Vector2(x + 24, y + 404), _ui["cream"]);
+        if (_importedPacks.Contains(pack))
+        {
+            _ui.Text(Font.Body, 16, Shorten($"Imported pack by {pack.Creator}  ·  {pack.License}", 60), new Vector2(x + 24, y + 434), _ui["cream"] * 0.8f);
+        }
     }
+
+    /// <summary>The Import tab: the archives in the imports folder, where that folder is, and what the last import did.</summary>
+    private void DrawImportTab()
+    {
+        var layout = SelectMenu;
+        if (_importZips.Count == 0)
+        {
+            _ui.Wrapped(Font.Body, 22, "No packs to import yet. Put a pack's .zip file in the folder shown on the right, then open this tab again.", new Vector2(layout.Left + 20, layout.Top + 12), layout.Width - 40, _ui["cream"] * 0.85f);
+        }
+
+        for (var row = 0; row < SelectRows && _selectScroll + row < _importZips.Count; row++)
+        {
+            var i = _selectScroll + row;
+            var top = layout.Top + (row * layout.Spacing);
+            var focused = i == _selectMenu.Focus;
+            if (focused)
+            {
+                FocusBar(layout, top);
+            }
+
+            _ui.Text(Font.BodyBold, 22, Shorten(Path.GetFileName(_importZips[i]), 40), new Vector2(layout.Left + 20, top + 12), focused ? _ui["ink"] : _ui["cream"] * 0.92f);
+        }
+
+        var (x, y, width) = (690f, 150f, 520f);
+        _ui.Panel(x, y, width, 460, _ui["ink"] * 0.78f);
+        _ui.Text(Font.Title, 16, "IMPORT A PACK", new Vector2(x + 24, y + 18), _ui["bandOnDark"], spacing: 1);
+        _ui.Text(Font.BodyBold, 30, "Play someone's stages", new Vector2(x + 24, y + 40), _ui["cream"]);
+        _ui.Text(Font.Body, 19, "Put a pack's .zip file in this folder:", new Vector2(x + 24, y + 96), _ui["cream"]);
+
+        var below = y + 140 + DrawPath(Path.GetFullPath(PackArchive.ImportsFolder(_save.Folder)), new Vector2(x + 24, y + 128), width - 48, 17, _ui["ember"]);
+        _ui.Wrapped(Font.Body, 19, "Enter imports the focused pack. Everything in it is checked first: its size, its file names and every stage. Nothing in a pack is ever run.", new Vector2(x + 24, below), width - 48, _ui["cream"]);
+        if (_importStatus is not null && _importPending is null)
+        {
+            _ui.Wrapped(Font.Body, 18, _importStatus, new Vector2(x + 24, y + 320), width - 48, _ui["ember"]);
+        }
+
+        _ui.Hints([("Up Down", "Choose"), ("Left Right", "Pack"), ("Enter", "Import"), ("Esc", "Back")], 640, 660, _ui["cream"], 17);
+        if (_importPending is not null)
+        {
+            _ui.Rect(0, 0, VirtualScreen.Width, VirtualScreen.Height, _ui["ink"] * 0.6f);
+            _ui.Panel(400, 220, 480, 340, _ui["hat"] * 0.97f);
+            _ui.Text(Font.TitleBold, 28, "ALREADY IMPORTED", new Vector2(640, 246), _ui["cream"], 0.5f, 2);
+            _ui.Wrapped(Font.Body, 19, _importStatus ?? "", new Vector2(430, 292), 420, _ui["cream"]);
+            DrawMenu(_importMenu, ImportChoiceItems, ImportChoiceLayout, 24);
+        }
+    }
+
+    /// <summary>
+    /// Draws <paramref name="path"/> in lines no wider than <paramref name="width"/>, broken after its folder separators,
+    /// since a path has no spaces to wrap at. Returns the height drawn.
+    /// </summary>
+    private float DrawPath(string path, Vector2 at, float width, float size, Color color)
+    {
+        var lines = new List<string> { "" };
+        foreach (var part in System.Text.RegularExpressions.Regex.Split(path, @"(?<=[\\/])"))
+        {
+            if (lines[^1].Length > 0 && _ui.Measure(Font.BodyBold, size, lines[^1] + part).X > width)
+            {
+                lines.Add("");
+            }
+
+            lines[^1] += part;
+        }
+
+        for (var i = 0; i < lines.Count; i++)
+        {
+            _ui.Text(Font.BodyBold, size, lines[i], at + new Vector2(0, i * size * 1.3f), color);
+        }
+
+        return lines.Count * size * 1.3f;
+    }
+
+    /// <summary><paramref name="text"/> cut to <paramref name="max"/> characters with dots, for a line that must fit.</summary>
+    private static string Shorten(string text, int max) => text.Length <= max ? text : $"{text[..(max - 3)].TrimEnd()}...";
 
     /// <summary>
     /// A top-down picture of how <paramref name="stage"/> starts, fitted into the box: walls, floor, holes, blocks in their

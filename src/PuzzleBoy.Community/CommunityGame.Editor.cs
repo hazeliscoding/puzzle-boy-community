@@ -24,10 +24,20 @@ internal sealed partial class CommunityGame
     internal const int EditorSolveCap = 250_000;
 
     /// <summary>What can be done with a stage in the editor's list, in order.</summary>
-    internal static readonly string[] LibraryActions = ["Edit", "Duplicate", "Delete", "Cancel"];
+    internal static readonly string[] LibraryActions = ["Edit", "Duplicate", "Export as Pack", "Delete", "Cancel"];
+
+    /// <summary>The export panel's fixed rows, in order; the player's stages follow them, each to tick.</summary>
+    internal static readonly string[] ExportRows = ["Title", "Creator", "License", "Export", "Back"];
+
+    /// <summary>The longest pack title or creator the export panel takes.</summary>
+    internal const int MaxPackText = 60;
+
+    // The export panel shows this many rows and scrolls the rest.
+    private const int ExportVisible = 9;
 
     private static readonly RectangleF CanvasBox = new(272, 72, 600, 588);
     private static readonly MenuLayout EditorMenuLayout = new(490, 196, 300, 50);
+    private static readonly MenuLayout ExportLayout = new(300, 132, 680, 42);
     private static readonly MenuLayout ToolLayout = new(24, 104, 224, 32);
 
     // The group selector's buttons, the hole toggle and the problem list, in virtual pixels.
@@ -39,6 +49,7 @@ internal sealed partial class CommunityGame
     private readonly List<(RectangleF Row, int Problem)> _problemRows = [];
     private readonly MenuList _toolMenu = new(StageEditor.Tools.Length);
     private readonly System.Text.StringBuilder _typed = new();
+    private readonly HashSet<string> _exportMarked = [];
     private EditorView _view = new(CanvasBox);
     private StageEditor? _editor;
     private List<CustomStage> _custom = [];
@@ -57,6 +68,13 @@ internal sealed partial class CommunityGame
     private MouseState _mouse;
     private Task<SolveResult>? _solve;
     private int _solveVersion;
+    private string _exportTitle = "Shared Stages";
+    private string _exportCreator = "Anonymous";
+    private int _exportLicense;
+    private bool _exportCreatorField;
+    private int _exportScroll;
+    private string? _exportStatus;
+    private string? _exportPath;
 
     /// <summary>What sits over the editor and takes its input.</summary>
     private enum EditorOverlay
@@ -67,6 +85,8 @@ internal sealed partial class CommunityGame
         Menu,
         ConfirmClose,
         Title,
+        Export,
+        ExportText,
     }
 
     /// <summary>The stage open in the editor, or null on its list.</summary>
@@ -164,14 +184,23 @@ internal sealed partial class CommunityGame
                         RefreshLibrary(copy);
                         break;
                     case 2:
+                        OpenExport(_custom[chosen]);
+                        break;
+                    case 3:
                         _overlay = EditorOverlay.ConfirmDelete;
                         _overlayMenu = new MenuList(2);
                         break;
-                    case 3:
+                    case 4:
                         _overlay = EditorOverlay.None;
                         break;
                 }
 
+                return;
+            case EditorOverlay.Export:
+                UpdateExport(controls);
+                return;
+            case EditorOverlay.ExportText:
+                UpdateTextEntry(controls, MaxPackText, KeepExportText, EditorOverlay.Export);
                 return;
             case EditorOverlay.ConfirmDelete:
                 var delete = Cancelled(controls) ? 0 : RunMenu(_overlayMenu, controls, ConfirmLayout);
@@ -226,6 +255,85 @@ internal sealed partial class CommunityGame
         RefreshLibrary(null);
     }
 
+    /// <summary>Opens the export panel with <paramref name="stage"/> ticked and the focus on Export.</summary>
+    private void OpenExport(CustomStage stage)
+    {
+        _exportMarked.Clear();
+        _exportMarked.Add(stage.Name);
+        (_exportStatus, _exportPath) = (null, null);
+        _exportScroll = 0;
+        _overlay = EditorOverlay.Export;
+        _overlayMenu = new MenuList(ExportRows.Length + _custom.Count);
+        _overlayMenu.Set(3);
+    }
+
+    private void UpdateExport(Controls controls)
+    {
+        if (Cancelled(controls))
+        {
+            _overlay = EditorOverlay.None;
+            _sounds.Play(Sfx.Cancel);
+            return;
+        }
+
+        if ((_menuLeft || _menuRight) && _overlayMenu.Focus == 2)
+        {
+            _exportLicense = (_exportLicense + (_menuRight ? 1 : -1) + PackArchive.Licenses.Length) % PackArchive.Licenses.Length;
+            _sounds.Play(Sfx.MenuMove);
+            return;
+        }
+
+        var choice = RunMenu(_overlayMenu, controls, ExportLayout, _exportScroll, ExportVisible);
+        _exportScroll = Math.Clamp(_exportScroll, Math.Max(0, _overlayMenu.Focus - ExportVisible + 1), _overlayMenu.Focus);
+        _exportScroll = Math.Clamp(_exportScroll, 0, Math.Max(0, _overlayMenu.Count - ExportVisible));
+        switch (choice)
+        {
+            case 0 or 1:
+                _exportCreatorField = choice == 1;
+                _titleDraft = _exportCreatorField ? _exportCreator : _exportTitle;
+                _typed.Clear();
+                _overlay = EditorOverlay.ExportText;
+                break;
+            case 2:
+                _exportLicense = (_exportLicense + 1) % PackArchive.Licenses.Length;
+                break;
+            case 3:
+                var stages = _custom.Where(s => _exportMarked.Contains(s.Name)).ToList();
+                _exportPath = PackArchive.Export(_save.Folder, stages, _exportTitle, _exportCreator, PackArchive.Licenses[_exportLicense], PackArchive.ReadKnown(), out var message);
+                _exportStatus = message;
+                _sounds.Play(_exportPath is null ? Sfx.Buzz : Sfx.Goal);
+                break;
+            case 4:
+                _overlay = EditorOverlay.None;
+                break;
+            case { } row:
+                var stage = _custom[row - ExportRows.Length];
+                if (stage.Stage is null)
+                {
+                    _exportStatus = $"“{stage.Title}” can't be read as a stage, so it can't go in a pack.";
+                    _sounds.Play(Sfx.Buzz);
+                }
+                else if (!_exportMarked.Remove(stage.Name))
+                {
+                    _exportMarked.Add(stage.Name);
+                }
+
+                break;
+        }
+    }
+
+    private void KeepExportText(string text)
+    {
+        if (_exportCreatorField)
+        {
+            _exportCreator = text;
+        }
+        else
+        {
+            _exportTitle = text;
+        }
+    }
+
     private void UpdateCanvas(Controls controls, StageEditor editor)
     {
         var keys = controls.Keys;
@@ -256,7 +364,7 @@ internal sealed partial class CommunityGame
 
                 return;
             case EditorOverlay.Title:
-                UpdateTitleEntry(editor, Key);
+                UpdateTextEntry(controls, StageEditor.MaxTitle, title => editor.SetTitle(title), EditorOverlay.None);
                 return;
         }
 
@@ -729,31 +837,36 @@ internal sealed partial class CommunityGame
         _overlay = EditorOverlay.Title;
     }
 
-    private void UpdateTitleEntry(StageEditor editor, Func<Keys, bool> key)
+    /// <summary>
+    /// A tick of typing into <see cref="_titleDraft"/>, up to <paramref name="max"/> characters: Enter hands the text to
+    /// <paramref name="keep"/>, and Enter or Esc returns to <paramref name="back"/>.
+    /// </summary>
+    private void UpdateTextEntry(Controls controls, int max, Action<string> keep, EditorOverlay back)
     {
+        bool Key(Keys key) => controls.Keys.IsKeyDown(key) && !controls.PreviousKeys.IsKeyDown(key);
         foreach (var c in _typed.ToString())
         {
-            if (!char.IsControl(c) && _titleDraft.Length < StageEditor.MaxTitle)
+            if (!char.IsControl(c) && _titleDraft.Length < max)
             {
                 _titleDraft += c;
             }
         }
 
         _typed.Clear();
-        if (key(Keys.Back) && _titleDraft.Length > 0)
+        if (Key(Keys.Back) && _titleDraft.Length > 0)
         {
             _titleDraft = _titleDraft[..^1];
         }
 
-        if (key(Keys.Escape))
+        if (Key(Keys.Escape))
         {
-            _overlay = EditorOverlay.None;
+            _overlay = back;
             _sounds.Play(Sfx.Cancel);
         }
-        else if (key(Keys.Enter))
+        else if (Key(Keys.Enter))
         {
-            editor.SetTitle(_titleDraft);
-            _overlay = EditorOverlay.None;
+            keep(_titleDraft);
+            _overlay = back;
             _sounds.Play(Sfx.Confirm);
         }
     }
@@ -837,8 +950,67 @@ internal sealed partial class CommunityGame
             var stage = _custom[_libraryMenu.Focus - 1];
             DrawConfirm("DELETE STAGE?", $"“{stage.Title}” and its file custom/{stage.Name}.json are deleted for good.", ["Cancel", "Delete"]);
         }
+        else if (_overlay == EditorOverlay.Export)
+        {
+            DrawExport();
+        }
+        else if (_overlay == EditorOverlay.ExportText)
+        {
+            DrawExport();
+            DrawTitleEntry(_exportCreatorField ? "PACK CREATOR" : "PACK TITLE", MaxPackText);
+        }
 
         _ui.End();
+    }
+
+    /// <summary>The export panel: the pack's title, creator and license, Export, and the stages to tick.</summary>
+    private void DrawExport()
+    {
+        _ui.Rect(0, 0, VirtualScreen.Width, VirtualScreen.Height, _ui["ink"] * 0.6f);
+        _ui.Panel(260, 60, 760, 620, _ui["hat"] * 0.97f);
+        _ui.Text(Font.TitleBold, 28, "EXPORT A PACK", new Vector2(640, 80), _ui["cream"], 0.5f, 2);
+        var layout = ExportLayout;
+        for (var row = 0; row < ExportVisible && _exportScroll + row < _overlayMenu.Count; row++)
+        {
+            var i = _exportScroll + row;
+            var top = layout.Top + (row * layout.Spacing);
+            var focused = i == _overlayMenu.Focus;
+            if (focused)
+            {
+                FocusBar(layout, top);
+            }
+
+            var ink = focused ? _ui["ink"] : _ui["cream"];
+            var marked = _custom.Count(s => _exportMarked.Contains(s.Name));
+            var (label, value) = i switch
+            {
+                0 => ("Title", _exportTitle),
+                1 => ("Creator", _exportCreator),
+                2 => ("License", $"<  {PackArchive.Licenses[_exportLicense]}  >"),
+                3 => ($"Export {marked} {(marked == 1 ? "stage" : "stages")}", ""),
+                4 => ("Back", ""),
+                _ => ($"{(_exportMarked.Contains(_custom[i - ExportRows.Length].Name) ? "[x]" : "[  ]")}  {_custom[i - ExportRows.Length].Title}", ""),
+            };
+            _ui.Text(Font.BodyBold, 20, label, new Vector2(layout.Left + 16, top + 10), ink);
+            _ui.Text(Font.Body, 20, value, new Vector2(layout.Left + layout.Width - 16, top + 10), ink, 1);
+        }
+
+        if (_exportScroll + ExportVisible < _overlayMenu.Count)
+        {
+            Chevron(640, layout.Top + (ExportVisible * layout.Spacing) + 4, up: false);
+        }
+
+        // The status names the archive's full path last; it's drawn on its own lines so it can break at its folders.
+        var (text, path) = _exportPath is { } written && _exportStatus is { } done && done.EndsWith(written, StringComparison.Ordinal)
+            ? (done[..^written.Length].TrimEnd(), written)
+            : (_exportStatus ?? "The pack is written as a .zip to this folder. Share that file; a player puts it in their imports folder and picks it under Import in stage select.", _exportStatus is null ? Path.GetFullPath(PackArchive.ExportsFolder(_save.Folder)) : null);
+        var color = _exportStatus is null ? _ui["cream"] * 0.85f : _ui["ember"];
+        var height = _ui.Wrapped(Font.Body, 17, text, new Vector2(300, 524), 680, color);
+        if (path is not null)
+        {
+            DrawPath(path, new Vector2(300, 528 + height), 680, 16, color);
+        }
+        _ui.Hints([("Enter", "Change"), ("Left Right", "License"), ("Esc", "Back")], 640, 648, _ui["cream"], 16);
     }
 
     /// <summary>The focused entry's card: what New does, or a preview of the stage.</summary>
@@ -871,7 +1043,7 @@ internal sealed partial class CommunityGame
             _ui.Wrapped(Font.Body, 19, $"This file can't be read as a stage: {stage.Problem}", new Vector2(px + 16, py + 16), pw - 32, _ui["cream"]);
         }
 
-        _ui.Text(Font.Body, 19, "Enter to edit, copy or delete it.", new Vector2(x + 24, y + 412), _ui["cream"] * 0.85f);
+        _ui.Text(Font.Body, 19, "Enter to edit, copy, export or delete it.", new Vector2(x + 24, y + 412), _ui["cream"] * 0.85f);
     }
 
     private void DrawCanvas(StageEditor editor)
@@ -1151,14 +1323,16 @@ internal sealed partial class CommunityGame
         DrawMenu(_overlayMenu, items, ConfirmLayout, 24);
     }
 
-    private void DrawTitleEntry()
+    private void DrawTitleEntry(string heading = "STAGE TITLE", int max = StageEditor.MaxTitle)
     {
         _ui.Rect(0, 0, VirtualScreen.Width, VirtualScreen.Height, _ui["ink"] * 0.6f);
         _ui.Panel(340, 250, 600, 200, _ui["hat"] * 0.97f);
-        _ui.Text(Font.TitleBold, 28, "STAGE TITLE", new Vector2(640, 272), _ui["cream"], 0.5f, 2);
+        _ui.Text(Font.TitleBold, 28, heading, new Vector2(640, 272), _ui["cream"], 0.5f, 2);
         _ui.Panel(370, 322, 540, 48, _ui["ink"]);
         var caret = (Motion / 15) % 2 == 0 || _save.Data.Settings.ReduceMotion ? "|" : "";
-        _ui.Text(Font.BodyBold, 24, _titleDraft + caret, new Vector2(386, 332), _ui["cream"]);
-        _ui.Text(Font.Body, 17, $"Type a title, up to {StageEditor.MaxTitle} characters. Enter keeps it, Esc cancels.", new Vector2(640, 392), _ui["cream"] * 0.85f, 0.5f);
+
+        // A pack's longer text is drawn smaller so it fits the box.
+        _ui.Text(Font.BodyBold, max > StageEditor.MaxTitle ? 18 : 24, _titleDraft + caret, new Vector2(386, 334), _ui["cream"]);
+        _ui.Text(Font.Body, 17, $"Type up to {max} characters. Enter keeps it, Esc cancels.", new Vector2(640, 392), _ui["cream"] * 0.85f, 0.5f);
     }
 }
