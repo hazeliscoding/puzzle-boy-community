@@ -60,7 +60,7 @@ internal sealed partial class CommunityGame
             return;
         }
 
-        var place = beside ? $"The classic pack beside the game, in {folder}, is used read-only; importing one puts it in your data folder instead. " : "";
+        var place = beside ? "The classic pack in the classic-pack folder beside the game is used read-only; importing one puts it in your data folder instead. " : "";
         if (ClassicPack.Open(folder, checkHashes: false, out var problem) is not { } pack)
         {
             _classicSummary = $"{place}Your classic pack can't be used. {problem}";
