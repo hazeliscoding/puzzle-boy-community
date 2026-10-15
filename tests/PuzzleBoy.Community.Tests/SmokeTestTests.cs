@@ -8,8 +8,8 @@ public class SmokeTestTests
         var output = new StringWriter();
         Assert.Equal(0, SmokeTest.Run(Repo.Content, output));
         var report = output.ToString();
-        Assert.Contains("content: 1 pack(s), 3 stage(s), 4 fonts", report);
-        Assert.Contains("stage first-steps/walk-to-the-goal: PlusX walked from (1, 1) to (2, 1)", report);
+        Assert.Contains("content: 1 pack(s), 20 stage(s), 4 fonts", report);
+        Assert.Contains("stage first-steps/garden-path: PlusX walked from (6, 7) to (7, 7)", report);
         Assert.EndsWith("smoke test passed" + Environment.NewLine, report);
     }
 
@@ -17,10 +17,10 @@ public class SmokeTestTests
     public void The_smoke_test_fails_with_the_reason_when_a_stage_is_broken()
     {
         using var temp = TempFolder.WithContent();
-        temp.Write("stages/first-steps/first-hole.json", "{}");
+        temp.Write("stages/first-steps/stepping-stone.json", "{}");
         var output = new StringWriter();
         Assert.Equal(1, SmokeTest.Run(temp.Path, output));
-        Assert.Contains("problem: stages/first-steps, stage \"first-hole\": ", output.ToString());
+        Assert.Contains("problem: stages/first-steps, stage \"stepping-stone\": ", output.ToString());
         Assert.EndsWith("smoke test failed" + Environment.NewLine, output.ToString());
     }
 

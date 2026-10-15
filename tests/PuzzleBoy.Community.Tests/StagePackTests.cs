@@ -4,7 +4,7 @@ namespace PuzzleBoy.Community.Tests;
 
 public class StagePackTests
 {
-    private static readonly string FirstPush = File.ReadAllText(Path.Combine(Repo.Content, "stages", "first-steps", "first-push.json"));
+    private static readonly string Nudge = File.ReadAllText(Path.Combine(Repo.Content, "stages", "first-steps", "nudge.json"));
 
     private static string Pack(string stages, string header = "\"format\": \"puzzle-boy-pack\", \"schemaVersion\": 1") =>
         $$"""{ {{header}}, "packId": "test", "title": "Test", "creator": "Tests", "license": "CC0-1.0", "stages": [{{stages}}] }""";
@@ -21,8 +21,8 @@ public class StagePackTests
     public void A_pack_loads_its_stages_in_order_with_pack_scoped_ids()
     {
         using var temp = new TempFolder();
-        temp.Write("pack/a.json", FirstPush);
-        temp.Write("pack/more/b.json", FirstPush);
+        temp.Write("pack/a.json", Nudge);
+        temp.Write("pack/more/b.json", Nudge);
         temp.Write("pack/pack.json", Pack($"{Entry("second", "more/b.json")}, {Entry("first", "a.json")}"));
         var (pack, problems) = Load(temp);
         Assert.Empty(problems);
@@ -33,7 +33,7 @@ public class StagePackTests
     public void A_stage_hint_loads_and_an_overlong_one_leaves_the_stage_out()
     {
         using var temp = new TempFolder();
-        temp.Write("pack/a.json", FirstPush);
+        temp.Write("pack/a.json", Nudge);
         var hinted = $$"""{ "id": "hinted", "title": "A stage", "file": "a.json", "hint": "Push it." }""";
         var overlong = $$"""{ "id": "overlong", "title": "A stage", "file": "a.json", "hint": "{{new string('x', StagePack.MaxHint + 1)}}" }""";
         temp.Write("pack/pack.json", Pack($"{hinted}, {overlong}"));
@@ -56,8 +56,8 @@ public class StagePackTests
     public void A_stage_file_outside_the_pack_folder_or_missing_is_refused(string file, string problem)
     {
         using var temp = new TempFolder();
-        temp.Write("outside.json", FirstPush);
-        temp.Write("pack/a.json", FirstPush);
+        temp.Write("outside.json", Nudge);
+        temp.Write("pack/a.json", Nudge);
         temp.Write("pack/pack.json", Pack($"{Entry("ok", "a.json")}, {Entry("bad", file)}"));
         var (pack, problems) = Load(temp);
         Assert.Contains(problem, Assert.Single(problems));
@@ -71,7 +71,7 @@ public class StagePackTests
         // Declared first so it outlives the link, which can only be deleted while its target exists.
         using var outside = new TempFolder();
         using var temp = new TempFolder();
-        outside.Write("a.json", FirstPush);
+        outside.Write("a.json", Nudge);
         temp.Write("pack/pack.json", Pack(Entry("linked", "linked/a.json")));
         TempFolder.LinkFolder(Path.Combine(temp.Path, "pack", "linked"), outside.Path);
         var (pack, problems) = Load(temp);
@@ -88,7 +88,7 @@ public class StagePackTests
     public void A_stage_id_outside_the_allowed_characters_is_refused(string id, string problem)
     {
         using var temp = new TempFolder();
-        temp.Write("pack/a.json", FirstPush);
+        temp.Write("pack/a.json", Nudge);
         temp.Write("pack/pack.json", Pack(Entry(id, "a.json")));
         Assert.Contains(problem, Assert.Single(Load(temp).Problems));
     }
@@ -97,7 +97,7 @@ public class StagePackTests
     public void Two_stages_with_one_id_are_refused()
     {
         using var temp = new TempFolder();
-        temp.Write("pack/a.json", FirstPush);
+        temp.Write("pack/a.json", Nudge);
         temp.Write("pack/pack.json", Pack($"{Entry("same", "a.json")}, {Entry("same", "a.json")}"));
         var (pack, problems) = Load(temp);
         Assert.Equal(["pack, stage \"same\": another stage in this pack has the same id."], problems);
@@ -108,7 +108,7 @@ public class StagePackTests
     public void A_stage_that_breaks_a_rule_reports_the_engine_problem_with_its_cell()
     {
         using var temp = new TempFolder();
-        temp.Write("pack/bad.json", FirstPush.Replace("\"goal\": [7, 5]", "\"goal\": [0, 0]", StringComparison.Ordinal));
+        temp.Write("pack/bad.json", Nudge.Replace("\"goal\": [12, 10]", "\"goal\": [0, 0]", StringComparison.Ordinal));
         temp.Write("pack/pack.json", Pack(Entry("bad", "bad.json")));
         var (pack, problems) = Load(temp);
         Assert.StartsWith("pack, stage \"bad\": (0, 0): ", Assert.Single(problems));

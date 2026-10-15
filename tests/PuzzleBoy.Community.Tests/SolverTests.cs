@@ -148,7 +148,7 @@ public class SolverTests
     public void The_command_reports_a_known_layout_and_fails()
     {
         using var temp = new TempFolder();
-        var stage = Path.Combine(Repo.Content, "stages", "first-steps", "first-push.json");
+        var stage = Path.Combine(Repo.Content, "stages", "first-steps", "nudge.json");
         var document = StageDocument.Parse(File.ReadAllText(stage));
         var known = temp.Write("known.txt", $"terrain {LayoutFingerprint.Terrain(document.Stage)}\n");
         var output = new StringWriter();
@@ -157,10 +157,20 @@ public class SolverTests
     }
 
     [Fact]
-    public void The_command_passes_the_starter_pack_against_the_real_list()
+    public void The_command_passes_a_pack_of_the_first_campaign_stages_against_the_real_list()
     {
+        // The whole campaign takes about a minute to solve; its replays in SolutionTests prove it clears.
+        using var temp = new TempFolder();
+        string[] ids = ["garden-path", "nudge", "stepping-stone"];
+        foreach (var id in ids)
+        {
+            temp.Write($"pack/{id}.json", File.ReadAllText(Path.Combine(Repo.Content, "stages", "first-steps", $"{id}.json")));
+        }
+
+        var entries = string.Join(", ", ids.Select(id => $$"""{ "id": "{{id}}", "title": "{{id}}", "file": "{{id}}.json" }"""));
+        temp.Write("pack/pack.json", $$"""{ "format": "puzzle-boy-pack", "schemaVersion": 1, "packId": "test", "title": "Test", "creator": "Tests", "license": "Apache-2.0", "stages": [{{entries}}] }""");
         var output = new StringWriter();
-        Assert.Equal(0, StageCheckCommand.Run([Path.Combine(Repo.Content, "stages", "first-steps"), "--known", Repo.KnownLayouts], output));
+        Assert.Equal(0, StageCheckCommand.Run([Path.Combine(temp.Path, "pack"), "--known", Repo.KnownLayouts], output));
         Assert.Equal(3, output.ToString().Split('\n').Count(l => l.StartsWith("  solved in ", StringComparison.Ordinal)));
     }
 

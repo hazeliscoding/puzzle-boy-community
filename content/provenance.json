@@ -113,7 +113,7 @@
     {
       "path": "stages/**",
       "creator": "Puzzle Boy Community authors",
-      "source": "Original to this repository; no stage is a Nocturne layout (scripts/known-atlus-layouts.txt)",
+      "source": "Original stages designed for this repository and checked with tools/PuzzleBoy.StageCheck; no stage is a Nocturne layout (scripts/known-atlus-layouts.txt)",
       "category": "stage",
       "license": "Apache-2.0",
       "modified": false,

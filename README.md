@@ -8,6 +8,7 @@ Guide Pixel Jack, a pumpkin in a witch's hat, to the goal by pushing blocks, tur
 
 ## Features
 
+- Twenty original stages, from a first walk to the goal through blocks, holes, swivels and a team of up to three Jacks, each with a hint on the help screen.
 - Push blocks, turn swivels and fill holes with the same rules as the original, from puzzle-boy-engine.
 - Stage select with cleared, new and locked stages, your best moves and time, and a preview of each stage.
 - Progress and settings saved on your computer, with a backup if the file is ever damaged. No account, no network.

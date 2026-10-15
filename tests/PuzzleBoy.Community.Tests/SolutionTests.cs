@@ -64,10 +64,10 @@ public class SolutionTests
     }
 
     [Theory]
-    [InlineData("RRRRDDRR", "the stage isn't cleared at the end")]
-    [InlineData("RRRRDDRRRL", "the stage clears after input 9, before the end")]
-    [InlineData("URRRRDDRRR", "input 1 (U) is refused")]
-    [InlineData("SRRRRDDRRR", "input 1 (S) is refused")]
+    [InlineData("RRDDLLDDRRRRUUUURRDD", "the stage isn't cleared at the end")]
+    [InlineData("RRDDLLDDRRRRUUUURRDDDU", "the stage clears after input 21, before the end")]
+    [InlineData("URRDDLLDDRRRRUUUURRDDD", "input 1 (U) is refused")]
+    [InlineData("SRRDDLLDDRRRRUUUURRDDD", "input 1 (S) is refused")]
     public void A_wrong_solution_is_caught(string moves, string fault) =>
-        Assert.Equal(fault, Fault(Bundled["first-steps/walk-to-the-goal"], moves));
+        Assert.Equal(fault, Fault(Bundled["first-steps/garden-path"], moves));
 }

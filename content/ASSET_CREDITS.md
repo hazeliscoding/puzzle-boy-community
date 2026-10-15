@@ -6,7 +6,7 @@ Everything in this folder ships with Puzzle Boy Community Edition. `provenance.j
 
 By the Puzzle Boy Community authors (see the git history), licensed Apache-2.0 like the code:
 
-- the stages in `stages/`;
+- the 20 stages of the First Steps campaign in `stages/first-steps/`, designed for this game;
 - the default theme in `themes/default/`: the Pixel Jack mark and the brand palette, from puzzle-boy's `docs/brand/`. The block colors are the Okabe-Ito colorblind-safe set;
 - `manifest.json`, `provenance.json` and this file.
 

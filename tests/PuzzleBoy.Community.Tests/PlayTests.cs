@@ -75,7 +75,7 @@ public class PlayTests
     [Fact]
     public void Steps_wait_for_the_animation_and_every_animation_is_short()
     {
-        var session = At("first-steps/first-hole");
+        var session = At("first-steps/nudge");
         Assert.Equal(StepResult.Walked, session.Step(Direction.PlusX));
         Assert.Equal(StepResult.Refused, session.Step(Direction.PlusX));
         var ticks = 0;
@@ -92,41 +92,41 @@ public class PlayTests
     [Fact]
     public void Undo_takes_back_a_push_with_the_walking_since_and_restores_the_move_count()
     {
-        var session = At("first-steps/first-push");
-        Play(session, Direction.PlusX);
+        var session = At("first-steps/nudge");
         Play(session, Direction.PlusX);
         Assert.Equal(StepResult.Pushed, Play(session, Direction.PlusX));
-        Play(session, Direction.PlusX);
+        Assert.Equal(StepResult.Pushed, Play(session, Direction.PlusX));
+        Assert.Equal(StepResult.Walked, Play(session, Direction.PlusY));
         Assert.Equal((4, 2), (session.Moves, session.UndoAvailable));
 
         Assert.True(session.Undo());
-        Assert.Equal((3, 1), (session.Moves, session.UndoAvailable));
-        Assert.Equal((4, 2), (session.Board.Active.X, session.Board.Active.Y));
+        Assert.Equal((2, 1), (session.Moves, session.UndoAvailable));
+        Assert.Equal((9, 8), (session.Board.Active.X, session.Board.Active.Y));
         Assert.True(session.Undo());
-        Assert.Equal((2, 0), (session.Moves, session.UndoAvailable));
-        Assert.Equal((3, 2), (session.Board.Active.X, session.Board.Active.Y));
+        Assert.Equal((1, 0), (session.Moves, session.UndoAvailable));
+        Assert.Equal((8, 8), (session.Board.Active.X, session.Board.Active.Y));
         Assert.False(session.Undo());
     }
 
     [Fact]
     public void Restart_puts_the_stage_back_and_zeroes_the_count()
     {
-        var session = At("first-steps/first-push");
+        var session = At("first-steps/nudge");
         Play(session, Direction.PlusX);
         session.Restart();
         Assert.Equal(0, session.Moves);
-        Assert.Equal((1, 2), (session.Board.Active.X, session.Board.Active.Y));
+        Assert.Equal((7, 8), (session.Board.Active.X, session.Board.Active.Y));
     }
 
     [Fact]
     public void Switching_needs_more_than_one_visible_character() =>
-        Assert.False(At("first-steps/first-push").Switch());
+        Assert.False(At("first-steps/nudge").Switch());
 
     [Fact]
     public void A_cleared_stage_celebrates_then_continues_to_the_next_stage_of_the_pack()
     {
-        var session = At("first-steps/first-push");
-        foreach (var step in "RRRRRRDD")
+        var session = At("first-steps/nudge");
+        foreach (var step in "RRRRDR")
         {
             Play(session, step == 'R' ? Direction.PlusX : Direction.PlusY);
         }
@@ -142,7 +142,7 @@ public class PlayTests
         Assert.Equal(PlaySession.CelebrationTicks, session.ClearTicks);
         Assert.Equal(PlayEvents.ReachedGoal | PlayEvents.Cleared, events);
         Assert.True(session.Next());
-        Assert.Equal("first-steps/first-hole", session.Stage.Id);
+        Assert.Equal("first-steps/look-before-you-push", session.Stage.Id);
     }
 
     [Fact]
