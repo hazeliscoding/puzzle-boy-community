@@ -44,6 +44,9 @@ Puzzle Boy Community Edition is a standalone puzzle game on the Puzzle Boy rules
 - **A level pack is a `.zip` in the built-in pack format:** `pack.json` and `stages/*.json`, nothing else ([docs/packs.md](docs/packs.md)). Export, from a stage's actions in the editor's list, writes the ticked stages to `<data dir>/exports/<packId>.zip` through a temp file, the id made from the title as a stage's name is; the license is CC0-1.0 unless the player picks CC-BY-4.0, CC-BY-SA-4.0 or Apache-2.0. There's no native file dialog: the title and creator are typed in the game, and the screen shows the folders' full paths.
 - **Import checks everything before it writes.** Stage select's last tab, + Import, lists the `.zip` files in `<data dir>/imports`; `--import-pack <zip>` does the same from a command line. An archive is refused over 2 MiB, 256 entries, 64 KiB unpacked in an entry or 4 MiB in all; for an absolute, drive, UNC, backslashed or colon path, a `.`, `..` or empty part, a link, a name twice (ignoring case), another archive or any file but `pack.json` and `stages/*.json` (a `.md` or `.txt` is left out with a warning); and for a `pack.json` or stage that the content loader rejects, or a stage whose fingerprint is a known Nocturne layout. The checks run in a scratch folder outside the data folder; the pack then moves into `packs/<packId>` with one rename. A built-in pack's id is refused; an imported one's asks: replace it (progress stays) or keep both (`-2`). The known-layout list is copied beside the game for this, and without it nothing is imported or exported.
 - **Imported packs are tabs** between the bundled packs and My Stages, marked imported with their creator and license. They unlock in order like a bundled pack and save progress under `packId/id`.
+- **Classic import is stages only, and only on request.** Settings → Import Classic Content, or `--import-classic <folder>`, finds the player's own Nocturne HD Remaster (beside the game, in any Steam library, or a typed folder holding `smt3hd.exe`, a copy of `smt3hd_Data`, or copied bundles), reads the `pazzleboy` bundle, checks each stage file the two lists use with the engine's `Stage.Parse`, and stores the raw bytes in `<data dir>/classic/stages/` with an `index.json` of the source, the date and each file's SHA-256. A missing or damaged copy gives a message and writes nothing; an earlier import stays. Remove Classic Stages deletes the folder after asking and keeps the progress. The reader is adapted from puzzle-boy's `GameInstall` and is the only code that uses AssetsTools.NET (MIT); IL-walking tests show the title and content loading never reach `Classic/`, and that only the import screen and its command start an import. The import screen is reached from Settings only, never at startup or from stage select.
+- **The classic campaigns are tabs after the imported packs.** Classic: Original 20 plays files 2, 4, 32, 8, 38, 36, 37, 48, 42, 49, 40, 20, 22, 13, 21, 24, 14, 10, 25, 26 (puzzle-boy's `OriginalStageOrder`), and Classic: Bonus the 23 solved unused files 1, 30, 31, 0, 3, 9, 35, 43, 5, 6, 33, 7, 19, 47, 39, 41, 45, 34, 12, 46, 15, 11, 44 (puzzle-boy's ROADMAP M4, `PlayOrder.Bonus` at `pre-split-baseline`). Ids are `classic/original/NN` and `classic/bonus/NN` by file number, so progress survives a re-import. They unlock like any pack, with the one skip, since the original is a campaign too. A file that's missing, changed since the import or unreadable is left out with a notice; the rest play. They're never the player's stages, so the editor's export can't reach them, and a copy of one is refused by its fingerprint.
+- **No classic theme for now.** Board textures, backdrop and music from the player's install would need puzzle-boy's texture and audio readers (Fmod5Sharp, NVorbis, DXT decoding) in this game. The default theme is complete, and stages alone keep the compatibility module small, so the classic look moves to Later.
 
 ## C1: Instant play
 
@@ -83,11 +86,11 @@ The handoff's M5.
 
 The handoff's M6.
 
-- [ ] Optional import of the classic look from the player's own Nocturne install.
-- [ ] The solved unused stages as an Imported Bonus list, read from the player's install in the documented 23-file order.
-- [ ] Missing or damaged imports fall back to the default content with a message.
+- [x] Optional import of the classic stages from the player's own Nocturne install; the classic look moved to Later (decisions above). On the owner's machine (2026.10.15), `--import-classic` on the Steam install imported 43 stage files (20 of 20 original, 23 of 23 bonus) in 0.3 s; `--smoke-test --data-dir` on that folder loaded both campaigns, took a step on the first stage of each and found all 43 in the known-layout list; `--smoke-gui-screens` showed both tabs and the import screen. The scratch data folder was deleted afterwards. Find My Steam Install hasn't been tried on the real Steam install; tests run its search on scratch folders only.
+- [x] The solved unused stages as a Classic: Bonus list, read from the player's install in the documented 23-file order. `ClassicStagesTests` check both orders exactly, that they're disjoint, both campaigns from a handmade import in that order, a missing, changed and unreadable file each left out with the rest loading, the switch on a two-character classic stage, and that a copy of a classic stage won't export.
+- [x] Missing or damaged imports fall back to the default content with a message. `ClassicImportTests` cover no copy in any searched place, a blank, missing or bundle-less folder, and a garbage or empty `pazzleboy` in each place the reader looks: each has its own message, imports nothing, writes no data folder and leaves the file unlocked; a failed import keeps the earlier one. With nothing imported, stage select has no classic tab and nothing is written.
 
-**Done when** the default game still starts with no import, and a player's own files add the classic look and bonus stages without touching the built-in campaign.
+**Done when** the default game still starts with no import, and a player's own files add the classic stages and bonus stages without touching the built-in campaign.
 
 ## C5: Releases
 
@@ -101,6 +104,7 @@ The handoff's M7.
 
 ## Later
 
+- A classic theme from the player's own install: board textures, backdrop and music (decisions, 2026.10.15).
 - Key and controller remapping.
 - Hints built on the stage tool's solver.
 - More built-in packs.
