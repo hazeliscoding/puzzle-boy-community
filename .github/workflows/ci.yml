@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # Linux on purpose: it proves the game builds away from Windows. Nothing here needs Nocturne.
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+
+      # The rules come from the engine submodule. Without it, restore fails with a puzzling missing-project error.
+      - name: Engine submodule
+        run: |
+          if [ ! -f external/puzzle-boy-engine/src/PuzzleBoy.Rules/PuzzleBoy.Rules.csproj ]; then
+            echo "::error::external/puzzle-boy-engine is empty. Check out with submodules, or run: git submodule update --init"
+            exit 1
+          fi
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      # Atlus data and decompiler output never enter the repo. The test plants each kind and expects a failure.
+      - name: Content guard
+        run: |
+          scripts/check-content.test.sh
+          scripts/check-content.sh
+
+      - name: Restore
+        run: dotnet restore PuzzleBoy.Community.slnx
+
+      - name: Build
+        run: dotnet build PuzzleBoy.Community.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test --solution PuzzleBoy.Community.slnx --configuration Release --no-build
+
+      - name: Format
+        run: dotnet format PuzzleBoy.Community.slnx --verify-no-changes --no-restore

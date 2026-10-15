@@ -1,0 +1,8 @@
+# Normalize text to LF everywhere.
+* text=auto eol=lf
+
+# Fonts, images and sounds are binary.
+*.ttf binary
+*.png binary
+*.wav binary
+*.ogg binary
