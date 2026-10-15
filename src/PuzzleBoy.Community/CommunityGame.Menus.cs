@@ -305,7 +305,7 @@ internal sealed partial class CommunityGame
             var number = (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
             _ui.Text(Font.BodyBold, 22, number, new Vector2(layout.Left + 72, top + 12), ink, 1);
             _ui.Text(Font.BodyBold, 22, pack.Stages[index].Title, new Vector2(layout.Left + 86, top + 12), ink);
-            _ui.Text(Font.Title, 13, StatusWord(status), new Vector2(layout.Left + layout.Width - 16, top + 18), ink, 1, 1);
+            _ui.Text(Font.Title, 16, StatusWord(status), new Vector2(layout.Left + layout.Width - 16, top + 16), ink, 1, 1);
         }
 
         // Chevrons say there's more above or below; the counter says where the focus is.
@@ -320,7 +320,7 @@ internal sealed partial class CommunityGame
             Chevron(middle, layout.Top + (SelectRows * layout.Spacing) + 6, up: false);
         }
 
-        _ui.Text(Font.Title, 13, $"{_selectMenu.Focus + 1} / {_selectable.Count}", new Vector2(layout.Left + layout.Width, layout.Top + (SelectRows * layout.Spacing) + 4), _ui["cream"] * 0.7f, 1, 1);
+        _ui.Text(Font.Title, 16, $"{_selectMenu.Focus + 1} / {_selectable.Count}", new Vector2(layout.Left + layout.Width, layout.Top + (SelectRows * layout.Spacing) + 4), _ui["cream"] * 0.7f, 1, 1);
         DrawStageDetails();
         _ui.Hints([("Arrows", "Choose"), ("Enter", "Play"), ("Esc", "Back")], 640, 660, _ui["cream"], 17);
         _ui.End();
@@ -334,7 +334,7 @@ internal sealed partial class CommunityGame
         var status = StatusOf(_save.Data, pack.Stages, index);
         var (x, y, width, height) = (690f, 150f, 520f, 460f);
         _ui.Panel(x, y, width, height, _ui["ink"] * 0.78f);
-        _ui.Text(Font.Title, 14, $"{pack.Title.ToUpperInvariant()}  ·  STAGE {index + 1} OF {pack.Stages.Count}", new Vector2(x + 24, y + 18), _ui["bandOnDark"], spacing: 1);
+        _ui.Text(Font.Title, 16, $"{pack.Title.ToUpperInvariant()}  ·  STAGE {index + 1} OF {pack.Stages.Count}", new Vector2(x + 24, y + 18), _ui["bandOnDark"], spacing: 1);
         _ui.Text(Font.BodyBold, 30, stage.Title, new Vector2(x + 24, y + 40), _ui["cream"]);
         StatusIcon(status, x + 24, y + 88, 22, _ui["cream"]);
         _ui.Text(Font.BodyBold, 19, status switch

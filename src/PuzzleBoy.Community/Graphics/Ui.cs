@@ -64,7 +64,10 @@ internal sealed class Ui : IDisposable
         }
     }
 
-    /// <summary>How big body text is drawn, as a multiple of the size asked for; titles keep their size.</summary>
+    /// <summary>
+    /// How big body text and small labels (Silkscreen at 18 px or less) are drawn, as a multiple of the size asked for;
+    /// headings keep their size.
+    /// </summary>
     public float TextScale { get; set; } = 1f;
 
     /// <summary>True draws text and panels at full strength, however faded the caller asks for, unless nearly gone.</summary>
@@ -247,8 +250,11 @@ internal sealed class Ui : IDisposable
         }
     }
 
-    // Body text follows the UI scale; titles are display type and keep their layout.
-    private float Scaled(Font font, float size) => font is Font.Body or Font.BodyBold ? size * TextScale : size;
+    // The largest Silkscreen size that counts as a small label rather than a heading.
+    private const float SmallLabel = 18;
+
+    // Body text and the small labels a player has to read follow the UI scale; headings are display type and keep their layout.
+    private float Scaled(Font font, float size) => font is Font.Body or Font.BodyBold || (font == Font.Title && size <= SmallLabel) ? size * TextScale : size;
 
     // In high contrast a dimmed color is drawn opaque, unless it's fading out (alpha below the threshold).
     private Color Strong(Color color, byte threshold) =>
