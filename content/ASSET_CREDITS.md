@@ -21,4 +21,8 @@ Both are licensed under the SIL Open Font License 1.1, whose text ships beside t
 
 ## Inspiration and trademarks
 
-Inspired by Puzzle Boy (Atlus) and its 3D version in *Shin Megami Tensei III: Nocturne*. *Puzzle Boy*, *Shin Megami Tensei* and *Nocturne* are trademarks of ATLUS and SEGA. This is an independent fan project. It is not affiliated with or endorsed by either company, and it contains no ATLUS or SEGA assets.
+Inspired by Puzzle Boy (Atlus) and its 3D version in *Shin Megami Tensei III: Nocturne*. *Puzzle Boy*, *Shin Megami Tensei* and *Nocturne* are trademarks of ATLUS and SEGA. This is an independent fan project. It is not affiliated with or endorsed by either company, and this download contains no ATLUS or SEGA assets.
+
+## Classic Nocturne theme
+
+Classic theme: board, Jack-o'-Lantern, backdrop, music and sound effects © ATLUS / SEGA, read from your own copy of Shin Megami Tensei III Nocturne HD Remaster; not included with this game.
