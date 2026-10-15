@@ -34,6 +34,13 @@ Puzzle Boy Community Edition is a standalone puzzle game on the Puzzle Boy rules
 - **A restart can be undone.** R sits beside E, and a late stage takes up to 161 moves, so Undo with nothing left since a restart brings back the board, the move count, the undo history and the clock from before it. It works the same from the pause menu and the pad.
 - **Antialiasing is optional.** Some GL drivers, such as Mesa under WSLg, offer no multisampled context, and MonoGame then can't create a device. The game retries once without multisampling and says so on stderr; if that fails too, it explains on stderr and exits 1. A self-contained linux-x64 publish passed `--smoke-gui` under WSLg (Ubuntu 24.04, Mesa 25.2.8) this way, so WSLg is a tested configuration (2026.10.15).
 - **`--smoke-gui-screens <dir>`** walks the title, stage select, settings, play, pause and help through the real menus and saves each as a PNG, for checking a visual change and for the README.
+- **The level editor works on the engine's `StageBuilder`** and checks with its `Validate`, so the editor, the stage tool and the packs agree on what a stage is. Its logic (`StageEditor`, `EditorView`, `CustomStages`) is plain classes with tests; the screen only draws and routes input. The canvas is top-down with +y up the screen, as play shows it, and coordinates are the engine's `(x, y)`.
+- **A group's number and its look are separate.** The editor shows each part's group number on it as well as its color and pattern, since 7 colors and 8 patterns repeat. Painting never changes another cell's group, and N picks the lowest group no tile uses (1 to 35, the most the stage JSON writes), so two groups never merge by accident. A group stays one kind: a block can't be painted into a swivel's group, nor a second center.
+- **Editor undo is its own,** apart from play's 30 steps: up to 200 changes, a whole stroke or rectangle is one, and undoing back to the saved stage makes it clean again.
+- **A stage is saved only when it has no problems,** so every saved stage plays. Saves are engine stage JSON in `<data dir>/custom/<name>.json`, written to a temp file and moved over. The name comes from the title on the first save: accents dropped, lowercase ASCII letters and digits, every other run one dash, at most 48 characters, `stage` when nothing is left, `-stage` after a Windows device name such as `con`, and `-2`, `-3` when taken. Renaming keeps the file, so progress stays with it. Delete asks first and drops the stage's progress; closing a stage with unsaved changes asks too. Invalid drafts can't be saved yet.
+- **Playtest goes through the play screen** with a stage built from the editor, so the shared `Board` and session run it and the document is never touched. Nothing is recorded. Esc or a clear returns to the editor with the stage, cursor and undo history as they were; P pauses.
+- **Solve (capped) searches at most 250,000 positions** in the background with the stage tool's solver, now in `Play/`. Reaching the cap reads "Search limit reached (not proven unsolvable)", never unsolvable, and a result for a stage changed since is dropped.
+- **My Stages is a tab of stage select,** after the bundled packs. Its stages have ids `custom/<name>`, are always open, and save progress like any other.
 
 ## C1: Instant play
 
@@ -63,9 +70,9 @@ The handoff's M4.
 
 The handoff's M5.
 
-- [ ] Paint tiles, groups, the goal and starts; validate with messages that name the cell.
-- [ ] Editor undo and redo, and playtest without changing the saved stage.
-- [ ] Save, load, export and import portable packs, with safe file handling.
+- [x] Paint tiles, groups, the goal and starts; validate with messages that name the cell. Tools for wall, floor, hole, block, swivel center and arm (each optionally over a hole), goal, starts 1 to 4 and an eraser; rectangles; pan and zoom; a keyboard cursor; the title. `EditorTests` cover the tools, groups, starts, validation and the view. `--smoke-gui-screens` opened a bundled stage saved as the player's, split a block group through the keyboard, and showed "(3, 6) Block group 4 is split" with the cell marked and the cursor on it (2026.10.15).
+- [x] Editor undo and redo, and playtest without changing the saved stage. `EditorTests` cover a stroke as one step, redo, and clean again after undoing to the save. The smoke run checked that P refuses the split stage, undid it with Ctrl+Z, playtested it and came back with the same stage, cursor and redo, and Solve reported "Solved: it clears in 45 moves" (2026.10.15).
+- [ ] Save, load, export and import portable packs, with safe file handling. So far (2026.10.15): save, load, duplicate and delete of the player's stages under safe names (`CustomStagesTests`, including `..`, device names and a file in the folder's place), listed in stage select's My Stages (seen in the smoke run). Export and import of packs are still to do.
 
 **Done when** a stage can be created, validated, playtested, saved, loaded after a restart, exported, imported on a fresh profile and played.
 
