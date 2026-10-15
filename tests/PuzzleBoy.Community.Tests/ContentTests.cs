@@ -133,7 +133,40 @@ public class ContentTests
     {
         using var temp = TempFolder.WithContent();
         temp.Write(file, "x");
-        Assert.Equal([$"{file}: content may only hold .json, .md, .txt, .ttf, .png, .wav, .ogg files."], Provenance.Check(temp.Path));
+        Assert.Contains($"{file}: content may only hold .json, .md, .txt, .ttf, .png, .wav, .ogg files.", Provenance.Check(temp.Path));
+    }
+
+    [Fact]
+    public void A_file_beside_the_stages_isnt_covered_by_their_provenance_or_their_pack()
+    {
+        using var temp = TempFolder.WithContent();
+        temp.Write("stages/first-steps/texture.png", "\u0089PNG");
+        Assert.Equal(["stages/first-steps/texture.png: no entry in provenance.json covers this file."], Provenance.Check(temp.Path));
+        var problems = new List<string>();
+        ContentManifest.Load(temp.Path, problems);
+        Assert.Equal(["stages/first-steps/texture.png: the pack doesn't list this file."], problems);
+    }
+
+    [Fact]
+    public void A_stage_file_its_pack_doesnt_list_is_caught()
+    {
+        using var temp = TempFolder.WithContent();
+        temp.Write("stages/first-steps/extra/unlisted.json", "UnityFS");
+        var problems = new List<string>();
+        ContentManifest.Load(temp.Path, problems);
+        Assert.Equal(["stages/first-steps/extra/unlisted.json: the pack doesn't list this file."], problems);
+    }
+
+    [Fact]
+    public void A_file_by_anyone_else_needs_a_hash_whatever_its_source_says()
+    {
+        using var temp = TempFolder.WithContent();
+        var provenance = JsonNode.Parse(File.ReadAllText(Path.Combine(temp.Path, "provenance.json")))!;
+        var font = provenance["entries"]![3]!.AsObject();
+        font["source"] = "a friend's hard drive";
+        font.Remove("sha256");
+        temp.Write("provenance.json", provenance.ToJsonString());
+        Assert.Equal(["provenance.json, entry 4 (fonts/AtkinsonHyperlegible-Regular.ttf): a file from elsewhere needs its own entry with a \"sha256\"."], Provenance.Check(temp.Path));
     }
 
     [Fact]

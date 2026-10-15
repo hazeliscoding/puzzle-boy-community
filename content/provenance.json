@@ -111,7 +111,7 @@
       "redistribution": "allowed"
     },
     {
-      "path": "stages/**",
+      "path": "stages/**/*.json",
       "creator": "Puzzle Boy Community authors",
       "source": "Original stages designed for this repository and checked with tools/PuzzleBoy.StageCheck; no stage is a Nocturne layout (scripts/known-atlus-layouts.txt)",
       "category": "stage",

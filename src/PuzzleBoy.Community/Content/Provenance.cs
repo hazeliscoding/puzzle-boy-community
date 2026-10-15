@@ -6,7 +6,8 @@ namespace PuzzleBoy.Community.Content;
 
 /// <summary>
 /// Checks <c>content/provenance.json</c> against the files beside it: every file is an allowed type and is covered by an
-/// entry, every entry is complete and covers a file, and a third-party file matches its recorded SHA-256.
+/// entry, every entry is complete and covers a file, and a file from any creator but <see cref="OwnCreator"/> has its own
+/// entry and matches its recorded SHA-256.
 /// </summary>
 internal static partial class Provenance
 {
@@ -15,6 +16,9 @@ internal static partial class Provenance
 
     /// <summary>The properties every entry needs.</summary>
     public static readonly string[] RequiredFields = ["path", "creator", "source", "category", "license", "modified", "redistribution"];
+
+    /// <summary>The creator of this repository's own content; every other creator's file needs a recorded SHA-256.</summary>
+    public const string OwnCreator = "Puzzle Boy Community authors";
 
     private const int MaxBytes = 256 * 1024;
 
@@ -95,9 +99,9 @@ internal static partial class Provenance
 
             covered.UnionWith(matches);
 
-            // Third-party files are pinned to the exact bytes whose license was checked.
+            // Third-party files are pinned to the exact bytes whose license was checked, wherever they came from.
             var hash = ContentFile.String(entry, "sha256");
-            if (ContentFile.String(entry, "source") is { } source && source.StartsWith("http", StringComparison.Ordinal) && (hash is null || path.Contains('*')))
+            if (ContentFile.String(entry, "creator") is { } creator && creator != OwnCreator && (hash is null || path.Contains('*')))
             {
                 problems.Add($"{where}: a file from elsewhere needs its own entry with a \"sha256\".");
             }

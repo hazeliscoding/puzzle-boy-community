@@ -77,10 +77,18 @@ internal sealed partial record StagePack(string PackId, string Title, string Cre
 
         var stages = new List<PackStage>();
         var ids = new HashSet<string>();
+        var listed = new HashSet<string>(StringComparer.Ordinal) { file };
         var number = 0;
         foreach (var entry in list.EnumerateArray())
         {
             number++;
+
+            // A file an entry names is the pack's even when the entry has a problem, reported below.
+            if (ContentFile.Resolve(folder, ContentFile.String(entry, "file"), "", []) is { } named)
+            {
+                listed.Add(named);
+            }
+
             var id = ContentFile.String(entry, "id");
             var stageTitle = ContentFile.String(entry, "title");
             var stageWhere = $"{where}, stage {number}";
@@ -125,6 +133,20 @@ internal sealed partial record StagePack(string PackId, string Title, string Cre
             {
                 problems.AddRange(e.Problems.Select(p => $"{stageWhere}: {p}"));
             }
+        }
+
+        // Anything else in the folder would ship as part of the pack, credited as a stage and never checked.
+        try
+        {
+            var options = new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint };
+            foreach (var stray in Directory.EnumerateFiles(folder, "*", options).Select(Path.GetFullPath).Where(f => !listed.Contains(f)).Order(StringComparer.Ordinal))
+            {
+                problems.Add($"{label}/{Path.GetRelativePath(folder, stray).Replace('\\', '/')}: the pack doesn't list this file.");
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            problems.Add($"{label}: its files can't be listed ({e.Message}).");
         }
 
         return new StagePack(packId!, title!, creator!, license!, stages);
