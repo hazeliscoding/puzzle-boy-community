@@ -276,8 +276,11 @@ internal sealed partial class CommunityGame
         _ui.Begin();
         _ui.ShadowText(Font.TitleBold, 104, "PUZZLE BOY", new Vector2(88, 64), _ui["cream"], _ui["pumpkinShade"], spacing: 2, depth: 7);
         _ui.Text(Font.Title, 30, "COMMUNITY EDITION", new Vector2(96, 196), _ui["bandOnDark"], spacing: 5);
-        DrawMenu(_titleMenu, TitleItems, TitleMenu, 30);
-        _ui.Hints([("Arrows", "Choose"), ("Enter", "Select"), ("Esc", "Back")], 640, 636, _ui["cream"], 17);
+        // The editor comes with C3; until then it's marked, as stage select marks a locked stage.
+        DrawMenu(_titleMenu, TitleItems, TitleMenu, 30, soon: 2);
+
+        // Esc on the title only points at Quit, so the hints don't offer it as Back.
+        _ui.Hints([("Arrows", "Choose"), ("Enter", "Select")], 640, 636, _ui["cream"], 17);
         _ui.Text(Font.Body, 15, "A fan project inspired by Puzzle Boy. Not affiliated with or endorsed by ATLUS or SEGA.", new Vector2(640, 690), _ui["cream"] * 0.6f, 0.5f);
         _ui.End();
     }
@@ -490,9 +493,15 @@ internal sealed partial class CommunityGame
                 FocusBar(layout, top);
             }
 
-            var ink = focused ? _ui["ink"] : _ui["cream"] * 0.92f;
+            var ink = focused ? _ui["ink"] : _ui["cream"] * (row == SettingsMenu.ImportRow ? 0.6f : 0.92f);
             var textTop = top + ((layout.Spacing - 26) / 2);
             _ui.Text(Font.BodyBold, 21, SettingsMenu.Labels[row], new Vector2(layout.Left + 36, textTop), ink);
+            if (row == SettingsMenu.ImportRow)
+            {
+                // Classic import comes with C4.
+                SoonTag(layout, row, ink);
+            }
+
             if (!SettingsMenu.HasValue(row))
             {
                 continue;
@@ -633,8 +642,11 @@ internal sealed partial class CommunityGame
         _ui.Panel(layout.Left, top + 4, layout.Width, layout.Spacing - 8, _ui["ember"]);
     }
 
-    /// <summary>Draws a vertical menu with an ember bar behind the focused item.</summary>
-    private void DrawMenu(MenuList menu, string[] labels, MenuLayout layout, float size)
+    /// <summary>
+    /// Draws a vertical menu with an ember bar behind the focused item. Item <paramref name="soon"/>, if any, is dimmed and
+    /// tagged as not built yet.
+    /// </summary>
+    private void DrawMenu(MenuList menu, string[] labels, MenuLayout layout, float size, int soon = -1)
     {
         for (var i = 0; i < labels.Length; i++)
         {
@@ -646,10 +658,18 @@ internal sealed partial class CommunityGame
                 _ui.Rect(layout.Left + 14, top + (layout.Spacing / 2) - 5, 10, 10, _ui["ink"]);
             }
 
-            var color = focused ? _ui["ink"] : _ui["cream"] * 0.9f;
+            var color = focused ? _ui["ink"] : _ui["cream"] * (i == soon ? 0.6f : 0.9f);
             _ui.Text(Font.BodyBold, size, labels[i], new Vector2(layout.Left + 36, top + ((layout.Spacing - (size * _ui.TextScale * 1.2f)) / 2)), color);
+            if (i == soon)
+            {
+                SoonTag(layout, i, color);
+            }
         }
     }
+
+    /// <summary>A "SOON" tag at the right of item <paramref name="index"/> of a menu laid out as <paramref name="layout"/>.</summary>
+    private void SoonTag(MenuLayout layout, int index, Color color) =>
+        _ui.Text(Font.Title, 16, "SOON", new Vector2(layout.Left + layout.Width - 16, layout.Top + (index * layout.Spacing) + (layout.Spacing / 2) - (8 * _ui.TextScale)), color, 1, 1);
 
     /// <summary>
     /// Blocks drifting slowly through the dark, behind the menus; <paramref name="strength"/> dims them. They stand still
